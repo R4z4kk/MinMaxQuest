@@ -52,34 +52,9 @@ export function createArrow(db: CharDb): ArrowApi {
   labelText.SetTextColor(0.902, 0.902, 0.902);
   labelText.SetPoint("TOP", distanceText, "BOTTOM", 0, -2);
 
-  const grip = frame.CreateFontString(null, "OVERLAY");
-  grip.SetFont(FONT_PATH, 14, "OUTLINE");
-  grip.SetTextColor(0.788, 0.655, 0.353);
-  grip.SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0);
-  grip.SetText("::");
-  grip.Hide();
-
-  const outline: WowTexture[] = [];
-  const edges: [string, number, number][] = [
-    ["TOPLEFT", 56, 1],
-    ["BOTTOMLEFT", 56, 1],
-    ["TOPLEFT", 1, 80],
-    ["TOPRIGHT", 1, 80],
-  ];
-  for (const [point, width, height] of edges) {
-    const edge = frame.CreateTexture(null, "BORDER");
-    edge.SetColorTexture(1, 1, 1, 0.5);
-    edge.SetSize(width, height);
-    edge.SetPoint(point, frame, point, 0, 0);
-    edge.Hide();
-    outline.push(edge);
-  }
-
   let target: ArrowTarget | null = null;
   let locked = db.arrow?.locked ?? false;
   let hidden = db.hidden;
-  let hovering = false;
-  let dragging = false;
   let placing = false;
   let elapsedSum = 0;
   let lastKey = -1;
@@ -143,58 +118,25 @@ export function createArrow(db: CharDb): ArrowApi {
     if (left != null && top != null) db.arrow = { x: left, y: top, locked };
   }
 
-  function paintOutline(): void {
-    const show = !locked && (hovering || dragging);
-    for (const edge of outline) {
-      if (show) edge.Show();
-      else edge.Hide();
-    }
-    if (show) grip.Show();
-    else grip.Hide();
-  }
-
   function applyLock(next: boolean): void {
     locked = next;
-    hovering = false;
-    dragging = false;
-    paintOutline();
     frame.SetMovable(!locked);
     frame.EnableMouse(!locked);
     if (locked) {
-      frame.SetScript("OnEnter", null);
-      frame.SetScript("OnLeave", null);
       frame.SetScript("OnDragStart", null);
       frame.SetScript("OnDragStop", null);
     } else {
       frame.RegisterForDrag("LeftButton");
-      frame.SetScript("OnEnter", () => {
-        hovering = true;
-        paintOutline();
-      });
-      frame.SetScript("OnLeave", () => {
-        hovering = false;
-        paintOutline();
-      });
       frame.SetScript("OnDragStart", () => {
-        dragging = true;
-        paintOutline();
         frame.StartMoving();
       });
       frame.SetScript("OnDragStop", () => {
-        dragging = false;
-        paintOutline();
         frame.StopMovingOrSizing();
         savePosition();
       });
     }
     refresh();
   }
-
-  frame.SetScript("OnHide", () => {
-    hovering = false;
-    dragging = false;
-    paintOutline();
-  });
 
   applyLock(locked);
 
