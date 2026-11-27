@@ -182,6 +182,7 @@ function onEvent(event: string, arg1: unknown, arg3: unknown): void {
     if (arg3 === HEARTHSTONE_SPELL_ID) player.hearthCast();
   } else if (event === "HEARTHSTONE_BOUND") {
     player.hearthBound();
+    forcePending = true;
   } else if (event === "QUEST_LOG_UPDATE") {
     logDirty = true;
   } else if (FORCING_EVENTS.includes(event)) {

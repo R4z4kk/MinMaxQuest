@@ -99,6 +99,21 @@ it("records the hearth landing position after a hearthstone cast", async () => {
   }
 });
 
+it("refreshes after binding the hearthstone without moving", async () => {
+  const s = await loggedIn();
+  const reads = async () => (await s.run("return raceCalls")) as number;
+  try {
+    await s.run("now = 110");
+    await s.tick();
+    expect(await reads()).toBe(1);
+    await s.event(`"HEARTHSTONE_BOUND"`);
+    await s.tick();
+    expect(await reads()).toBe(2);
+  } finally {
+    s.close();
+  }
+});
+
 it("hides the arrow on a taxi and shows it again after landing", async () => {
   const s = await loggedIn();
   try {

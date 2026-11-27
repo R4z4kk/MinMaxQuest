@@ -51,4 +51,3 @@ Prérequis : `npm test` (construit `build/MinMaxQuest.lua`), puis lancer WoW For
 ## À signaler si constaté
 - Objectif visé déjà terminé (ordre des objectifs différent du jeu).
 - Paliers de monture (40 / 60) ou vitesse différents sur Forever.
-- Une pierre de foyer liée ailleurs ignorée tant que tu restes immobile (limite connue : il faut bouger de 10 m).
