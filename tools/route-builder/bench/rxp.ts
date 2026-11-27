@@ -119,7 +119,9 @@ export function benchmarkRxp(dir: string, world: World, routes: FactionRoutes, t
   for (const guide of RXP_GUIDES.filter((g) => g.faction === world.faction)) {
     const variants = routes.segments[guide.zone];
     const seg = segments(world).find((s) => s.name === guide.zone);
-    if (variants == null || seg == null) continue;
+    if (variants == null || Object.keys(variants).length === 0 || seg == null) {
+      throw new Error(`rxp: ${guide.file}: zone ${guide.zone} has no built segment for faction ${world.faction}`);
+    }
     if (seg.zoneMask == null) throw new Error(`rxp: ${guide.zone} has no race mask`);
     if (guide.finalLevel < seg.targetLevel) throw new Error(`rxp: ${guide.file} ends at level ${guide.finalLevel}, before the segment target ${seg.targetLevel}`);
     const path = join(dir, guide.file);
@@ -144,7 +146,7 @@ export function benchmarkRxp(dir: string, world: World, routes: FactionRoutes, t
       oursSeconds: ours.seconds,
       variant: ours.variant,
       steps: run.consumed,
-      dropped: parsed.droppedAt.filter((at) => at <= run.consumed).length,
+      dropped: parsed.droppedAt.filter((at) => (run.reached ? at < run.consumed : at <= run.consumed)).length,
       skipped: run.skipped,
     });
   }
