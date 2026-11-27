@@ -11,7 +11,7 @@ end
 calls = {}
 created = 0
 scripts = {}
-local VALUES = { GetStringWidth = 40, GetLeft = 100, GetTop = 700, GetFrameLevel = 1 }
+local VALUES = { GetStringWidth = 40, GetLeft = 100, GetTop = 700, GetRight = 156, GetFrameLevel = 1 }
 -- Layout state is kept per object. Set CHAR_WIDTH to a number to size GetStringWidth by text length
 -- (colour codes dropped, a |T..|t icon counts as two characters); otherwise it stays 40.
 CHAR_WIDTH = false
@@ -54,7 +54,12 @@ local function fake(name)
     end,
   })
 end
-CreateFrame = function(kind, name) created = created + 1; return fake(name) end
+templates = {}
+CreateFrame = function(kind, name, parent, template)
+  created = created + 1
+  if name ~= nil then templates[name] = template or false end
+  return fake(name)
+end
 UIParent = {}
 GetLocale = function() return "enUS" end
 MinMaxQuestDB = {}
@@ -72,7 +77,14 @@ UnitOnTaxi = function() return onTaxi end
 UnitIsDeadOrGhost = function() return false end
 UnitIsGhost = function() return false end
 hearthCount = 1
-C_Item = { GetItemCount = function() return hearthCount end }
+-- Bag counts and item spells by item id; the hearthstone count stays hearthCount.
+bags = {}
+itemSpells = {}
+C_Item = {
+  GetItemCount = function(id) if id == 6948 then return hearthCount end return bags[id] or 0 end,
+  GetItemSpell = function(id) if itemSpells[id] then return itemSpells[id], 1 end end,
+  GetItemIconByID = function(id) return 1000 + id end,
+}
 player = { 1000, 2000 }
 UnitPosition = function() return player[1], player[2], 0, 0 end
 GetPlayerFacing = function() return 0 end
@@ -99,7 +111,9 @@ QuestLogTitle1 = fake("QuestLogTitle1")
 QuestLogTitle1.GetID = function() return 1 end
 QUESTS_DISPLAYED = 1
 hooksecurefunc = function() end
-InCombatLockdown = function() return false end
+inCombat = false
+InCombatLockdown = function() return inCombat end
+GameTooltip = fake("GameTooltip")
 FauxScrollFrame_GetOffset = function() return 0 end
 CreateVector2D = function(x, y) return { x = x, y = y } end
 C_Map = {

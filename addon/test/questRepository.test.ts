@@ -110,6 +110,20 @@ describe("createQuestRepository", () => {
     expect(result.repo.itemSources(5)).toEqual({ npcs: [7, 8], objects: [] });
   });
 
+  it("reads the quest items, null and empty when absent", () => {
+    const result = createQuestRepository(
+      fakeLib({
+        1: { name: "A", questLevel: 1, sourceItemId: 900, requiredSourceItems: [901, 902] },
+        2: { name: "B", questLevel: 1 },
+        3: { name: "C", questLevel: 1, sourceItemId: 0 },
+      }),
+    );
+    if (!result.ok) throw new Error(result.message);
+    expect(result.repo.get(1)).toMatchObject({ sourceItemId: 900, requiredSourceItems: [901, 902] });
+    expect(result.repo.get(2)).toMatchObject({ sourceItemId: null, requiredSourceItems: [] });
+    expect(result.repo.get(3)?.sourceItemId).toBeNull();
+  });
+
   it("flags unsupported requirements", () => {
     const result = createQuestRepository(fakeLib({ 1: { name: "A", questLevel: 1, requiredSkill: [164, 50] } }));
     if (!result.ok) throw new Error(result.message);

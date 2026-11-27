@@ -11,6 +11,7 @@ export interface CharDb {
   activeMode: "quest" | "completion";
   window: { x: number; y: number } | null;
   arrow: { x: number; y: number; locked: boolean } | null;
+  itemButton: { x: number; y: number } | null;
   completion: {
     mode: "proximity" | "zone" | "log";
     zoneAreaId: number | null;
@@ -41,6 +42,7 @@ export const CHAR_DEFAULTS: CharDb = {
   activeMode: "quest",
   window: null,
   arrow: null,
+  itemButton: null,
   completion: { mode: "proximity", zoneAreaId: null, showTrivial: true, showElite: true },
   minLevelGap: null,
   routeElites: false,
@@ -62,6 +64,7 @@ export const CHAR_DEFAULTS: CharDb = {
 const CHAR_SHAPES = {
   window: { x: 0, y: 0 },
   arrow: { x: 0, y: 0, locked: false },
+  itemButton: { x: 0, y: 0 },
   completion: { zoneAreaId: 0 },
   minLevelGap: 0,
   pinnedQuestId: 0,

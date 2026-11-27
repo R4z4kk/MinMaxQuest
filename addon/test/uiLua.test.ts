@@ -670,3 +670,85 @@ ${LAYOUT_LUA}`,
     });
   }
 }
+
+const ITEM_FAKES = `quests[100].sourceItemId = 900
+quests[100].requiredSourceItems = { 901 }
+bags[900] = 2
+itemSpells[900] = "Use"
+itemSpells[901] = "Use"`;
+const SECURE_CALL = /^MinMaxQuestItem(Holder|Button)\|(SetAttribute|Show|Hide|SetPoint|ClearAllPoints|StartMoving|StopMovingOrSizing|EnableMouse)\b/;
+
+it("shows the quest item button for the target's usable bag item, right of the arrow", async () => {
+  const s = await ui(ITEM_FAKES);
+  try {
+    expect(await s.run(`return templates.MinMaxQuestItemButton`)).toBe("SecureActionButtonTemplate");
+    expect(await s.run(`return templates.MinMaxQuestItemButtonCooldown`)).toBe("CooldownFrameTemplate");
+    const calls = await s.calls();
+    expect(calls).toContain("MinMaxQuestItemButton|SetAttribute|type|item");
+    expect(calls.filter((c) => c.startsWith("MinMaxQuestItemButton|SetAttribute|item|")).pop()).toBe(
+      "MinMaxQuestItemButton|SetAttribute|item|item:900",
+    );
+    expect(calls.filter((c) => c.startsWith("MinMaxQuestItemHolder|SetPoint|")).pop()).toMatch(/\|TOPLEFT\|.*\|BOTTOMLEFT\|160\|700$/);
+    expect(await s.visibilityOf("MinMaxQuestItemHolder")).toBe("MinMaxQuestItemHolder|Show");
+    expect(calls).toContain("font|SetText|2");
+    await s.run("bags[900] = 0; bags[901] = 0");
+    await s.event(`"BAG_UPDATE_DELAYED"`);
+    expect(await s.visibilityOf("MinMaxQuestItemHolder")).toBe("MinMaxQuestItemHolder|Hide");
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("defers an item change in combat until PLAYER_REGEN_ENABLED", async () => {
+  const s = await ui(ITEM_FAKES);
+  try {
+    await s.clearCalls();
+    await s.run("inCombat = true; bags[900] = 0; bags[901] = 1");
+    await s.event(`"BAG_UPDATE_DELAYED"`);
+    await s.cmd("arrow lock");
+    expect((await s.calls()).filter((c) => SECURE_CALL.test(c))).toEqual([]);
+    await s.run("inCombat = false");
+    await s.event(`"PLAYER_REGEN_ENABLED"`);
+    const calls = await s.calls();
+    expect(calls).toContain("MinMaxQuestItemButton|SetAttribute|item|item:901");
+    expect(await s.visibilityOf("MinMaxQuestItemHolder")).toBe("MinMaxQuestItemHolder|Show");
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("drags the item holder by its grip only while unlocked and out of combat", async () => {
+  const s = await ui(ITEM_FAKES);
+  const drag = async () => {
+    await s.clearCalls();
+    await s.run(`scripts["MinMaxQuestItemHolder.OnDragStart"](nil); scripts["MinMaxQuestItemHolder.OnDragStop"](nil)`);
+    return (await s.calls()).includes("MinMaxQuestItemHolder|StartMoving");
+  };
+  try {
+    await s.cmd("arrow lock");
+    expect(await drag()).toBe(false);
+    expect(await s.run("return MinMaxQuestCharDB.itemButton == nil")).toBe(true);
+    await s.cmd("arrow move");
+    await s.run("inCombat = true");
+    expect(await drag()).toBe(false);
+    expect(await s.run("return MinMaxQuestCharDB.itemButton == nil")).toBe(true);
+    await s.run("inCombat = false");
+    expect(await drag()).toBe(true);
+    expect(await s.run("return MinMaxQuestCharDB.itemButton.x .. ',' .. MinMaxQuestCharDB.itemButton.y")).toBe("100,700");
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("places the item holder at its saved position", async () => {
+  const s = await ui(`${ITEM_FAKES}
+MinMaxQuestCharDB = { itemButton = { x = 300, y = 400 } }`);
+  try {
+    expect((await s.calls()).filter((c) => c.startsWith("MinMaxQuestItemHolder|SetPoint|")).pop()).toMatch(/\|TOPLEFT\|.*\|BOTTOMLEFT\|300\|400$/);
+  } finally {
+    s.close();
+  }
+});

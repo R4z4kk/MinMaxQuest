@@ -9,6 +9,7 @@ export interface ArrowTarget {
 }
 
 export interface ArrowApi {
+  frame: WowFrame;
   setTarget(target: ArrowTarget | null): void;
   setLocked(locked: boolean): void;
   isLocked(): boolean;
@@ -169,6 +170,7 @@ export function createArrow(db: CharDb): ArrowApi {
   });
 
   return {
+    frame,
     setTarget(next) {
       target = next;
       lastKey = -1;

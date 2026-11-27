@@ -94,18 +94,22 @@ function greenRange(): number {
 }
 
 // Same order as Questie QuestieCompat.GetItemCount.
-function itemCount(itemId: number): number {
+export function itemCount(itemId: number): number {
   const count = C_Item?.GetItemCount ?? GetItemCount;
   if (count == null) throw new Error("no item-count API");
   return count(itemId);
 }
 
 // Same order as Questie QuestieCompat.GetItemCooldown.
-export function hearthReady(): boolean {
-  if (!(itemCount(HEARTHSTONE_ITEM_ID) > 0)) return false;
+export function itemCooldown(itemId: number): LuaMultiReturn<[number, number, number | boolean]> {
   const getter = C_Container?.GetItemCooldown ?? C_Item?.GetItemCooldown ?? GetItemCooldown;
   if (getter == null) throw new Error("no item-cooldown API");
-  const [start, duration] = getter(HEARTHSTONE_ITEM_ID);
+  return getter(itemId);
+}
+
+export function hearthReady(): boolean {
+  if (!(itemCount(HEARTHSTONE_ITEM_ID) > 0)) return false;
+  const [start, duration] = itemCooldown(HEARTHSTONE_ITEM_ID);
   return start === 0 || start + duration <= GetTime();
 }
 
