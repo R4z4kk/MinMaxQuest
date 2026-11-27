@@ -58,7 +58,8 @@ export function snapshotLib(s: QuestieSnapshot): LibQuestieDBApi {
     Support: {
       Get: ((name: string) => {
         if (name === "QuestXP") return { db: s.questXp };
-        if (name === "ZoneDB") return { private: { areaIdToUiMapId: s.areaIdToUiMapId } };
+        // The snapshot already holds the override merged in.
+        if (name === "ZoneDB") return { private: { areaIdToUiMapId: s.areaIdToUiMapId, areaIdToUiMapIdOverride: {} } };
         throw new Error(`snapshot: unknown support module "${name}"`);
       }) as LibQuestieDBApi["Support"]["Get"],
     },
