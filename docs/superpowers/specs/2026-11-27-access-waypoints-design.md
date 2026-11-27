@@ -71,6 +71,24 @@ L'import échoue s'il ne trouve pas les fichiers Attune ou si leur format a chan
   - les étapes d'objet ou de mob d'une chaîne restent affichées dans l'onglet sans être insérées. **[choix Claude :** leur position n'est pas connue de façon fiable. **]**
 - **Fenêtre :** l'onglet garde sa taille. La liste défile si elle dépasse la place disponible. **[choix Claude]**
 
+## 2bis. Demandes du troisième essai en jeu (utilisateur)
+
+1. **La flèche suit la fenêtre :**
+   - `/mmq` affiche ou cache ensemble la fenêtre, la flèche et le bouton d'objet ;
+   - fenêtre cachée, flèche et bouton sont masqués ;
+   - le mode déplacement (« placing ») est une exception : on peut placer la flèche fenêtre ouverte. **[choix Claude]**
+2. **Bouton « œil »** à gauche de l'engrenage : un clic cache la fenêtre, la flèche et le bouton d'objet ; `/mmq` les fait revenir. L'état est sauvegardé par personnage. **[choix Claude]**
+3. **Contour de la flèche :** le contour pointillé et la poignée n'apparaissent qu'au survol de la souris quand la flèche est déverrouillée, et pendant un déplacement. Ils ne sont plus visibles en permanence. **[choix Claude]**
+4. **Proximité = zone actuelle + zones voisines :**
+   - en mode Proximité, la liste et les cibles se limitent aux quêtes dont la zone (`zoneAreaId` vers sa carte) est la carte actuelle ou une carte voisine ;
+   - **voisine [choix Claude] :** même continent, et rectangle monde (données de HereBeDragons, `mapData` : `left`, `top`, `width`, `height`) qui touche celui de la carte actuelle ou passe à moins de 300 yards ;
+   - une quête sans zone connue reste exclue de Proximité, mais apparaît en Zone et en Journal ;
+   - le compteur « restantes » suit le même périmètre.
+5. **Sous-onglets de Complétion :**
+   - sous la barre Quête / Accès / Complétion, une seconde rangée d'onglets du même style : **Proximité | Zone | Journal** ;
+   - un clic choisit directement le mode ; il n'y a plus de bouton qui fait défiler les modes ;
+   - le sélecteur de zone n'apparaît qu'en mode Zone.
+
 ## 3. Hors de ce lot
 - Télémétrie (Plan 3b), ALNS (3c), CI (3d).
 

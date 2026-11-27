@@ -223,6 +223,44 @@ An entry is complete when its `end` step, or else its last step, is done. A step
 - [ ] **Step 4: Run.** `npm test`, expect PASS.
 - [ ] **Step 5: Commit.** `docs: describe access entries and waypoints`
 
+### Task 6: Arrow follows the window, eye button, hover-only outline
+
+**Files:** `addon/src/ui/window.ts` (eye button left of the gear; visibility), `addon/src/main.ts` (`toggleWindow` also hides or shows the arrow and the item holder; the arrow sync respects window visibility), `addon/src/arrow/arrowFrame.ts` (outline and grip on `OnEnter`/`OnLeave` while unlocked, and while dragging), `addon/src/arrow/itemButton.ts` (hidden with the window, out of combat only, else queued), `addon/src/core/storage.ts` (`CharDb.hidden: boolean`), `addon/src/core/l10n.ts`, README.
+**Rules:**
+- `/mmq` toggles the window, the arrow and the item button together.
+- The eye hides all three and sets `hidden`; `/mmq` clears it.
+- While hidden, `syncArrow` hides the arrow.
+- Item holder Show/Hide only out of combat (queue otherwise).
+- The outline and grip are visible only while hovered or dragged when unlocked.
+- [ ] Compiled-Lua tests:
+  - `/mmq` hides and shows all three;
+  - the eye button hides them and the state survives reload;
+  - in combat the item holder change is deferred;
+  - the outline is hidden by default, shown on hover when unlocked, and never shown when locked.
+- [ ] Implement. `npm test` PASS.
+- [ ] Commit `feat: hide the arrow with the window and add an eye button`.
+
+### Task 7: Proximity limited to current and neighbouring zones
+
+**Files:** `addon/src/targets/completion.ts` (proximity filter by a set of uiMap ids), a new pure `addon/src/game/neighbours.ts` (`neighbourMaps(current: number, rects: MapRect[], marginYards = 300): Set<number>`), `addon/src/game/routing.ts` or `main.ts` (rects read once from HereBeDragons `mapData` / `C_Map.GetMapWorldSize` fallback and the zone maps of the current continent), `addon/src/ui/completionTab.ts` (counts), README.
+**Rules:** see the design §2bis.4. Quests whose zone map is unknown are excluded from Proximity only.
+- [ ] Tests:
+  - `neighbourMaps`: touching rects, a 250 yd gap, a 400 yd gap, another continent;
+  - Proximity returns only quests in those maps;
+  - Zone and Log are unchanged.
+- [ ] Implement. `npm test` PASS.
+- [ ] Commit `feat: limit proximity to the current and neighbouring zones`.
+
+### Task 8: Completion mode sub-tabs
+
+**Files:** `addon/src/ui/completionTab.ts` (a second tab row Proximity | Zone | Log in the same style as the window tabs, reusing the tab helper from `ui/window.ts`/`theme.ts` by export; the zone picker shown in Zone only; the cycle button removed), `addon/src/ui/viewModel.ts`, `addon/src/core/l10n.ts`, tests (replace the cycle tests with tab tests; keep the header-fit layout test for all modes and both locales), README.
+- [ ] Tests:
+  - clicking each sub-tab sets the mode and highlights it;
+  - the zone picker is visible only in Zone;
+  - the layout fits in enUS and frFR.
+- [ ] Implement. `npm test` PASS.
+- [ ] Commit `feat: switch completion modes with sub-tabs`.
+
 ## After the plan
 
 Open a PR `feat/access-waypoints`. Its base is `feat/polish-batch` until PR #6 merges, then `main`.
