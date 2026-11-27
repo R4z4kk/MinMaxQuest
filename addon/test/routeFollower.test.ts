@@ -205,3 +205,21 @@ it("labels a dungeon step without naming the entrance zone", () => {
   f.targets(snapshot(11));
   expect(f.view()?.nextTexts[0]).toBe("Run the dungeon");
 });
+
+it("exposes the displayed step identity, objective progress and next distance", () => {
+  install({ segmentEndLevel: 10 }, [
+    { ...grind(10, 10, "complete"), questId: 900, objectiveIndex: 1 },
+    grind(11, 20),
+  ]);
+  const db = loadCharDb(null);
+  const f = follower(db);
+  const snap = snapshot(10);
+  snap.log.set(900, { complete: false, objectivesDone: new Set(), counts: [{ have: 6, need: 10 }] });
+  snap.state.inLog.add(900);
+  f.targets(snap);
+  const view = f.view();
+  expect(view?.currentQuestId).toBe(900);
+  expect(view?.currentIndex).toBe(view?.current);
+  expect(view?.currentProgress).toEqual({ have: 6, need: 10 });
+  expect(view?.nextDistance).toBe(20);
+});

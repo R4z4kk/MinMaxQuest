@@ -47,7 +47,7 @@ export interface CompletionOptions {
 
 export interface CompletionInput {
   quests: QuestInfo[];
-  log: Map<number, { complete: boolean; objectivesDone: Set<number> }>;
+  log: Map<number, { complete: boolean; objectivesDone: Set<number>; counts?: { have: number; need: number }[] }>;
   player: PlayerQuestState;
   greenRange: number;
   positionsFor: (q: QuestInfo, kind: QuestTargetKind, objectiveIndex: number | null) => WorldPos[];

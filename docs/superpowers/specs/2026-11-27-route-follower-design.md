@@ -141,7 +141,7 @@ Ces étapes apparaissent dans « Ensuite ». « Passer » sur elles utilise `rou
 - Le résultat est mis en cache jusqu'au prochain changement d'option, de chaîne ou de donjon.
 
 ### 3.9 Onglet Quête
-Maquette validée : `.superpowers/brainstorm/*/content/window-v3.html` (spec §6.1). Taille 270 × 260.
+Maquette validée : `.superpowers/brainstorm/*/content/window-v3.html` (spec §6.1). Taille 270 × 262 (2 px de plus que la maquette, pour le pied de fenêtre).
 
 ```
  QUÊTE | Accès | Complétion

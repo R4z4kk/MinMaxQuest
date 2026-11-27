@@ -49,16 +49,27 @@ export function readLog(): QuestLogState {
     if (info == null || info.isHeader) continue;
     const objectives = C_QuestLog.GetQuestObjectives(info.questID);
     const objectivesDone = new Set<number>();
+    const counts: { have: number; need: number }[] = [];
     if (objectives != null) {
-      for (let i = 0; i < objectives.length; i++) if (objectives[i].finished) objectivesDone.add(i + 1);
+      for (let i = 0; i < objectives.length; i++) {
+        if (objectives[i].finished) objectivesDone.add(i + 1);
+        counts.push({ have: objectives[i].numFulfilled ?? 0, need: objectives[i].numRequired ?? 0 });
+      }
     }
     // As Questie QuestLogCache: a quest without objective rows (delivery) counts as complete; nil rows are not loaded yet.
     const allDone = objectives != null && objectivesDone.size === objectives.length;
     const complete = allDone || (isComplete != null && isComplete(info.questID) === true);
-    entries.set(info.questID, { complete, objectivesDone });
+    entries.set(info.questID, { complete, objectivesDone, counts });
     ids.add(info.questID);
   }
   return { entries, ids };
+}
+
+function sameCounts(a?: { have: number; need: number }[], b?: { have: number; need: number }[]): boolean {
+  if (a == null || b == null) return a === b;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i].have !== b[i].have || a[i].need !== b[i].need) return false;
+  return true;
 }
 
 function sameLog(a: QuestLogState, b: QuestLogState): boolean {
@@ -68,6 +79,7 @@ function sameLog(a: QuestLogState, b: QuestLogState): boolean {
     if (old == null || old.complete !== entry.complete || old.objectivesDone.size !== entry.objectivesDone.size) {
       return false;
     }
+    if (!sameCounts(old.counts, entry.counts)) return false;
     for (const index of entry.objectivesDone) if (!old.objectivesDone.has(index)) return false;
   }
   return true;

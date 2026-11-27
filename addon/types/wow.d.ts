@@ -49,6 +49,8 @@ interface WowQuestLogInfo {
 
 interface WowQuestObjective {
   finished: boolean;
+  numFulfilled?: number;
+  numRequired?: number;
 }
 
 interface WowMapInfo {

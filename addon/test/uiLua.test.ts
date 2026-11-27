@@ -383,3 +383,36 @@ it("shows the real active mode in the Access tab footer", async () => {
     s.close();
   }
 });
+
+it("shows objective progress and the distance to the next step", async () => {
+  const s = await routeTab(`
+    logQuests = { 33 }
+    objectives[33] = { { finished = false, numFulfilled = 6, numRequired = 10 } }
+    player = { 1500, 2000 }
+  `);
+  try {
+    await s.event('"QUEST_ACCEPTED"');
+    await s.run("now = now + 3; player = { 1600, 2000 }");
+    await s.tick();
+    await s.tick();
+    const texts = await s.texts();
+    expect(texts).toContain("6/10");
+    expect(texts).toContain("560 m");
+  } finally {
+    s.close();
+  }
+});
+
+it("skips the displayed step, not the arrow target, from the Quest tab", async () => {
+  const s = await routeTab();
+  try {
+    await s.run("player = { 900000, 2000 }; now = now + 3");
+    await s.tick();
+    const before = await s.run("return #MinMaxQuestCharDB.route.skippedSteps + #MinMaxQuestCharDB.skippedQuests");
+    await s.click("MinMaxQuestRouteSkip");
+    expect(await s.run("return MinMaxQuestCharDB.skippedQuests[1]")).toBe(33);
+    expect(before).toBe(0);
+  } finally {
+    s.close();
+  }
+});

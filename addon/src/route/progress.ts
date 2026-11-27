@@ -3,7 +3,9 @@ import type { QuestInfo } from "../data/questRepository";
 import { isAvailable, maskAllows, type PlayerQuestState } from "../quests/availability";
 import type { EmittedStep } from "./format";
 
-export interface QuestLogEntry { complete: boolean; objectivesDone: Set<number> }
+export interface ObjectiveCount { have: number; need: number }
+
+export interface QuestLogEntry { complete: boolean; objectivesDone: Set<number>; counts?: ObjectiveCount[] }
 
 export interface ProgressContext {
   completed: Set<number>;

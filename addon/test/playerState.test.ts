@@ -56,10 +56,14 @@ describe("hearthReady", () => {
 
 describe("readLog", () => {
   it("records finished objective indexes and skips headers", () => {
-    questLog({ 1: [{ finished: true }, { finished: false }] });
+    questLog({ 1: [{ finished: true }, { finished: false, numFulfilled: 6, numRequired: 10 }] });
     const log = readLog();
     expect([...log.ids]).toEqual([1]);
-    expect(log.entries.get(1)).toEqual({ complete: false, objectivesDone: new Set([1]) });
+    expect(log.entries.get(1)).toEqual({
+      complete: false,
+      objectivesDone: new Set([1]),
+      counts: [{ have: 0, need: 0 }, { have: 6, need: 10 }],
+    });
   });
 
   it("is complete when every objective is finished or the game says so", () => {

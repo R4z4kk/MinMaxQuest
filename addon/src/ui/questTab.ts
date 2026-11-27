@@ -1,12 +1,12 @@
-import { formatDuration } from "../core/geometry";
-import { t } from "../core/l10n";
+import { formatDistance, formatDuration } from "../core/geometry";
+import { currentLocale, t } from "../core/l10n";
 import { guard } from "../core/report";
 import type { CharDb } from "../core/storage";
 import type { QuestRepository } from "../data/questRepository";
 import type { Engine } from "../game/engine";
 import type { RouteFollower, RouteView } from "../route/follower";
-import { skipCurrent } from "./completionTab";
-import { button, checkbox, COLOR, GLYPH, hline, label, PAD, setLabel, SIZE, text, UI_FEATURE, type Button, type Checkbox } from "./theme";
+import { skipStepOrQuest } from "./completionTab";
+import { bar, button, checkbox, COLOR, GLYPH, hline, label, PAD, setLabel, SIZE, text, UI_FEATURE, type Button, type Bar, type Checkbox } from "./theme";
 import { formatCount } from "./viewModel";
 import type { TabView } from "./window";
 
@@ -54,6 +54,10 @@ export function createQuestTab(deps: QuestDeps): TabView {
   let currentText: WowFontString | null = null;
   let nextTexts: WowFontString[] = [];
   let footer: WowFontString | null = null;
+  let progressText: WowFontString | null = null;
+  let progressBar: Bar | null = null;
+  let nextDistance: WowFontString | null = null;
+  let viewed: RouteView | null = null;
   let optionsToggle: Button | null = null;
   let dungeonsToggle: Button | null = null;
   const stored: (() => boolean)[] = [() => db.routeElites, () => db.routeDungeons, () => db.autoFly, () => db.nativeWaypoint];
@@ -88,7 +92,13 @@ export function createQuestTab(deps: QuestDeps): TabView {
     const off = view.levelGap != null;
     banner?.SetText(off ? t("routeOff").replace("{level}", String(level)).replace("{expected}", String(level - (view.levelGap ?? 0))) : "");
     if (resync != null) setShown(resync.frame, off);
+    viewed = view;
     currentText?.SetText(view.currentText ?? "");
+    const progress = view.currentProgress;
+    progressText?.SetText(progress == null ? "" : `${progress.have}/${progress.need}`);
+    progressBar?.setShown(progress != null);
+    progressBar?.setFraction(progress == null || progress.need <= 0 ? 0 : progress.have / progress.need);
+    nextDistance?.SetText(view.nextDistance == null ? "" : formatDistance(view.nextDistance, currentLocale()));
     nextTexts.forEach((line, i) => line.SetText(view.nextTexts[i] ?? ""));
     footer?.SetText(
       t("routeFooter")
@@ -111,6 +121,7 @@ export function createQuestTab(deps: QuestDeps): TabView {
     if (active && view != null) drawRoute(view);
     else {
       banner?.SetText("");
+      progressBar?.setShown(false);
       if (resync != null) setShown(resync.frame, false);
     }
     drawOptions();
@@ -156,12 +167,20 @@ export function createQuestTab(deps: QuestDeps): TabView {
       resync.frame.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, -6);
       const header = label(parent, PAD, -30);
       setLabel(header, t("currentStep"));
-      const skip = button(parent, "MinMaxQuestRouteSkip", t("skip"), () => skipCurrent(deps.engine, deps.repo, draw));
+      const skip = button(parent, "MinMaxQuestRouteSkip", t("skip"), () => {
+        const view = viewed;
+        if (view != null) skipStepOrQuest(deps.engine, deps.repo, draw, view.currentQuestId, view.currentIndex);
+      });
       skip.setPrimary(true);
       skip.frame.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, -26);
       currentText = text(parent, SIZE.body, COLOR.text);
       currentText.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -46);
-      currentText.SetWidth(inner);
+      currentText.SetWidth(inner - 40);
+      progressText = text(parent, SIZE.small, COLOR.accent, "RIGHT");
+      progressText.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, -47);
+      progressBar = bar(parent, inner, PAD, -61);
+      nextDistance = text(parent, SIZE.small, COLOR.sub, "RIGHT");
+      nextDistance.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, -67);
       const nextHeader = label(parent, PAD, -66);
       setLabel(nextHeader, t("nextTarget"));
       nextTexts = [];
@@ -173,7 +192,7 @@ export function createQuestTab(deps: QuestDeps): TabView {
       }
       footer = text(parent, SIZE.small, COLOR.sub);
       footer.SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", PAD, 9);
-      routeWidgets.push(skip.frame, header, currentText, nextHeader, footer, ...nextTexts);
+      routeWidgets.push(skip.frame, header, currentText, progressText, nextDistance, nextHeader, footer, ...nextTexts);
       hline(parent, -126);
 
       optionsToggle = section(parent, "options", "MinMaxQuestSectionOptions", PAD);

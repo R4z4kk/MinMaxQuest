@@ -13,7 +13,7 @@ import type { TaxiLeg } from "../travel/graph";
 import { follow, type FollowView } from "./follow";
 import type { EmittedStep } from "./format";
 import { chainBlock, insertBlocks, type InsertBlock, type PlaceFor } from "./insert";
-import { advance, resyncIndex, type ProgressContext, type RouteCursor } from "./progress";
+import { advance, resyncIndex, type ObjectiveCount, type ProgressContext, type RouteCursor } from "./progress";
 import { composeRoute, decodeReturnBlock, readRoutes, routesInstalled, variantKey, type FactionRoutes, type RouteOptions } from "./routeData";
 
 export const QUEST_LOG_SIZE = 20;
@@ -36,6 +36,10 @@ export interface RouteView extends FollowView {
   currentText: string | null;
   targetText: string | null;
   nextTexts: string[];
+  currentQuestId: number | null;
+  currentIndex: number | null;
+  currentProgress: ObjectiveCount | null;
+  nextDistance: number | null;
 }
 
 export interface RouteFollower {
@@ -341,7 +345,25 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
       const text = (i: number | null): string | null => (i == null || steps[i] == null ? null : stepText(steps[i]));
       const nextTexts: string[] = [];
       for (const i of v.next) nextTexts.push(stepText(steps[i]));
-      return { ...v, total: steps.length, startIndex: db.route.startIndex, currentText: text(v.current), targetText: text(v.target), nextTexts };
+      const cur = v.current == null ? null : steps[v.current];
+      const progress = cur != null && cur.type === "complete" && cur.questId != null && cur.objectiveIndex != null
+        ? (lastSnap?.log.get(cur.questId)?.counts?.[cur.objectiveIndex - 1] ?? null)
+        : null;
+      const first = v.next.length > 0 ? steps[v.next[0]] : null;
+      const place = first == null ? null : toWorld(first.uiMapId, first.x, first.y);
+      const from = lastSnap?.pos ?? null;
+      return {
+        ...v,
+        total: steps.length,
+        startIndex: db.route.startIndex,
+        currentText: text(v.current),
+        targetText: text(v.target),
+        nextTexts,
+        currentQuestId: cur?.questId ?? null,
+        currentIndex: v.current,
+        currentProgress: progress,
+        nextDistance: place == null || from == null ? null : distance(from, place),
+      };
     },
     resync() {
       const snap = lastSnap;

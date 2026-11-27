@@ -56,9 +56,12 @@ function paintRow(row: Row, line: RowLine): void {
 export function skipCurrent(engine: Engine, repo: QuestRepository, redraw: () => void): void {
   const current = engine.current();
   if (current == null) return;
-  const id = current.questId;
+  skipStepOrQuest(engine, repo, redraw, current.questId, current.route?.index ?? null);
+}
+
+export function skipStepOrQuest(engine: Engine, repo: QuestRepository, redraw: () => void, id: number | null, index: number | null): void {
   if (id == null) {
-    if (current.route != null) engine.skipStep(current.route.index);
+    if (index != null) engine.skipStep(index);
     redraw();
     return;
   }
