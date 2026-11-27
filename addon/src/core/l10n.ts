@@ -46,6 +46,12 @@ export type L10nKey =
   | "stepsCount"
   | "trackInRoute"
   | "activeMode"
+  | "routeFinished"
+  | "routeOff"
+  | "resync"
+  | "currentStep"
+  | "routeFooter"
+  | "dungeons"
   | "trackedOne"
   | "trackedMany"
   | "routesMissing"
@@ -141,7 +147,13 @@ const EN: Record<L10nKey, string> = {
   unknownZone: "Unknown zone",
   stepsCount: "{done}/{total} steps",
   trackInRoute: "Track in route",
-  activeMode: "Active mode: Quest",
+  activeMode: "Active mode: {mode}",
+  routeFinished: "Route finished",
+  routeOff: "Off route: level {level}, route expects {expected}",
+  resync: "Re-sync",
+  currentStep: "Current step",
+  routeFooter: "Lvl {level} · step {step}/{total} · {left} left",
+  dungeons: "Dungeons",
   trackedOne: "{n} chain tracked",
   trackedMany: "{n} chains tracked",
   routesMissing: "Routes not installed - use Completion meanwhile",
@@ -238,7 +250,13 @@ const FR: Record<L10nKey, string> = {
   unknownZone: "Zone inconnue",
   stepsCount: "{done}/{total} étapes",
   trackInRoute: "Suivre dans la route",
-  activeMode: "Mode actif : Quête",
+  activeMode: "Mode actif : {mode}",
+  routeFinished: "Route terminée",
+  routeOff: "Hors route : niveau {level}, route prévue {expected}",
+  resync: "Recaler",
+  currentStep: "Étape en cours",
+  routeFooter: "Niv. {level} · étape {step}/{total} · reste {left}",
+  dungeons: "Donjons",
   trackedOne: "{n} chaîne suivie",
   trackedMany: "{n} chaînes suivies",
   routesMissing: "Routes non installées - utilise Complétion en attendant",

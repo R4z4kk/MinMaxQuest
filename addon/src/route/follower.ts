@@ -46,6 +46,7 @@ export interface RouteFollower {
   hearthBound(): void;
   taxiLeg(target: Target): TaxiLeg | null;
   unavailable(): string | null;
+  returnDungeons(): number[];
   routesBuild(): string | null;
 }
 
@@ -372,6 +373,13 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
     unavailable: () => {
       load();
       return unavailable;
+    },
+    returnDungeons() {
+      const r = load();
+      if (r == null) return [];
+      const ids: number[] = [];
+      for (const key of Object.keys(r.returnBlocks)) ids.push(Number(key));
+      return ids.sort((a, b) => a - b);
     },
     routesBuild: () => load()?.meta.build ?? null,
   };

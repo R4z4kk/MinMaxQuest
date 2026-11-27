@@ -48,6 +48,10 @@ function gameTabs(db: CharDb, game: UiGame, setTab: (tab: TabId) => void): Recor
   return {
     quest: createQuestTab({
       db,
+      engine,
+      repo,
+      follower: game.follower,
+      areaName: (areaId) => maps.areaName(areaId),
       refreshTargets: () => engine.refreshTargets(true),
       refreshPins: () => game.refreshPins(),
       openCompletion: () => setTab("completion"),

@@ -33,7 +33,7 @@ it("toggles the window with /mmq and opens the Quest tab by default", async () =
   try {
     await s.cmd("");
     expect(await s.visibility()).toBe("MinMaxQuestWindow|Show");
-    expect(await s.calls()).toContain("MinMaxQuestWindow|SetSize|270|278");
+    expect(await s.calls()).toContain("MinMaxQuestWindow|SetSize|270|262");
     const texts = await s.texts();
     expect(texts).toContain("MINMAXQUEST");
     expect(texts.slice(texts.indexOf("MINMAXQUEST"), texts.indexOf("MINMAXQUEST") + 4)).toEqual([
@@ -65,7 +65,7 @@ it("switches the three tabs, resizing the window and saving the tab", async () =
     expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|320|420");
     expect(await s.texts()).toContain("Dalaran Sewers");
     await s.click("MinMaxQuestTabquest");
-    expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|270|278");
+    expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|270|262");
     expect(await s.run("return MinMaxQuestCharDB.tab")).toBe("quest");
     expect(await s.printed()).toBe("");
   } finally {
@@ -282,6 +282,103 @@ it("refreshes the targets when a chain is tracked or untracked", async () => {
     expect(await reads()).toBe(before + 1);
     await s.click("MinMaxQuestChain1Track");
     expect(await reads()).toBe(before + 2);
+  } finally {
+    s.close();
+  }
+});
+
+const ROUTE_FAKES = `${QUEST_MODE}
+C_Map.GetAreaInfo = function(id) if id == 721 then return "Gnomeregan" end if id == 12 then return "Elwynn Forest" end end
+`;
+
+async function routeTab(setup = "") {
+  const s = await ui(ROUTE_FAKES + setup);
+  await s.cmd("");
+  await s.tick();
+  return s;
+}
+
+const footerOf = (texts: string[]) => texts.filter((line) => line.startsWith("Lvl ")).pop() ?? "";
+
+it("shows the followed route in the Quest tab", async () => {
+  const s = await routeTab();
+  try {
+    const texts = await s.texts();
+    expect(texts).toContain("CURRENT STEP");
+    expect(texts).toContain("Wolves Across the Border · pick up");
+    expect(texts.filter((line) => line.includes(" · pick up") || line.includes("Fly to") || line.includes("flight")).length).toBeGreaterThan(1);
+    expect(footerOf(texts)).toMatch(/^Lvl 1 · step 1\/\d+ · (~\d+ h|~\d+ min|<1 min) left$/);
+    expect(texts).not.toContain("Routes not installed - use Completion meanwhile");
+  } finally {
+    s.close();
+  }
+});
+
+it("shows the off-route banner and clears it on Re-sync", async () => {
+  const s = await routeTab();
+  try {
+    await s.run("UnitLevel = function() return 6 end; player = { 1500, 2000 }; now = now + 3");
+    await s.event('"PLAYER_LEVEL_UP", 6');
+    await s.tick();
+    const banner = (await s.texts()).filter((line) => line.startsWith("Off route: level 6")).pop();
+    expect(banner).toMatch(/^Off route: level 6, route expects \d+$/);
+    expect(await s.visibilityOf("MinMaxQuestResync")).toBe("MinMaxQuestResync|Show");
+    await s.click("MinMaxQuestResync");
+    expect(await s.visibilityOf("MinMaxQuestResync")).toBe("MinMaxQuestResync|Hide");
+    expect(await s.run("return MinMaxQuestCharDB.route.startIndex > 0")).toBe(true);
+  } finally {
+    s.close();
+  }
+});
+
+it("stores a toggled return dungeon and changes the route length", async () => {
+  const s = await routeTab();
+  try {
+    expect(await s.texts()).toContain("Gnomeregan");
+    const total = async () => Number(footerOf(await s.texts()).match(/step \d+\/(\d+)/)?.[1]);
+    const before = await total();
+    await s.click("MinMaxQuestDungeon721");
+    expect(await s.run("return MinMaxQuestCharDB.dungeonReturns[1]")).toBe(721);
+    await s.tick();
+    expect(await total()).toBeGreaterThan(before);
+    await s.click("MinMaxQuestDungeon721");
+    expect(await s.run("return #MinMaxQuestCharDB.dungeonReturns")).toBe(0);
+  } finally {
+    s.close();
+  }
+});
+
+it("shows Routes not installed without a routes global", async () => {
+  const s = await ui();
+  try {
+    await s.cmd("");
+    expect(await s.texts()).toContain("Routes not installed - use Completion meanwhile");
+    expect(await s.visibilityOf("MinMaxQuestOpenCompletion")).not.toBe("MinMaxQuestOpenCompletion|Hide");
+  } finally {
+    s.close();
+  }
+});
+
+it("shows Route finished at the maximum level", async () => {
+  const s = await routeTab("UnitLevel = function() return 60 end");
+  try {
+    await s.run("now = now + 3");
+    await s.tick();
+    expect(await s.texts()).toContain("Route finished");
+  } finally {
+    s.close();
+  }
+});
+
+it("shows the real active mode in the Access tab footer", async () => {
+  const s = await routeTab();
+  try {
+    await s.click("MinMaxQuestTabcompletion");
+    await s.click("MinMaxQuestTabaccess");
+    expect((await s.texts()).filter((line) => line.startsWith("Active mode")).pop()).toBe("Active mode: Completion");
+    await s.click("MinMaxQuestTabquest");
+    await s.click("MinMaxQuestTabaccess");
+    expect((await s.texts()).filter((line) => line.startsWith("Active mode")).pop()).toBe("Active mode: Quest");
   } finally {
     s.close();
   }

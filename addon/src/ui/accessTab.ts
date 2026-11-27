@@ -41,6 +41,7 @@ export function createAccessTab(deps: AccessDeps): TabView {
   let root: WowFrame | null = null;
   const blocks: Block[] = [];
   let footerTracked: WowFontString | null = null;
+  let footerMode: WowFontString | null = null;
 
   const toggleTracked = (id: string): void => {
     const at = db.trackedChains.indexOf(id);
@@ -127,6 +128,7 @@ export function createAccessTab(deps: AccessDeps): TabView {
 
   const draw = (): void => {
     const parent = root;
+    footerMode?.SetText(t("activeMode").replace("{mode}", t(db.activeMode === "quest" ? "tabQuest" : "tabCompletion")));
     const snap = engine.snapshot();
     if (parent == null || snap == null) return;
     const views = accessView(ACCESS_CHAINS, {
@@ -157,9 +159,8 @@ export function createAccessTab(deps: AccessDeps): TabView {
     render(parent) {
       root = parent;
       hline(parent, FOOTER, "BOTTOM");
-      const mode = text(parent, SIZE.small, COLOR.sub);
-      mode.SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", PAD, 9);
-      mode.SetText(t("activeMode"));
+      footerMode = text(parent, SIZE.small, COLOR.sub);
+      footerMode.SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", PAD, 9);
       footerTracked = text(parent, SIZE.small, COLOR.accent, "RIGHT");
       footerTracked.SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -PAD, 9);
     },
