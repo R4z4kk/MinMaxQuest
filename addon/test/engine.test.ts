@@ -259,6 +259,22 @@ describe("skip", () => {
   });
 });
 
+describe("unskip", () => {
+  it("re-activates one skipped quest or all of them", () => {
+    const { engine, db } = setup([target(1), target(2), target(3)], [quest(1), quest(2), quest(3)]);
+    engine.refreshTargets(true);
+    engine.skip(1, false);
+    engine.skip(2, false);
+    expect(engine.skipped()).toEqual([1, 2]);
+    expect(engine.unskip(1)).toBe(true);
+    expect(engine.unskip(1)).toBe(false);
+    expect(engine.targets().map((t) => t.questId)).toEqual([1, 3]);
+    expect(engine.unskipAll()).toBe(1);
+    expect(db.skippedQuests).toEqual([]);
+    expect(engine.targets().map((t) => t.questId)).toEqual([1, 2, 3]);
+  });
+});
+
 describe("arrowTarget", () => {
   it("is null without targets", () => {
     const { engine } = setup([]);

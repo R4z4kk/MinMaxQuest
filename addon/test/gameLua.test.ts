@@ -130,6 +130,32 @@ it("prints the refresh durations", async () => {
   }
 });
 
+it("lists and re-activates skipped quests", async () => {
+  const s = await loggedIn();
+  try {
+    await s.cmd("skipped");
+    expect(await s.printed()).toBe("MinMaxQuest: no skipped quest");
+    await s.cmd("skip");
+    await s.cmd("pin 101");
+    await s.cmd("skip");
+    await s.printed();
+    await s.cmd("skipped");
+    expect(await s.printed()).toBe("MinMaxQuest: skipped quests: [100] Test Quest, [101] Second");
+    await s.cmd("unskip 100");
+    expect(await s.printed()).toBe("MinMaxQuest: re-activated: [100] Test Quest");
+    await s.cmd("unskip 100");
+    expect(await s.printed()).toBe("MinMaxQuest: [100] Test Quest is not skipped");
+    await s.cmd("unskip");
+    expect(await s.printed()).toBe("MinMaxQuest: usage: /mmq unskip <id>|all");
+    await s.cmd("unskip all");
+    expect(await s.printed()).toBe("MinMaxQuest: 1 quest(s) re-activated");
+    await s.cmd("targets");
+    expect(await s.printed()).toContain("[101] Second");
+  } finally {
+    s.close();
+  }
+});
+
 it("prints the resolved chain", async () => {
   const s = await session();
   try {

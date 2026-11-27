@@ -75,7 +75,13 @@ export type L10nKey =
   | "questInfo"
   | "useHearth"
   | "profile"
-  | "profileNone";
+  | "profileNone"
+  | "noSkipped"
+  | "skippedList"
+  | "unskipped"
+  | "unskippedAll"
+  | "notSkipped"
+  | "unskipUsage";
 
 const EN: Record<L10nKey, string> = {
   questieMissing: "QuestieDB is required",
@@ -85,7 +91,7 @@ const EN: Record<L10nKey, string> = {
   tabCompletion: "Completion",
   positionUnavailable: "position unavailable",
   arrowUsage: "usage: /mmq arrow move|lock|test",
-  help: "commands: /mmq (window) | help | q <id> | chain <questId> | targets | skip [confirm] | pin <id> | unpin | arrow move|lock|test | debug build <n> | debug prof",
+  help: "commands: /mmq (window) | help | q <id> | chain <questId> | targets | skip [confirm] | pin <id> | unpin | skipped | unskip <id>|all | arrow move|lock|test | debug build <n> | debug prof",
   targetAccept: "pick up",
   targetObjective: "objective",
   targetTurnin: "turn in",
@@ -155,6 +161,12 @@ const EN: Record<L10nKey, string> = {
   useHearth: "Use Hearthstone",
   profile: "refresh: last {last} ms, first {first} ms",
   profileNone: "no refresh measured yet",
+  noSkipped: "no skipped quest",
+  skippedList: "skipped quests: {list}",
+  unskipped: "re-activated",
+  unskippedAll: "{n} quest(s) re-activated",
+  notSkipped: "{quest} is not skipped",
+  unskipUsage: "usage: /mmq unskip <id>|all",
 };
 
 const FR: Record<L10nKey, string> = {
@@ -165,7 +177,7 @@ const FR: Record<L10nKey, string> = {
   tabCompletion: "Complétion",
   positionUnavailable: "position indisponible",
   arrowUsage: "usage : /mmq arrow move|lock|test",
-  help: "commandes : /mmq (fenêtre) | help | q <id> | chain <questId> | targets | skip [confirm] | pin <id> | unpin | arrow move|lock|test | debug build <n> | debug prof",
+  help: "commandes : /mmq (fenêtre) | help | q <id> | chain <questId> | targets | skip [confirm] | pin <id> | unpin | skipped | unskip <id>|all | arrow move|lock|test | debug build <n> | debug prof",
   targetAccept: "prendre",
   targetObjective: "objectif",
   targetTurnin: "rendre",
@@ -235,6 +247,12 @@ const FR: Record<L10nKey, string> = {
   useHearth: "Utilise ta pierre de foyer",
   profile: "rafraîchissement : dernier {last} ms, premier {first} ms",
   profileNone: "aucun rafraîchissement mesuré",
+  noSkipped: "aucune quête ignorée",
+  skippedList: "quêtes ignorées : {list}",
+  unskipped: "réactivée",
+  unskippedAll: "{n} quête(s) réactivée(s)",
+  notSkipped: "{quest} n'est pas ignorée",
+  unskipUsage: "usage : /mmq unskip <id>|all",
 };
 
 let french: boolean | null = null;

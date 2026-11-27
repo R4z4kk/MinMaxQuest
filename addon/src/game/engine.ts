@@ -62,6 +62,9 @@ export interface Engine {
   targets(): Target[];
   arrowTarget(): ArrowTarget | null;
   skip(questId: number, confirmed: boolean): SkipResult;
+  skipped(): number[];
+  unskip(questId: number): boolean;
+  unskipAll(): number;
   onChange(cb: Listener): void;
   zoneProgress(zoneAreaId: number): ZoneProgress | null;
   snapshot(): PlayerSnapshot | null;
@@ -240,6 +243,19 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
       refreshTargets(true);
       if (wasPinned) notifyListeners();
       return { needsConfirm: false, followUps: chain, lost };
+    },
+    skipped: () => db.skippedQuests.slice(),
+    unskip(questId) {
+      if (!db.skippedQuests.includes(questId)) return false;
+      db.skippedQuests = db.skippedQuests.filter((id) => id !== questId);
+      refreshTargets(true);
+      return true;
+    },
+    unskipAll() {
+      const count = db.skippedQuests.length;
+      db.skippedQuests = [];
+      if (count > 0) refreshTargets(true);
+      return count;
     },
     onChange(cb) {
       listeners.push(cb);

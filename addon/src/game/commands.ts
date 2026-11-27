@@ -123,6 +123,26 @@ export function createCommands(ctx: CommandContext): Commands {
     say(`${t("skipped")}: ${questName(game.repo, id)}`);
   };
 
+  const skippedCommand = (game: CommandGame): void => {
+    const ids = game.engine.skipped();
+    if (ids.length === 0) say(t("noSkipped"));
+    else say(t("skippedList").replace("{list}", ids.map((id) => questName(game.repo, id)).join(", ")));
+  };
+
+  const unskipCommand = (game: CommandGame, arg: string): void => {
+    if (arg === "all") {
+      say(t("unskippedAll").replace("{n}", String(game.engine.unskipAll())));
+      return;
+    }
+    const id = arg === "" ? NaN : Number(arg);
+    if (!Number.isFinite(id)) {
+      say(t("unskipUsage"));
+      return;
+    }
+    if (game.engine.unskip(id)) say(`${t("unskipped")}: ${questName(game.repo, id)}`);
+    else say(t("notSkipped").replace("{quest}", questName(game.repo, id)));
+  };
+
   const pinCommand = (game: CommandGame, arg: string | null): void => {
     if (arg == null) {
       game.engine.pin(null);
@@ -166,6 +186,8 @@ export function createCommands(ctx: CommandContext): Commands {
       else if (command === "chain") guard("repository", () => chainCommand(arg));
       else if (command === "targets") withGame(targetsCommand);
       else if (command === "skip") withGame((game) => skipCommand(game, arg === "confirm"));
+      else if (command === "skipped") withGame(skippedCommand);
+      else if (command === "unskip") withGame((game) => unskipCommand(game, arg));
       else if (command === "pin") withGame((game) => pinCommand(game, arg));
       else if (command === "unpin") withGame((game) => pinCommand(game, null));
       else if (command === "debug" && arg === "prof") withGame(profileCommand);
