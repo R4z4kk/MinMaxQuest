@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { travel as travelFixture } from "./fixtures";
 import { SCENARIOS } from "../model/constants";
 import type { RouteQuest, World } from "../model/world";
-import { allVariants, buildFaction, pickWinner, variantKey, type FactionRoutes } from "../opt/variants";
+import { allVariants, buildFaction, pickWinner, variantKey, type Evaluated, type FactionRoutes } from "../opt/variants";
 import { buildRoute, type Variant } from "../opt/build";
 import { initialState, simulate } from "../sim/simulate";
 import { kill, place, quest, worldOf } from "./fixtures";
@@ -158,7 +158,24 @@ describe("scenario selection", () => {
     expect(Number.isFinite(e.average)).toBe(true);
   });
 
+  const candidate = (average: number): Evaluated => ({
+    steps: [],
+    secondsByScenario: { fast: average, medium: average, slow: average },
+    average,
+    worstRace: { raceMask: 0, seconds: 0, skipped: 0 },
+    discardedCandidates: [],
+  });
+
   it("throws naming every violation when no candidate is valid under all scenarios", () => {
+    const discarded = SCENARIOS.map((s) => ({ scenario: s.name, violation: `scenario other: step 1: accept ${s.name}` }));
+    expect(() => pickWinner("trunk e0d0x1", [], discarded)).toThrow(
+      /trunk e0d0x1 has no candidate valid.*fast route, scenario other: step 1: accept fast; medium route.*accept medium; slow route.*accept slow/,
+    );
+  });
+
+  it("returns the lowest average among several valid candidates", () => {
+    const winner = pickWinner("trunk e0d0x1", [candidate(300), candidate(100), candidate(200)], []);
+    expect(winner.average).toBe(100);
   });
 });
 

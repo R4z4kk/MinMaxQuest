@@ -148,9 +148,9 @@ function evaluate(
     }
     const average = mean(SCENARIOS.map((s) => secondsByScenario[s.name]));
     console.error(`${tag} ${built.name} candidate average ${average.toFixed(0)}s`);
-    valid.push({ steps, secondsByScenario, average, worstRace: { raceMask: 0, seconds: 0, skipped: 0 }, discardedCandidates: discarded });
+    valid.push({ steps, secondsByScenario, average, worstRace: { raceMask: 0, seconds: 0, skipped: 0 }, discardedCandidates: [] });
   }
-  const best = pickWinner(`${seg.name} ${key}`, valid, discarded);
+  const best: Evaluated = { ...pickWinner(`${seg.name} ${key}`, valid, discarded), discardedCandidates: [...discarded] };
   const checked = SCENARIOS.find((s) => s.name === RACE_CHECK_SCENARIO);
   if (checked == null) throw new Error(`buildFaction: scenario ${RACE_CHECK_SCENARIO} missing`);
   if (seg.raceMasks.length === 0) {
