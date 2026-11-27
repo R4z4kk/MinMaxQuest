@@ -34,6 +34,8 @@ CreateFrame = function(kind, name) created = created + 1; return fake(name) end
 UIParent = {}
 GetLocale = function() return "enUS" end
 MinMaxQuestCharDB = {}
+-- No route file installed: quest mode falls back to completion. QUEST_MODE loads the real one.
+MinMaxQuestRoutes = false
 now = 100
 GetTime = function() return now end
 profileMs = 0
@@ -46,6 +48,7 @@ player = { 1000, 2000 }
 UnitPosition = function() return player[1], player[2], 0, 0 end
 GetPlayerFacing = function() return 0 end
 UnitLevel = function() return 10 end
+UnitXP = function() return 0 end
 raceCalls = 0
 UnitRace = function() raceCalls = raceCalls + 1; return "Human", "Human", 1 end
 UnitClass = function() return "Warrior", "WARRIOR", 1 end
@@ -102,6 +105,13 @@ LibQuestieDB = {
     end,
   },
 }
+`;
+
+// Level 1 human in quest mode with the real Alliance routes; only the first Elwynn quest and the one unlocking it exist in the fake QuestieDB.
+export const QUEST_MODE = `${readFileSync("data/routes/Alliance.lua", "utf8")}
+UnitLevel = function() return 1 end
+quests[33] = { name = "Wolves Across the Border", questLevel = 2, requiredLevel = 1, startedBy = { { 196 } } }
+quests[5261] = { name = "Eagan Peltskinner", questLevel = 1, requiredLevel = 1, startedBy = { { 196 } } }
 `;
 
 export async function session(setup = "") {

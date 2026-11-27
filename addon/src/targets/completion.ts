@@ -1,5 +1,6 @@
 import type { WorldPos } from "../core/geometry";
 import type { QuestInfo } from "../data/questRepository";
+import type { StepType } from "../route/format";
 import {
   isAvailable,
   isTrivial,
@@ -9,10 +10,19 @@ import {
 } from "../quests/availability";
 import { CLUSTER_RADIUS_YARDS, clusterSpawns, pickCluster, type SpawnCluster } from "./spawns";
 
-export type TargetKind = "accept" | "objective" | "turnin";
+export type TargetKind = "accept" | "objective" | "turnin" | "route";
+export type QuestTargetKind = Exclude<TargetKind, "route">;
+
+// Set for targets built from a route step; label only matters for non-quest steps.
+export interface RouteRef {
+  index: number;
+  type: StepType;
+  label: string;
+}
 
 export interface Target {
-  questId: number;
+  // Null only for non-quest route steps.
+  questId: number | null;
   kind: TargetKind;
   objectiveIndex: number | null;
   pos: WorldPos;
@@ -23,6 +33,7 @@ export interface Target {
   trivial: boolean;
   elite: boolean;
   zoneAreaId: number | null;
+  route: RouteRef | null;
 }
 
 export interface CompletionOptions {
@@ -39,7 +50,7 @@ export interface CompletionInput {
   log: Map<number, { complete: boolean; objectivesDone: Set<number> }>;
   player: PlayerQuestState;
   greenRange: number;
-  positionsFor: (q: QuestInfo, kind: TargetKind, objectiveIndex: number | null) => WorldPos[];
+  positionsFor: (q: QuestInfo, kind: QuestTargetKind, objectiveIndex: number | null) => WorldPos[];
   timeTo: (p: WorldPos) => number;
   // Spawns never change, so clusters are kept across refreshes, keyed by questId:objectiveIndex.
   clusters: Map<string, SpawnCluster[]>;
@@ -66,7 +77,7 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
   const push = (
     q: QuestInfo,
     trivial: boolean,
-    kind: TargetKind,
+    kind: QuestTargetKind,
     objectiveIndex: number | null,
     pos: WorldPos,
     cluster: SpawnCluster | null,
@@ -84,6 +95,7 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
       trivial,
       elite: q.isElite,
       zoneAreaId: q.zoneAreaId,
+      route: null,
     });
   };
 
@@ -133,7 +145,7 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
 
   targets.sort((a, b) => {
     if (a.seconds !== b.seconds) return a.seconds < b.seconds ? -1 : 1;
-    if (a.questId !== b.questId) return a.questId - b.questId;
+    if (a.questId !== b.questId) return (a.questId ?? 0) - (b.questId ?? 0);
     return (a.objectiveIndex ?? 0) - (b.objectiveIndex ?? 0);
   });
   return targets;

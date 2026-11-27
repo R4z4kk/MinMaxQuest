@@ -3,6 +3,7 @@ import { guard } from "../core/report";
 import type { CharDb } from "../core/storage";
 import type { QuestInfo, QuestRepository } from "../data/questRepository";
 import type { Engine } from "../game/engine";
+import type { RouteFollower } from "../route/follower";
 import { createAccessTab } from "./accessTab";
 import { createBanner, type Banner } from "./banner";
 import { createCompletionTab } from "./completionTab";
@@ -14,6 +15,7 @@ import { createWindow, type TabId, type TabView, type WindowApi } from "./window
 export interface UiGame {
   engine: Engine;
   repo: QuestRepository;
+  follower: RouteFollower;
   quests(): QuestInfo[];
   refreshPins(): void;
 }
@@ -68,7 +70,7 @@ export function createUi(ctx: UiContext): Ui {
         ? { quest: notice, access: notice, completion: notice }
         : gameTabs(db, game, (tab) => window?.setTab(tab));
     window = createWindow(db, tabs);
-    return { window, banner: createBanner(window.frame) };
+    return { window, banner: createBanner(window.frame, () => (game == null ? null : game.follower.routesBuild())) };
   };
 
   return {

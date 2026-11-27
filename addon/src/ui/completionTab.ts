@@ -90,6 +90,11 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
     const current = engine.current();
     if (current == null) return;
     const id = current.questId;
+    if (id == null) {
+      if (current.route != null) engine.skipStep(current.route.index);
+      draw();
+      return;
+    }
     const result = engine.skip(id, false);
     if (result.needsConfirm) {
       confirmSkip({ name: questLabel(id, repo.get(id)) }, result.followUps, result.lost, () => {

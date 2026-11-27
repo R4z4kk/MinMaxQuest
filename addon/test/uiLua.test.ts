@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { loggedIn } from "./helpers/fakeGame";
+import { loggedIn, QUEST_MODE } from "./helpers/fakeGame";
 
 const UI_FAKES = `
 quests[100].zoneOrSort = 12
@@ -240,6 +240,31 @@ it("uppercases accented French labels", async () => {
     await s.cmd("");
     await s.click("MinMaxQuestTabcompletion");
     expect(await s.texts()).toContain("RESTANT À PROXIMITÉ · 0");
+  } finally {
+    s.close();
+  }
+});
+
+it("drives the arrow from the last of the Quest and Completion tabs", async () => {
+  const s = await ui(QUEST_MODE);
+  const firstTarget = async () => {
+    await s.printed();
+    await s.cmd("targets");
+    return (await s.printed()).split("\n")[0];
+  };
+  try {
+    expect(await firstTarget()).toBe("MinMaxQuest: [33] Wolves Across the Border · pick up · <1 min");
+    await s.cmd("");
+    await s.click("MinMaxQuestTabcompletion");
+    expect(await s.run("return MinMaxQuestCharDB.activeMode")).toBe("completion");
+    await s.tick();
+    expect(await firstTarget()).toBe("MinMaxQuest: [100] Test Quest · pick up · <1 min");
+    await s.click("MinMaxQuestTabaccess");
+    await s.tick();
+    expect(await s.run("return MinMaxQuestCharDB.activeMode")).toBe("completion");
+    await s.click("MinMaxQuestTabquest");
+    await s.tick();
+    expect(await firstTarget()).toBe("MinMaxQuest: [33] Wolves Across the Border · pick up · <1 min");
   } finally {
     s.close();
   }

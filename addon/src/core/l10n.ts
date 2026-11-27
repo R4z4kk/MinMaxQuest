@@ -81,7 +81,18 @@ export type L10nKey =
   | "unskipped"
   | "unskippedAll"
   | "notSkipped"
-  | "unskipUsage";
+  | "unskipUsage"
+  | "routeFly"
+  | "routeHearth"
+  | "routeSetHearth"
+  | "routeFlightPath"
+  | "routeGrind"
+  | "routeDungeon"
+  | "routeStepsRemoved"
+  | "routeStepUnplaced"
+  | "routeChainUnplaceable"
+  | "routeChainUnknown"
+  | "bannerRoutesBuild";
 
 const EN: Record<L10nKey, string> = {
   questieMissing: "QuestieDB is required",
@@ -167,6 +178,17 @@ const EN: Record<L10nKey, string> = {
   unskippedAll: "{n} quest(s) re-activated",
   notSkipped: "{quest} is not skipped",
   unskipUsage: "usage: /mmq unskip <id>|all",
+  routeFly: "Fly to {name}",
+  routeHearth: "Use your Hearthstone",
+  routeSetHearth: "Make this inn your home",
+  routeFlightPath: "Get the flight path",
+  routeGrind: "Grind to level {n}",
+  routeDungeon: "Run {name}",
+  routeStepsRemoved: "{n} route step(s) removed: not doable by this character",
+  routeStepUnplaced: "route step {n} has no usable position, skipped",
+  routeChainUnplaceable: "{name}: {n} quest(s) could not be placed in the route",
+  routeChainUnknown: "tracked chain {id} is unknown",
+  bannerRoutesBuild: "Routes built for build {build}",
 };
 
 const FR: Record<L10nKey, string> = {
@@ -253,6 +275,17 @@ const FR: Record<L10nKey, string> = {
   unskippedAll: "{n} quête(s) réactivée(s)",
   notSkipped: "{quest} n'est pas ignorée",
   unskipUsage: "usage : /mmq unskip <id>|all",
+  routeFly: "Vole vers {name}",
+  routeHearth: "Utilise ta pierre de foyer",
+  routeSetHearth: "Lie ta pierre de foyer à cette auberge",
+  routeFlightPath: "Prends le trajet aérien",
+  routeGrind: "Grind jusqu'au niveau {n}",
+  routeDungeon: "Fais {name}",
+  routeStepsRemoved: "{n} étape(s) de route retirée(s) : impossibles pour ce personnage",
+  routeStepUnplaced: "étape de route {n} sans position utilisable, sautée",
+  routeChainUnplaceable: "{name} : {n} quête(s) impossibles à placer dans la route",
+  routeChainUnknown: "chaîne suivie {id} inconnue",
+  bannerRoutesBuild: "Routes générées pour le build {build}",
 };
 
 let french: boolean | null = null;

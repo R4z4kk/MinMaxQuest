@@ -45,11 +45,13 @@ export function createQuestTab(deps: QuestDeps): TabView {
       setLabel(label(parent, PAD, -86), t("options"));
       elites = checkbox(parent, "MinMaxQuestRouteElites", t("includeElites"), () => {
         db.routeElites = !db.routeElites;
+        deps.refreshTargets();
         draw();
       });
       elites.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -102);
       dungeons = checkbox(parent, "MinMaxQuestRouteDungeons", t("includeDungeons"), () => {
         db.routeDungeons = !db.routeDungeons;
+        deps.refreshTargets();
         draw();
       });
       dungeons.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -120);

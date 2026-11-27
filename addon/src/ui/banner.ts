@@ -16,7 +16,7 @@ function clientBuild(): string | null {
 }
 
 // Informational only: never blocks the window.
-export function createBanner(window: WowFrame): Banner {
+export function createBanner(window: WowFrame, routesBuild: () => string | null): Banner {
   const frame = CreateFrame("Frame", null, window);
   frame.SetHeight(18);
   frame.SetPoint("BOTTOMLEFT", window, "TOPLEFT", 0, 2);
@@ -28,7 +28,7 @@ export function createBanner(window: WowFrame): Banner {
   frame.Hide();
   return {
     update() {
-      const value = bannerText(expiredConstants(date("%Y-%m-%d")), clientBuild(), TRAVEL.source.build);
+      const value = bannerText(expiredConstants(date("%Y-%m-%d")), clientBuild(), TRAVEL.source.build, routesBuild());
       if (value == null) {
         frame.Hide();
         return;

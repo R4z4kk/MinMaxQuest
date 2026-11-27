@@ -90,6 +90,15 @@ describe("bannerText", () => {
     setLocale("frFR");
     expect(bannerText([], "1", "2")).toBe("Données générées pour le build 2");
   });
+  it("names the routes build when it differs from the client", () => {
+    setLocale("enUS");
+    expect(bannerText([], "1.60.1.71139", "1.60.1.71139", "1.60.1.71139")).toBeNull();
+    expect(bannerText([], "1.60.1.71139", "1.60.1.71139", "1.60.0.70000")).toBe("Routes built for build 1.60.0.70000");
+    expect(bannerText([], "1", "2", "3")).toBe("Data built for build 2 · Routes built for build 3");
+    expect(bannerText([], null, "2", "3")).toBeNull();
+    setLocale("frFR");
+    expect(bannerText([], "1", "1", "3")).toBe("Routes générées pour le build 3");
+  });
 });
 
 describe("completionView", () => {

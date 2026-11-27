@@ -2,13 +2,13 @@ import { distance, formatDistance, formatDuration, type WorldPos } from "../core
 import { currentLocale, t } from "../core/l10n";
 import type { QuestInfo } from "../data/questRepository";
 import type { CharDb } from "../core/storage";
-import { questLabel, sameKey, targetAction } from "../game/engine";
+import { sameKey, targetAction, targetName } from "../game/engine";
 import type { Target, ZoneProgress } from "../targets/completion";
 import type { ZoneIndex } from "./maps";
 import { COLOR, colorCode } from "./theme";
 
 export interface TargetView {
-  questId: number;
+  questId: number | null;
   name: string;
   line: string;
 }
@@ -89,9 +89,14 @@ export function sumProgress(totals: Map<number, ZoneProgress>, keep: (areaId: nu
   return sum;
 }
 
-export function bannerText(expired: string[], clientBuild: string | null, dataBuild: string): string | null {
+export function bannerText(
+  expired: string[], clientBuild: string | null, dataBuild: string, routesBuild: string | null = null,
+): string | null {
   const parts: string[] = [];
   if (clientBuild != null && clientBuild !== dataBuild) parts.push(t("bannerBuild").replace("{build}", dataBuild));
+  if (clientBuild != null && routesBuild != null && clientBuild !== routesBuild) {
+    parts.push(t("bannerRoutesBuild").replace("{build}", routesBuild));
+  }
   if (expired.length > 0) parts.push(t("bannerExpired").replace("{names}", expired.join(", ")));
   return parts.length > 0 ? parts.join(" · ") : null;
 }
@@ -144,7 +149,7 @@ export function rowLines(view: CompletionView, slots: number): RowLine[] {
 function targetView(target: Target, getQuest: QuestGetter, player: WorldPos | null): TargetView {
   const yards = player == null ? Infinity : distance(player, target.pos);
   const line = `${targetAction(target)} · ${formatDuration(target.seconds)} · ${formatDistance(yards, currentLocale())}`;
-  return { questId: target.questId, name: questLabel(target.questId, getQuest(target.questId)), line };
+  return { questId: target.questId, name: targetName(target, getQuest), line };
 }
 
 export function completionView(
@@ -164,13 +169,16 @@ export function completionView(
       next = target;
       continue;
     }
-    if (listed.has(target.questId)) continue;
-    listed.add(target.questId);
+    const id = target.questId;
+    if (id != null) {
+      if (listed.has(id)) continue;
+      listed.add(id);
+    }
     remaining++;
     if (rows.length >= maxRows) continue;
     rows.push({
       level: String(target.questLevel),
-      name: questLabel(target.questId, getQuest(target.questId)),
+      name: targetName(target, getQuest),
       time: formatDuration(target.seconds),
       grey: target.trivial,
       elite: target.elite,

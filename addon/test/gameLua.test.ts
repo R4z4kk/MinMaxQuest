@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { loggedIn, session } from "./helpers/fakeGame";
+import { loggedIn, QUEST_MODE, session } from "./helpers/fakeGame";
 
 it("lists targets after login and points the arrow at the nearest", async () => {
   const s = await loggedIn();
@@ -274,6 +274,37 @@ zonePrivate.areaIdToUiMapId = "return {"`);
     expect(printed).toContain("QuestieDB read failed (ZoneDB)");
     expect(printed).toContain("ZoneDB.private.areaIdToUiMapId does not compile");
     expect(printed).not.toContain("<1 min");
+  } finally {
+    s.close();
+  }
+});
+
+it("points a level 1 human in quest mode at the first Elwynn step", async () => {
+  const s = await loggedIn(QUEST_MODE);
+  try {
+    expect(await s.calls()).toContain("font|SetText|Wolves Across the Border · pick up");
+    expect(await s.run("return MinMaxQuestCharDB.route.variant")).toMatch(/^e0d0x0:elwynn-forest:1@/);
+    expect(await s.run("return MinMaxQuestCharDB.route.startIndex")).toBe(0);
+    await s.printed();
+    await s.cmd("targets");
+    expect(await s.printed()).toContain("MinMaxQuest: [33] Wolves Across the Border · pick up");
+  } finally {
+    s.close();
+  }
+});
+
+it("applies a variant change made in combat once combat ends", async () => {
+  const s = await loggedIn(QUEST_MODE);
+  const variant = async () => (await s.run("return MinMaxQuestCharDB.route.variant")) as string;
+  try {
+    await s.run("InCombatLockdown = function() return true end; MinMaxQuestCharDB.routeElites = true");
+    await s.event(`"ZONE_CHANGED_NEW_AREA"`);
+    await s.tick();
+    expect(await variant()).toMatch(/^e0d0x0:/);
+    await s.run("InCombatLockdown = function() return false end");
+    await s.event(`"PLAYER_REGEN_ENABLED"`);
+    await s.tick();
+    expect(await variant()).toMatch(/^e1d0x0:elwynn-forest:1@/);
   } finally {
     s.close();
   }

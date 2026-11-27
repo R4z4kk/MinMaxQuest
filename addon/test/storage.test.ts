@@ -75,3 +75,34 @@ describe("nil-valued defaults (Lua drops null keys)", () => {
     expect(out.inner.z).toBe(2);
   });
 });
+
+describe("route state", () => {
+  it("defaults the active mode, the route state and the dungeon returns", () => {
+    const db = loadCharDb(null);
+    expect(db.activeMode).toBe("quest");
+    expect(db.route).toEqual({ variant: null, startIndex: 0, skippedSteps: [] });
+    expect(db.dungeonReturns).toEqual([]);
+  });
+  it("keeps valid saved values", () => {
+    const db = loadCharDb({
+      activeMode: "completion",
+      route: { variant: "e0d0x0:elwynn-forest:1", startIndex: 12, skippedSteps: [3, 7] },
+      dungeonReturns: [1584],
+    });
+    expect(db.activeMode).toBe("completion");
+    expect(db.route).toEqual({ variant: "e0d0x0:elwynn-forest:1", startIndex: 12, skippedSteps: [3, 7] });
+    expect(db.dungeonReturns).toEqual([1584]);
+  });
+  it("repairs invalid values to the defaults", () => {
+    const db = loadCharDb({
+      activeMode: "access",
+      route: { variant: 5, startIndex: -2, skippedSteps: [1, "x"] },
+      dungeonReturns: [1.5],
+    });
+    expect(db.activeMode).toBe("quest");
+    expect(db.route).toEqual({ variant: null, startIndex: 0, skippedSteps: [] });
+    expect(db.dungeonReturns).toEqual([]);
+    expect(loadCharDb({ route: { startIndex: 2.5, skippedSteps: "x" } }).route).toEqual({ variant: null, startIndex: 0, skippedSteps: [] });
+    expect(loadCharDb({ dungeonReturns: { a: 1 } }).dungeonReturns).toEqual([]);
+  });
+});

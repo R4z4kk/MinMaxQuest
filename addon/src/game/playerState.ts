@@ -129,6 +129,8 @@ export function createPlayerState(lib: LibQuestieDBApi, db: CharDb): PlayerState
       // UnitLevel can still return the old level during PLAYER_LEVEL_UP.
       const level = eventLevel == null ? UnitLevel("player") : Math.max(eventLevel, UnitLevel("player"));
       eventLevel = null;
+      const xpIntoLevel = UnitXP("player");
+      if (typeof xpIntoLevel !== "number") throw new Error("UnitXP returned no number");
       return {
         pos: playerPosition(),
         state: { level, raceMask, classMask, completed, inLog: log.ids },
@@ -137,6 +139,7 @@ export function createPlayerState(lib: LibQuestieDBApi, db: CharDb): PlayerState
         faction: side,
         hearth: { ready: hearthReady(), pos: db.hearthPos },
         maxLevel: GetMaxPlayerLevel(),
+        xpIntoLevel,
       };
     },
     refreshLog() {
