@@ -100,6 +100,7 @@ export function createWindow(db: CharDb, tabs: Record<TabId, TabView>): WindowAp
 
   const setTab = (tab: TabId): void => {
     db.tab = tab;
+    if (tab !== "access") db.activeMode = tab;
     const view = tabs[tab];
     frame.SetSize(view.width, view.height);
     const tabWidth = view.width / TAB_ORDER.length;

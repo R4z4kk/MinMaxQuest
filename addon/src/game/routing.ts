@@ -1,4 +1,5 @@
 import { CONSTANTS } from "../core/constants";
+import type { WorldPos } from "../core/geometry";
 import type { CharDb } from "../core/storage";
 import { TRAVEL, type TravelData } from "../data/generated/travel";
 import type { QuestInfo, QuestRepository } from "../data/questRepository";
@@ -20,6 +21,8 @@ import type { PlayerSnapshot } from "./engine";
 
 export interface Routing {
   completion(snap: PlayerSnapshot): Target[];
+  // Solves the travel graph from the snapshot (shared with completion and firstHop); null without a position.
+  timeTo(snap: PlayerSnapshot): ((p: WorldPos) => number) | null;
   firstHop(target: Target): TravelHop | null;
   taxiLeg(target: Target): TaxiLeg | null;
   quests(): QuestInfo[];
@@ -46,7 +49,7 @@ export function createRouting(
   let quests: QuestInfo[] | null = null;
   let graph: TravelGraph | null = null;
   let builtFor = "";
-  let solved: { plan: TravelPlan; graph: TravelGraph; ctx: TravelContext } | null = null;
+  let solved: { plan: TravelPlan; graph: TravelGraph; ctx: TravelContext; snap: PlayerSnapshot } | null = null;
   const clusters = new Map<string, SpawnCluster[]>();
 
   const allQuests = (): QuestInfo[] => {
@@ -61,23 +64,34 @@ export function createRouting(
     return quests;
   };
 
+  // One solve per snapshot, whichever source asks first.
+  const solve = (snap: PlayerSnapshot): { plan: TravelPlan; graph: TravelGraph; ctx: TravelContext; snap: PlayerSnapshot } | null => {
+    if (snap.pos == null) return null;
+    if (solved != null && solved.snap === snap) return solved;
+    const ctx: TravelContext = {
+      speed: travelSpeed(snap.state.level),
+      knownTaxiNodes: new Set(db.knownTaxiNodes),
+      faction: snap.faction,
+      hearth: snap.hearth,
+    };
+    const key = graphKey(ctx, db.knownTaxiNodes);
+    if (graph == null || key !== builtFor) {
+      graph = buildGraph(data, ctx);
+      builtFor = key;
+    }
+    solved = { plan: solveFrom(graph, snap.pos, ctx), graph, ctx, snap };
+    return solved;
+  };
+
   return {
     quests: () => allQuests(),
+    timeTo(snap) {
+      const current = solve(snap);
+      return current == null ? null : (p) => travelTime(current.plan, current.graph, p, current.ctx);
+    },
     completion(snap) {
-      if (snap.pos == null) return [];
-      const ctx: TravelContext = {
-        speed: travelSpeed(snap.state.level),
-        knownTaxiNodes: new Set(db.knownTaxiNodes),
-        faction: snap.faction,
-        hearth: snap.hearth,
-      };
-      const key = graphKey(ctx, db.knownTaxiNodes);
-      if (graph == null || key !== builtFor) {
-        graph = buildGraph(data, ctx);
-        builtFor = key;
-      }
-      const current = { plan: solveFrom(graph, snap.pos, ctx), graph, ctx };
-      solved = current;
+      const current = solve(snap);
+      if (current == null) return [];
       const { mode, zoneAreaId, showTrivial, showElite } = db.completion;
       return selectTargets(
         {

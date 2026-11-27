@@ -5,6 +5,7 @@ export interface AccountDb {
 export interface CharDb {
   version: 1;
   tab: "quest" | "access" | "completion";
+  activeMode: "quest" | "completion";
   window: { x: number; y: number } | null;
   arrow: { x: number; y: number; locked: boolean } | null;
   completion: {
@@ -25,6 +26,8 @@ export interface CharDb {
   taxiNames: { [nodeId: number]: string };
   expandedChain: string | null;
   hearthPos: { continent: number; x: number; y: number } | null;
+  route: { variant: string | null; startIndex: number; skippedSteps: number[] };
+  dungeonReturns: number[];
 }
 
 export const ACCOUNT_DEFAULTS: AccountDb = { version: 1 };
@@ -32,6 +35,7 @@ export const ACCOUNT_DEFAULTS: AccountDb = { version: 1 };
 export const CHAR_DEFAULTS: CharDb = {
   version: 1,
   tab: "quest",
+  activeMode: "quest",
   window: null,
   arrow: null,
   completion: { mode: "proximity", zoneAreaId: null, showTrivial: true, showElite: true },
@@ -47,6 +51,8 @@ export const CHAR_DEFAULTS: CharDb = {
   taxiNames: {},
   expandedChain: null,
   hearthPos: null,
+  route: { variant: null, startIndex: 0, skippedSteps: [] },
+  dungeonReturns: [],
 };
 
 // Sample values describing the shape of fields whose default is null.
@@ -58,6 +64,7 @@ const CHAR_SHAPES = {
   pinnedQuestId: 0,
   expandedChain: "",
   hearthPos: { continent: 0, x: 0, y: 0 },
+  route: { variant: "" },
 };
 
 type Dict = Record<string, unknown>;
@@ -87,9 +94,23 @@ export function withDefaults<T>(saved: unknown, defaults: T, shape: unknown = nu
   return merge(saved, defaults, shape) as T;
 }
 
+function isIndex(value: unknown): boolean {
+  return typeof value === "number" && value >= 0 && Math.floor(value) === value;
+}
+
+function isIndexList(value: unknown): boolean {
+  if (!Array.isArray(value)) return false;
+  for (const item of value) if (!isIndex(item)) return false;
+  return true;
+}
+
 export function loadCharDb(saved: unknown): CharDb {
   const db = withDefaults(saved, CHAR_DEFAULTS, CHAR_SHAPES);
   if (db.tab !== "quest" && db.tab !== "access" && db.tab !== "completion") db.tab = CHAR_DEFAULTS.tab;
+  if (db.activeMode !== "quest" && db.activeMode !== "completion") db.activeMode = CHAR_DEFAULTS.activeMode;
+  if (!isIndex(db.route.startIndex)) db.route.startIndex = 0;
+  if (!isIndexList(db.route.skippedSteps)) db.route.skippedSteps = [];
+  if (!isIndexList(db.dungeonReturns)) db.dungeonReturns = [];
   if (db.completion.mode !== "proximity" && db.completion.mode !== "zone") {
     db.completion.mode = CHAR_DEFAULTS.completion.mode;
   }

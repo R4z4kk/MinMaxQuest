@@ -53,6 +53,28 @@ function paintRow(row: Row, line: RowLine): void {
   paint(row.time, grey ? COLOR.grey : COLOR.sub);
 }
 
+export function skipCurrent(engine: Engine, repo: QuestRepository, redraw: () => void): void {
+  const current = engine.current();
+  if (current == null) return;
+  skipStepOrQuest(engine, repo, redraw, current.questId, current.route?.index ?? null);
+}
+
+export function skipStepOrQuest(engine: Engine, repo: QuestRepository, redraw: () => void, id: number | null, index: number | null): void {
+  if (id == null) {
+    if (index != null) engine.skipStep(index);
+    redraw();
+    return;
+  }
+  const result = engine.skip(id, false);
+  if (result.needsConfirm) {
+    confirmSkip({ name: questLabel(id, repo.get(id)) }, result.followUps, result.lost, () => {
+      engine.skip(id, true);
+      redraw();
+    });
+  }
+  redraw();
+}
+
 export function createCompletionTab(deps: CompletionDeps): TabView {
   const { db, engine, repo } = deps;
   let root: WowFrame | null = null;
@@ -86,19 +108,7 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
     if (!notified) draw();
   };
 
-  const onSkip = (): void => {
-    const current = engine.current();
-    if (current == null) return;
-    const id = current.questId;
-    const result = engine.skip(id, false);
-    if (result.needsConfirm) {
-      confirmSkip({ name: questLabel(id, repo.get(id)) }, result.followUps, result.lost, () => {
-        engine.skip(id, true);
-        draw();
-      });
-    }
-    draw();
-  };
+  const onSkip = (): void => skipCurrent(engine, repo, draw);
 
   const build = (parent: WowFrame) => {
     const picker = createZonePicker(parent);

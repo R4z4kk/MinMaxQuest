@@ -1,5 +1,6 @@
 import type { WorldPos } from "../core/geometry";
 import type { AreaPoint, QuestRepository } from "../data/questRepository";
+import type { PlaceFor } from "../route/insert";
 import type { CompletionInput } from "../targets/completion";
 
 export type AreaToWorld = (point: AreaPoint) => WorldPos | null;
@@ -7,13 +8,17 @@ export type AreaToWorld = (point: AreaPoint) => WorldPos | null;
 const PERCENT = 100;
 
 // GetWorldPosFromMapPos returns (continentId, vec) with vec.x = world north and vec.y = world west, like UnitPosition.
+// x and y are map percents, as in QuestieDB spawns and route steps.
+export function uiMapToWorld(uiMapId: number, x: number, y: number): WorldPos | null {
+  const [continent, vec] = C_Map.GetWorldPosFromMapPos(uiMapId, CreateVector2D(x / PERCENT, y / PERCENT));
+  if (continent == null || vec == null || !Number.isFinite(vec.x) || !Number.isFinite(vec.y)) return null;
+  return { continent, x: vec.x, y: vec.y };
+}
+
 export function mapToWorld(repo: QuestRepository): AreaToWorld {
   return (point) => {
     const uiMapId = repo.uiMapIdForArea(point.areaId);
-    if (uiMapId == null) return null;
-    const [continent, vec] = C_Map.GetWorldPosFromMapPos(uiMapId, CreateVector2D(point.x / PERCENT, point.y / PERCENT));
-    if (continent == null || vec == null || !Number.isFinite(vec.x) || !Number.isFinite(vec.y)) return null;
-    return { continent, x: vec.x, y: vec.y };
+    return uiMapId == null ? null : uiMapToWorld(uiMapId, point.x, point.y);
   };
 }
 
@@ -24,6 +29,41 @@ export function isFriendlyTo(read: "A" | "H" | "AH" | null, side: "A" | "H"): bo
 
 const FRIENDLY = "friendly";
 const HOSTILE = "hostile";
+
+// First convertible spawn of the quest's starter, objective source or finisher, for route insertion.
+export function createPlaceFor(repo: QuestRepository, faction: () => "A" | "H" | null): PlaceFor {
+  const first = (points: AreaPoint[]): { uiMapId: number; x: number; y: number } | null => {
+    for (const point of points) {
+      const uiMapId = repo.uiMapIdForArea(point.areaId);
+      if (uiMapId != null && uiMapToWorld(uiMapId, point.x, point.y) != null) return { uiMapId, x: point.x, y: point.y };
+    }
+    return null;
+  };
+  const from = (npcs: number[], objects: number[], friendlyOnly: boolean): { uiMapId: number; x: number; y: number } | null => {
+    const side = faction();
+    for (const id of npcs) {
+      if (friendlyOnly && side != null && !isFriendlyTo(repo.npcFriendlyTo(id), side)) continue;
+      const place = first(repo.npcSpawns(id));
+      if (place != null) return place;
+    }
+    for (const id of objects) {
+      const place = first(repo.objectSpawns(id));
+      if (place != null) return place;
+    }
+    return null;
+  };
+  return (q, kind, objectiveIndex) => {
+    if (kind === "accept") return from(q.starterNpcs, q.starterObjects, true);
+    if (kind === "turnin") return from(q.finisherNpcs, q.finisherObjects, true);
+    const objective = q.objectives.find((o) => o.index === objectiveIndex);
+    if (objective == null) return null;
+    if (objective.kind === "npc") return from([objective.id], [], false);
+    if (objective.kind === "object") return from([], [objective.id], false);
+    if (objective.kind !== "item") return null;
+    const sources = repo.itemSources(objective.id);
+    return from(sources.npcs, sources.objects, false);
+  };
+}
 
 export function createPositions(
   repo: QuestRepository,

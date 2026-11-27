@@ -3,6 +3,7 @@ import { guard } from "../core/report";
 import type { CharDb } from "../core/storage";
 import type { QuestInfo, QuestRepository } from "../data/questRepository";
 import type { Engine } from "../game/engine";
+import type { RouteFollower } from "../route/follower";
 import { createAccessTab } from "./accessTab";
 import { createBanner, type Banner } from "./banner";
 import { createCompletionTab } from "./completionTab";
@@ -14,6 +15,7 @@ import { createWindow, type TabId, type TabView, type WindowApi } from "./window
 export interface UiGame {
   engine: Engine;
   repo: QuestRepository;
+  follower: RouteFollower;
   quests(): QuestInfo[];
   refreshPins(): void;
 }
@@ -40,15 +42,20 @@ function noticeTab(message: string): TabView {
   };
 }
 
-function gameTabs(db: CharDb, game: UiGame, setTab: (tab: TabId) => void): Record<TabId, TabView> {
+function gameTabs(db: CharDb, game: UiGame, setTab: (tab: TabId) => void, resize: (height: number) => void): Record<TabId, TabView> {
   const { engine, repo } = game;
   const maps = wowMapDeps(repo);
   return {
     quest: createQuestTab({
       db,
+      engine,
+      repo,
+      follower: game.follower,
+      areaName: (areaId) => maps.areaName(areaId),
       refreshTargets: () => engine.refreshTargets(true),
       refreshPins: () => game.refreshPins(),
       openCompletion: () => setTab("completion"),
+      resize: (height) => resize(height),
     }),
     access: createAccessTab({ db, engine, repo, areaName: (areaId) => maps.areaName(areaId) }),
     completion: createCompletionTab({ db, engine, repo, quests: () => game.quests(), maps }),
@@ -66,9 +73,9 @@ export function createUi(ctx: UiContext): Ui {
     const tabs =
       game == null
         ? { quest: notice, access: notice, completion: notice }
-        : gameTabs(db, game, (tab) => window?.setTab(tab));
+        : gameTabs(db, game, (tab) => window?.setTab(tab), (height) => window?.frame.SetHeight(height));
     window = createWindow(db, tabs);
-    return { window, banner: createBanner(window.frame) };
+    return { window, banner: createBanner(window.frame, () => (game == null ? null : game.follower.routesBuild())) };
   };
 
   return {

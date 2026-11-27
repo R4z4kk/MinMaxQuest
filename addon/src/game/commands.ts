@@ -6,7 +6,7 @@ import { guard } from "../core/report";
 import type { QuestRepository } from "../data/questRepository";
 import type { Target } from "../targets/completion";
 import { setBuildOverride } from "./buildOverride";
-import { describeTarget, type Engine } from "./engine";
+import { describeTarget, targetQuest, type Engine } from "./engine";
 
 const LISTED_TARGETS = 5;
 const NORTH_TEST_YARDS = 100;
@@ -95,13 +95,21 @@ export function createCommands(ctx: CommandContext): Commands {
       return;
     }
     for (const target of list.slice(0, LISTED_TARGETS)) {
-      const quest = game.repo.get(target.questId);
-      say(`[${target.questId}] ${describeTarget(target, quest)} · ${formatDuration(target.seconds)}`);
+      const quest = targetQuest(target, (id) => game.repo.get(id));
+      const tag = target.questId == null ? `#${target.route?.index ?? ""}` : String(target.questId);
+      say(`[${tag}] ${describeTarget(target, quest)} · ${formatDuration(target.seconds)}`);
     }
   };
 
   const skipCommand = (game: CommandGame, confirm: boolean): void => {
-    const id = confirm && pendingSkip != null ? pendingSkip : game.engine.current()?.questId;
+    const current = game.engine.current();
+    if (!confirm && current != null && current.questId == null && current.route != null) {
+      pendingSkip = null;
+      game.engine.skipStep(current.route.index);
+      say(`${t("skipped")}: ${describeTarget(current, null)}`);
+      return;
+    }
+    const id = confirm && pendingSkip != null ? pendingSkip : current?.questId;
     if (id == null) {
       say(t("noTarget"));
       return;

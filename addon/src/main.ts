@@ -2,14 +2,16 @@ import { createArrow, playerPosition, type ArrowApi, type ArrowTarget } from "./
 import { t } from "./core/l10n";
 import { guard, isDisabled, reportOnce } from "./core/report";
 import { loadCharDb, type CharDb } from "./core/storage";
+import { TRAVEL } from "./data/generated/travel";
 import { createQuestRepository, type QuestInfo, type QuestRepository, type RepoResult } from "./data/questRepository";
 import { createCommands } from "./game/commands";
-import { createEngine, describeTarget, sameKey, type Engine } from "./game/engine";
+import { createEngine, describeTarget, sameKey, targetQuest, type Engine } from "./game/engine";
 import { createPlayerState, HEARTHSTONE_SPELL_ID, playerFaction, type PlayerStateReader } from "./game/playerState";
-import { createPositions, mapToWorld } from "./game/positions";
+import { createPlaceFor, createPositions, mapToWorld, uiMapToWorld } from "./game/positions";
 import { createRouting } from "./game/routing";
 import { installMapPins } from "./map/pins";
 import { installPinButtons } from "./questlog/pinButtons";
+import { createRouteFollower, type RouteFollower } from "./route/follower";
 import { installAutoFly } from "./taxi/autoFly";
 import { createUi } from "./ui/ui";
 
@@ -23,12 +25,13 @@ const FORCING_EVENTS = [
   "ZONE_CHANGED_NEW_AREA",
   "PLAYER_LEVEL_UP",
 ];
-const EVENTS = ["PLAYER_LOGIN", "QUEST_LOG_UPDATE", "HEARTHSTONE_BOUND", ...FORCING_EVENTS];
+const EVENTS = ["PLAYER_LOGIN", "QUEST_LOG_UPDATE", "HEARTHSTONE_BOUND", "PLAYER_REGEN_ENABLED", ...FORCING_EVENTS];
 
 interface Game {
   engine: Engine;
   player: PlayerStateReader;
   repo: QuestRepository;
+  follower: RouteFollower;
   quests(): QuestInfo[];
   refreshPins(): void;
 }
@@ -66,6 +69,7 @@ let shownArrow: ArrowTarget | null = null;
 // Events only raise flags; the ticker runs at most one refresh per tick.
 let forcePending = true;
 let logDirty = true;
+let lastMode: CharDb["activeMode"] | null = null;
 
 function syncArrow(): void {
   if (game == null) return;
@@ -95,7 +99,9 @@ function tick(current: Game): void {
     logDirty = false;
     if (current.player.refreshLog()) forcePending = true;
   }
-  const force = forcePending;
+  const mode = getDb().activeMode;
+  const force = forcePending || mode !== lastMode;
+  lastMode = mode;
   forcePending = false;
   current.engine.refreshTargets(force);
   syncArrow();
@@ -108,12 +114,24 @@ function start(): Game | null {
   const charDb = getDb();
   const player = createPlayerState(_G.LibQuestieDB as LibQuestieDBApi, charDb);
   const routing = createRouting(repo, charDb, createPositions(repo, mapToWorld(repo), () => playerFaction()));
+  const follower = createRouteFollower({
+    db: charDb,
+    faction: () => playerFaction(),
+    quest: (id) => repo.get(id),
+    toWorld: (uiMapId, x, y) => uiMapToWorld(uiMapId, x, y),
+    place: createPlaceFor(repo, () => playerFaction()),
+    timeTo: (snap) => routing.timeTo(snap),
+    inCombat: () => InCombatLockdown(),
+    taxiNodes: TRAVEL.taxiNodes,
+  });
   const engine = createEngine(
     {
       now: () => GetTime(),
       readPlayer: () => player.read(),
       readPosition: () => playerPosition(),
       completion: (snap) => routing.completion(snap),
+      // A failing route disables itself once; the engine then falls back to completion.
+      route: (snap) => guard("route", () => follower.targets(snap)) ?? null,
       firstHop: (target) => routing.firstHop(target),
       getQuest: (id) => repo.get(id),
       allQuests: () => routing.quests(),
@@ -129,7 +147,7 @@ function start(): Game | null {
   const mapPins = guard("mapPins", () =>
     installMapPins({
       db: charDb,
-      label: (target) => describeTarget(target, repo.get(target.questId)),
+      label: (target) => describeTarget(target, targetQuest(target, (id) => repo.get(id))),
       getPins: () => {
         const current = engine.current();
         const next = engine.targets().find((target) => !sameKey(target, current)) ?? null;
@@ -142,6 +160,7 @@ function start(): Game | null {
     engine,
     player,
     repo,
+    follower,
     quests: () => routing.quests(),
     refreshPins: () => mapPins?.refresh(),
   };
@@ -159,7 +178,7 @@ function start(): Game | null {
       refresh: () => engine.refreshTargets(true),
       currentLeg: () => {
         const target = engine.current();
-        return target == null ? null : routing.taxiLeg(target);
+        return target == null ? null : (follower.taxiLeg(target) ?? routing.taxiLeg(target));
       },
     }),
   );
@@ -182,6 +201,9 @@ function onEvent(event: string, arg1: unknown, arg3: unknown): void {
     if (arg3 === HEARTHSTONE_SPELL_ID) player.hearthCast();
   } else if (event === "HEARTHSTONE_BOUND") {
     player.hearthBound();
+    current.follower.hearthBound();
+    forcePending = true;
+  } else if (event === "PLAYER_REGEN_ENABLED") {
     forcePending = true;
   } else if (event === "QUEST_LOG_UPDATE") {
     logDirty = true;

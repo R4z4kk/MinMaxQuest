@@ -16,6 +16,7 @@ declare function GetTime(): number;
 declare function debugprofilestop(): number;
 declare function UnitOnTaxi(unit: string): boolean;
 declare function UnitLevel(unit: string): number;
+declare function UnitXP(unit: string): number;
 declare function UnitRace(unit: string): LuaMultiReturn<[string, string, number]>;
 declare function UnitClass(unit: string): LuaMultiReturn<[string, string, number]>;
 declare function UnitFactionGroup(unit: string): LuaMultiReturn<[string | null, string | null]>;
@@ -48,6 +49,8 @@ interface WowQuestLogInfo {
 
 interface WowQuestObjective {
   finished: boolean;
+  numFulfilled?: number;
+  numRequired?: number;
 }
 
 interface WowMapInfo {

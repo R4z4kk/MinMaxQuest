@@ -43,6 +43,15 @@ Prérequis : `npm test` (construit `build/MinMaxQuest.lua`), puis lancer WoW For
 - [ ] Carte du monde : 2 marqueurs seulement (étape actuelle et suivante) ; minicarte : l'étape actuelle ; info-bulle « +N autres zones ».
 - [ ] Repère Blizzard posé pour l'étape actuelle (option cochée) ; un repère posé à la main par toi n'est jamais effacé.
 
+## Routes (onglet Quête)
+- [ ] Niveau 1 humain : suivre le segment d'Elwynn ; la flèche suit l'étape affichée et passe à la suivante.
+- [ ] Changer de variante (élites, donjons, niveau max) : la route est recalculée sans erreur.
+- [ ] Suivre la chaîne des Égouts de Dalaran (onglet Accès) : ses étapes entrent dans la route.
+- [ ] Cocher un donjon : l'étape de retour est insérée.
+- [ ] Sortir de la route (niveau très différent) puis « Re-sync » : le bandeau disparaît et l'étape est recalée.
+- [ ] Les onglets Complétion et Quête basculent la flèche entre les deux modes.
+- [ ] `/mmq debug prof` en mode Quête sur un vrai personnage : noter les durées de recalcul (coût du suivi de route non mesuré en jeu).
+
 ## Données et performance
 - [ ] `/mmq debug build 1` → bandeau « Données générées pour le build … » (n'empêche rien).
 - [ ] `/mmq debug prof` : durée du dernier recalcul (viser < 10 ms) et du premier au login (signaler si > 50 ms).

@@ -27,6 +27,7 @@ export interface PlayerSnapshot {
   faction: "A" | "H";
   hearth: { ready: boolean; pos: WorldPos | null };
   maxLevel: number;
+  xpIntoLevel: number;
 }
 
 export interface EngineDeps {
@@ -34,6 +35,8 @@ export interface EngineDeps {
   readPlayer(): PlayerSnapshot | null;
   readPosition(): WorldPos | null;
   completion: (snap: PlayerSnapshot) => Target[];
+  // Null while the routes are unavailable: the engine then uses completion.
+  route: (snap: PlayerSnapshot) => Target[] | null;
   firstHop(target: Target): TravelHop | null;
   getQuest(id: number): QuestInfo | null;
   allQuests(): QuestInfo[];
@@ -62,6 +65,7 @@ export interface Engine {
   targets(): Target[];
   arrowTarget(): ArrowTarget | null;
   skip(questId: number, confirmed: boolean): SkipResult;
+  skipStep(index: number): void;
   skipped(): number[];
   unskip(questId: number): boolean;
   unskipAll(): number;
@@ -72,6 +76,7 @@ export interface Engine {
 }
 
 export function targetAction(target: Target): string {
+  if (target.kind === "route") return target.route?.label ?? "";
   if (target.kind === "accept") return t("targetAccept");
   if (target.kind === "turnin") return t("targetTurnin");
   return `${t("targetObjective")} ${target.objectiveIndex ?? ""}`;
@@ -82,12 +87,22 @@ export function questLabel(questId: number, quest: QuestInfo | null): string {
 }
 
 export function describeTarget(target: Target, quest: QuestInfo | null): string {
+  if (target.questId == null) return targetAction(target);
   return `${questLabel(target.questId, quest)} · ${targetAction(target)}`;
+}
+
+export function targetName(target: Target, get: (id: number) => QuestInfo | null): string {
+  return target.questId == null ? targetAction(target) : questLabel(target.questId, get(target.questId));
+}
+
+export function targetQuest(target: Target, get: (id: number) => QuestInfo | null): QuestInfo | null {
+  return target.questId == null ? null : get(target.questId);
 }
 
 export function sameKey(a: Target | null, b: Target | null): boolean {
   if (a == null || b == null) return a === b;
-  return a.questId === b.questId && a.kind === b.kind && a.objectiveIndex === b.objectiveIndex;
+  if (a.questId !== b.questId || a.kind !== b.kind || a.objectiveIndex !== b.objectiveIndex) return false;
+  return a.kind !== "route" || a.route?.index === b.route?.index;
 }
 
 function sameTargets(a: Target[], b: Target[]): boolean {
@@ -105,6 +120,8 @@ function sameArrow(a: ArrowTarget | null, b: ArrowTarget | null): boolean {
 
 export function createEngine(deps: EngineDeps, db: CharDb): Engine {
   let list: Target[] = [];
+  // Completion targets searched for the pinned quest while the route drives the list.
+  let pinPool: Target[] | null = null;
   let currentTarget: Target | null = null;
   let hop: TravelHop | null = null;
   let snapshot: PlayerSnapshot | null = null;
@@ -120,7 +137,7 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
 
   const pick = (): Target | null => {
     const pinned = db.pinnedQuestId;
-    if (pinned != null) for (const target of list) if (target.questId === pinned) return target;
+    if (pinned != null) for (const target of pinPool ?? list) if (target.questId === pinned) return target;
     return list.length > 0 ? list[0] : null;
   };
 
@@ -139,7 +156,7 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
       else if (hop != null && hop.kind !== "walk") showArrow(hop.pos, t(HOP_LABEL[hop.kind]));
       return;
     }
-    label = describeTarget(target, deps.getQuest(target.questId));
+    label = describeTarget(target, targetQuest(target, (id) => deps.getQuest(id)));
     if (target.cluster == null) {
       loop = null;
       loopKey = "";
@@ -191,7 +208,10 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
     if (snap.pos == null) return apply(false, null);
     lastRunPos = snap.pos;
     const skipped = new Set(db.skippedQuests);
-    const next = deps.completion(snap).filter((target) => !skipped.has(target.questId));
+    const kept = (target: Target): boolean => target.questId == null || !skipped.has(target.questId);
+    const route = db.activeMode === "quest" ? deps.route(snap) : null;
+    const next = (route ?? deps.completion(snap)).filter((target) => kept(target));
+    pinPool = route != null && db.pinnedQuestId != null ? deps.completion(snap).filter((target) => kept(target)) : null;
     const changed = !sameTargets(list, next);
     list = next;
     return apply(changed, snap.pos);
@@ -244,6 +264,10 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
       refreshTargets(true);
       if (wasPinned) notifyListeners();
       return { needsConfirm: false, followUps: chain, lost };
+    },
+    skipStep(index) {
+      if (!db.route.skippedSteps.includes(index)) db.route.skippedSteps.push(index);
+      refreshTargets(true);
     },
     skipped: () => db.skippedQuests.slice(),
     unskip(questId) {

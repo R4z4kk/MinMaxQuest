@@ -3,7 +3,7 @@ import type { WorldPos } from "../src/core/geometry";
 import { setLocale } from "../src/core/l10n";
 import { loadCharDb } from "../src/core/storage";
 import type { QuestInfo } from "../src/data/questRepository";
-import { createEngine, type PlayerSnapshot } from "../src/game/engine";
+import { createEngine, sameKey, type PlayerSnapshot } from "../src/game/engine";
 import { lostXp } from "../src/quests/followUps";
 import type { Target } from "../src/targets/completion";
 import type { TravelHop } from "../src/travel/graph";
@@ -23,8 +23,12 @@ function quest(id: number, over: Partial<QuestInfo> = {}): QuestInfo {
 function target(questId: number, over: Partial<Target> = {}): Target {
   return {
     questId, kind: "accept", objectiveIndex: null, pos: at(questId * 10), cluster: null, otherSpots: 0, seconds: questId,
-    questLevel: 10, trivial: false, elite: false, zoneAreaId: null, ...over,
+    questLevel: 10, trivial: false, elite: false, zoneAreaId: null, route: null, ...over,
   };
+}
+
+function step(index: number, label: string): Target {
+  return target(0, { questId: null, kind: "route", pos: at(index * 100), seconds: index, route: { index, type: "grind", label } });
 }
 
 function snapshot(): PlayerSnapshot {
@@ -36,6 +40,7 @@ function snapshot(): PlayerSnapshot {
     faction: "A",
     hearth: { ready: false, pos: null },
     maxLevel: 60,
+    xpIntoLevel: 0,
   };
 }
 
@@ -46,6 +51,8 @@ function setup(initial: Target[], quests: QuestInfo[] = []) {
     list: initial,
     hop: null as TravelHop | null,
     completionCalls: 0,
+    route: null as Target[] | null,
+    routeCalls: 0,
     changes: 0,
     taxi: false,
     ms: 0,
@@ -61,6 +68,10 @@ function setup(initial: Target[], quests: QuestInfo[] = []) {
       completion: () => {
         world.completionCalls++;
         return world.list;
+      },
+      route: () => {
+        world.routeCalls++;
+        return world.route;
       },
       firstHop: () => world.hop,
       getQuest: (id) => byId.get(id) ?? null,
@@ -358,5 +369,61 @@ describe("snapshot", () => {
     expect(engine.snapshot()).toBeNull();
     engine.refreshTargets(true);
     expect(engine.snapshot()).toBe(world.snap);
+  });
+});
+
+describe("route source", () => {
+  it("uses the route in quest mode and completion in completion mode", () => {
+    const { engine, db, world } = setup([target(1)], [quest(1)]);
+    world.route = [step(4, "Grind to level 3"), target(2, { route: { index: 5, type: "accept", label: "" } })];
+    engine.refreshTargets(true);
+    expect(world.routeCalls).toBe(1);
+    expect(world.completionCalls).toBe(0);
+    expect(engine.current()?.route?.index).toBe(4);
+    db.activeMode = "completion";
+    engine.refreshTargets(true);
+    expect(world.routeCalls).toBe(1);
+    expect(engine.current()?.questId).toBe(1);
+  });
+
+  it("falls back to completion while the routes are unavailable", () => {
+    const { engine, world } = setup([target(1)]);
+    engine.refreshTargets(true);
+    expect(world.routeCalls).toBe(1);
+    expect(engine.current()?.questId).toBe(1);
+  });
+
+  it("lets a pinned quest win in quest mode with its completion target", () => {
+    const { engine, world } = setup([target(1), target(7, { kind: "turnin" })], [quest(1), quest(7)]);
+    world.route = [step(4, "Grind to level 3")];
+    engine.pin(7);
+    expect(engine.current()).toMatchObject({ questId: 7, kind: "turnin" });
+    expect(engine.targets().map((t) => t.route?.index)).toEqual([4]);
+    engine.pin(null);
+    expect(engine.current()?.route?.index).toBe(4);
+  });
+
+  it("records a skipped non-quest step without confirmation and refreshes", () => {
+    const { engine, db, world } = setup([], []);
+    world.route = [step(4, "Grind to level 3")];
+    engine.refreshTargets(true);
+    world.route = [step(6, "Grind to level 4")];
+    engine.skipStep(4);
+    expect(db.route.skippedSteps).toEqual([4]);
+    expect(engine.current()?.route?.index).toBe(6);
+    engine.skipStep(4);
+    expect(db.route.skippedSteps).toEqual([4]);
+  });
+
+  it("labels a non-quest target with its route label", () => {
+    const { engine, world } = setup([], []);
+    world.route = [step(4, "Grind to level 3")];
+    engine.refreshTargets(true);
+    expect(engine.arrowTarget()).toEqual({ pos: at(400), label: "Grind to level 3" });
+  });
+
+  it("tells two route steps apart", () => {
+    expect(sameKey(step(4, "a"), step(5, "a"))).toBe(false);
+    expect(sameKey(step(4, "a"), step(4, "a"))).toBe(true);
   });
 });

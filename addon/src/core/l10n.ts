@@ -46,6 +46,12 @@ export type L10nKey =
   | "stepsCount"
   | "trackInRoute"
   | "activeMode"
+  | "routeFinished"
+  | "routeOff"
+  | "resync"
+  | "currentStep"
+  | "routeFooter"
+  | "dungeons"
   | "trackedOne"
   | "trackedMany"
   | "routesMissing"
@@ -81,7 +87,19 @@ export type L10nKey =
   | "unskipped"
   | "unskippedAll"
   | "notSkipped"
-  | "unskipUsage";
+  | "unskipUsage"
+  | "routeFly"
+  | "routeHearth"
+  | "routeSetHearth"
+  | "routeFlightPath"
+  | "routeGrind"
+  | "routeDungeon"
+  | "routeStepsRemoved"
+  | "routeStepUnplaced"
+  | "routeChainUnplaceable"
+  | "routeReturnUnreadable"
+  | "routeChainUnknown"
+  | "bannerRoutesBuild";
 
 const EN: Record<L10nKey, string> = {
   questieMissing: "QuestieDB is required",
@@ -130,7 +148,13 @@ const EN: Record<L10nKey, string> = {
   unknownZone: "Unknown zone",
   stepsCount: "{done}/{total} steps",
   trackInRoute: "Track in route",
-  activeMode: "Active mode: Quest",
+  activeMode: "Active mode: {mode}",
+  routeFinished: "Route finished",
+  routeOff: "Off route: level {level}, route expects {expected}",
+  resync: "Re-sync",
+  currentStep: "Current step",
+  routeFooter: "Lvl {level} · step {step}/{total} · {left} left",
+  dungeons: "Dungeons",
   trackedOne: "{n} chain tracked",
   trackedMany: "{n} chains tracked",
   routesMissing: "Routes not installed - use Completion meanwhile",
@@ -167,6 +191,18 @@ const EN: Record<L10nKey, string> = {
   unskippedAll: "{n} quest(s) re-activated",
   notSkipped: "{quest} is not skipped",
   unskipUsage: "usage: /mmq unskip <id>|all",
+  routeFly: "Fly to {name}",
+  routeHearth: "Use your Hearthstone",
+  routeSetHearth: "Make this inn your home",
+  routeFlightPath: "Get the flight path",
+  routeGrind: "Grind to level {n}",
+  routeDungeon: "Run the dungeon",
+  routeStepsRemoved: "{n} route step(s) removed: not doable by this character",
+  routeStepUnplaced: "route step {n} has no usable position, skipped",
+  routeChainUnplaceable: "{name}: {n} quest(s) could not be placed in the route",
+  routeReturnUnreadable: "Dungeon return #{id} could not be read and is left out of the route",
+  routeChainUnknown: "tracked chain {id} is unknown",
+  bannerRoutesBuild: "Routes built for build {build}",
 };
 
 const FR: Record<L10nKey, string> = {
@@ -216,7 +252,13 @@ const FR: Record<L10nKey, string> = {
   unknownZone: "Zone inconnue",
   stepsCount: "{done}/{total} étapes",
   trackInRoute: "Suivre dans la route",
-  activeMode: "Mode actif : Quête",
+  activeMode: "Mode actif : {mode}",
+  routeFinished: "Route terminée",
+  routeOff: "Hors route : niveau {level}, route prévue {expected}",
+  resync: "Recaler",
+  currentStep: "Étape en cours",
+  routeFooter: "Niv. {level} · étape {step}/{total} · reste {left}",
+  dungeons: "Donjons",
   trackedOne: "{n} chaîne suivie",
   trackedMany: "{n} chaînes suivies",
   routesMissing: "Routes non installées - utilise Complétion en attendant",
@@ -253,6 +295,18 @@ const FR: Record<L10nKey, string> = {
   unskippedAll: "{n} quête(s) réactivée(s)",
   notSkipped: "{quest} n'est pas ignorée",
   unskipUsage: "usage : /mmq unskip <id>|all",
+  routeFly: "Vole vers {name}",
+  routeHearth: "Utilise ta pierre de foyer",
+  routeSetHearth: "Lie ta pierre de foyer à cette auberge",
+  routeFlightPath: "Découvre le point de vol",
+  routeGrind: "Grind jusqu'au niveau {n}",
+  routeDungeon: "Fais le donjon",
+  routeStepsRemoved: "{n} étape(s) de route retirée(s) : impossibles pour ce personnage",
+  routeStepUnplaced: "étape de route {n} sans position utilisable, sautée",
+  routeChainUnplaceable: "{name} : {n} quête(s) impossibles à placer dans la route",
+  routeReturnUnreadable: "Le retour en donjon #{id} est illisible et reste hors de la route",
+  routeChainUnknown: "chaîne suivie {id} inconnue",
+  bannerRoutesBuild: "Routes générées pour le build {build}",
 };
 
 let french: boolean | null = null;

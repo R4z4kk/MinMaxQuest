@@ -33,7 +33,7 @@ export const GLYPH = {
   dropdown: "|TInterface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up:12|t",
 };
 const CHECK_TEXTURE = "Interface\\Buttons\\UI-CheckBox-Check";
-const BUTTON_HEIGHT = 16;
+export const BUTTON_HEIGHT = 16;
 const BUTTON_PADDING = 12;
 const BAR_HEIGHT = 3;
 
@@ -158,6 +158,7 @@ export function button(parent: WowFrame, name: string | null, value: string, han
 
 export interface Bar {
   setFraction(fraction: number): void;
+  setShown(on: boolean): void;
 }
 
 export function bar(parent: WowFrame, width: number, x: number, y: number): Bar {
@@ -169,6 +170,13 @@ export function bar(parent: WowFrame, width: number, x: number, y: number): Bar 
   fill(filled, COLOR.accent);
   filled.SetPoint("TOPLEFT", track, "TOPLEFT", 0, 0);
   return {
+    setShown(on) {
+      if (on) track.Show();
+      else {
+        track.Hide();
+        filled.Hide();
+      }
+    },
     setFraction(fraction) {
       const clamped = Math.min(1, Math.max(0, fraction));
       if (clamped <= 0) {
