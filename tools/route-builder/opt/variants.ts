@@ -209,13 +209,15 @@ function returnBlocks(world: World): Record<number, RouteStep[]> {
 
 export function buildFaction(
   world: World,
-  opts: { beamWidth: number; branching: number },
+  opts: { beamWidth: number; branching: number; variants?: Variant[] },
   travel: TravelData = TRAVEL,
 ): FactionRoutes {
+  const { variants = allVariants(), ...search } = opts;
+  if (variants.length === 0) throw new Error("buildFaction: no variant requested");
   const routes: FactionRoutes = { faction: world.faction, segments: {}, trunk: {}, returnBlocks: returnBlocks(world) };
   for (const seg of segments(world)) {
     const target: Record<VariantKey, Evaluated> = {};
-    for (const variant of allVariants()) target[variantKey(variant)] = evaluate(world, seg, variant, opts, travel);
+    for (const variant of variants) target[variantKey(variant)] = evaluate(world, seg, variant, search, travel);
     if (seg.name === "trunk") routes.trunk = target;
     else routes.segments[seg.name] = target;
   }

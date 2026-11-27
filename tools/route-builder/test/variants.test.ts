@@ -101,6 +101,14 @@ describe("buildFaction", () => {
     expect(steps[2]).toMatchObject({ dungeonAreaId: 99, place: { pos: { x: 500 } } });
   });
 
+  it("builds only the requested variants", () => {
+    const only: Variant = { elites: true, dungeons: false, maxLevelGap: 2 };
+    const filtered = buildFaction(w, { beamWidth: 4, branching: 3, variants: [only] }, data);
+    expect(Object.keys(filtered.segments.start)).toEqual(["e1d0x2"]);
+    expect(Object.keys(filtered.trunk)).toEqual(["e1d0x2"]);
+    expect(filtered.trunk.e1d0x2.steps).toEqual(routes.trunk.e1d0x2.steps);
+  });
+
   it("names the context when a candidate cannot be built", () => {
     const blocked = worldOf([quest(1, place(0, 0, 1), { requiredLevel: 5 })], {
       raceMasks: [RACE_A],
