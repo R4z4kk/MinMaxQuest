@@ -374,6 +374,40 @@ L'export se fait en tables Lua compactes dans les add-ons `MinMaxQuest_Routes_*`
 - **Robustesse :** perturbation de ±20 % des temps de kill. On préfère une route qui reste bonne dans ces conditions.
 - **Add-on :** la logique pure (suivi de route, ciblage, insertion) est testée en Lua avec busted sur le code compilé.
 
+### 7.7 Décisions pour le Plan 2 (2026-11-27, priment sur §7.1 à §7.5)
+
+Principe (utilisateur) : **pas de modélisation fine des données qu'on n'a pas.** Le suivi tolérant du Plan 3 recale la route après un donjon ou une élite. Une estimation grossière, datée et marquée « non vérifiée », suffit.
+
+- **Les 16 variantes** par faction sont générées dès le Plan 2 : élites oui/non × donjons oui/non × niveau maximum (désactivé, 1, 2, 3).
+- **Donjons (utilisateur) : tout ou rien.**
+  - Option cochée : chaque donjon dont des quêtes sont disponibles pour la faction est **forcé** dans la route. L'optimiseur choisit seulement où le placer.
+  - Un donjon = un bloc : prendre toutes ses quêtes (celles dont `zoneOrSort` est l'AreaID du donjon dans `QuestieDB/support/Forever/Zones/dungeons.lua`), aller à l'entrée, faire le donjon, rendre les quêtes.
+  - L'XP des kills en donjon est ignorée (estimation prudente). La durée suit les scénarios ci-dessous.
+  - **Retours en donjon (utilisateur) :** une suite qui demande de ressortir puis de revenir forme un **bloc de retour**. Le générateur émet pour chaque donjon ses blocs de retour (étapes, coût, XP) comme des chaînes insérables, au même titre que les chaînes d'Accès (§6.2).
+    - **Activés par défaut et inclus dans la route optimisée :** les retours qui font partie d'une chaîne d'accès à un raid ou à un donjon, c'est-à-dire les quêtes listées dans `data/access/`.
+    - **Désactivés par défaut :** tous les autres. Une option par donjon dans l'onglet Quête (Plan 3) les active, et le bloc est alors inséré en jeu à la position la moins coûteuse.
+    - Le point « à voir » de §7.5 est clos.
+- **Élites (utilisateur) : tout ou rien.**
+  - Option décochée : une quête est exclue si un de ses mobs à tuer est élite (`rank` du PNJ).
+  - Option cochée : ces quêtes sont autorisées, avec un temps de kill plus long selon les scénarios. Pas de modèle de groupe.
+- **Temps de kill (utilisateur) : aucune valeur unique.**
+  - **Hors du jeu :** chaque route est évaluée sur une **plage de scénarios** : temps par kill d'un mob normal (20, 30 et 50 s), facteur élite (1,5 à 3) et durée de donjon. L'optimiseur garde la route dont le temps moyen jusqu'au 60 est le plus bas. Ce sont des hypothèses de robustesse, pas une estimation du joueur. Elles sont datées et marquées « non vérifiées ».
+  - **En jeu (Plan 3) :** le temps de kill est mesuré pour le joueur. Première piste : PV du mob lus en jeu (`UnitHealthMax`) divisés par le DPS mesuré du joueur, plus un temps de recherche des mobs mesuré par zone (zones surpeuplées). La disponibilité des événements de combat sous les restrictions de Midnight est **à vérifier**. Ces mesures servent à l'affichage et aux décisions locales (grind ou quête).
+  - **Pas de cmangos** : les PV de QuestieDB sont abandonnés (valeurs 0 ou 1), et les PV lus en jeu sont plus fiables.
+- **Tailles de cartes [choix Claude] :** `Data/Zones.lua` de Shortest Path Forever, de la même version que les fichiers déjà vendus. Ses rectangles viennent de `UiMapAssignment` du build `wowf`. Ils servent à convertir les pourcentages de zone en yards hors du jeu. Contrôle hors du jeu à chaque génération : les maîtres de vol de QuestieDB, une fois convertis, doivent tomber sur les relais de griffon de Shortest Path Forever. Sinon la génération s'arrête.
+- **Lecture de QuestieDB [choix Claude] :** clone du tag QuestieDB épinglé et daté, chargé dans wasmoon avec l'émulateur hors jeu de QuestieDB (`emulator/client.lua`, `emulator/metadata.lua`). Les corrections de QuestieDB sont donc appliquées comme en jeu. Le résultat est un instantané JSON en cache, non commité.
+- **Réutilisation [choix Claude] :** le générateur importe directement le code TS pur de l'add-on : graphe de trajet, `questXp`, `XP_PER_LEVEL`, disponibilité et constantes datées. Le trajet est donc calculé hors jeu exactement comme en jeu.
+- **Pierre de foyer (utilisateur) :** le simulateur suit l'auberge liée et le temps de recharge (`hearthCooldownSec`, déjà sourcé). L'optimiseur choisit où lier la pierre (étape `setHearth` chez un aubergiste) et quand l'utiliser (étape `hearth`). En jeu, si la pierre est en recharge, le graphe de trajet passe par la marche ou le griffon.
+- **Simplifications v1 [choix Claude]** (reprises par l'ALNS au Plan 3) :
+  - un point de vol est appris à la première étape de la route dans sa zone, via une étape `getFlightPath` ;
+  - pas de repos, et la monture à 40 ne coûte pas d'or ;
+  - le tronc commun part du niveau 10, depuis la capitale de la faction. Chaque segment de départ va du niveau 1 au niveau 10, ou jusqu'à épuisement des quêtes de la zone de départ, puis comble par du grind.
+- **Périmètre :**
+  - le Plan 2 tourne en local (`npm run gen:routes`) sur le QuestieDB installé, et écrit les routes et un rapport (temps simulé jusqu'au 60, XP/h par variante) ;
+  - les tests utilisent de petites données de test, pour que la CI n'ait pas besoin de QuestieDB ;
+  - les routes ne sont pas encore chargées en jeu : le suivi de route, les add-ons de données chargés à la demande et la régénération en CI sont au Plan 3.
+- **Étalon :** les guides RXP Forever 1-22 installés en local, passés dans le simulateur pour comparer, jamais redistribués.
+
 ## 8. Mises à jour
 
 - **GitHub Actions, chaque jour, et aussi à chaque nouvelle version de QuestieDB :**
