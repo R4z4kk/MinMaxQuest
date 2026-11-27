@@ -84,6 +84,7 @@ LibQuestieDB = {
   Npc = { Get = function(id, field) if field == "spawns" then return spawns[id] end end },
   Object = { Get = function() end },
   Item = { Get = function() end },
+  ObjectiveFirst = { killCreditObjectiveFirst = {}, objectObjectiveFirst = {}, itemObjectiveFirst = {}, eventObjectiveFirst = {}, spellObjectiveFirst = {} },
   Support = {
     Get = function(name)
       if name == "QuestXP" then return { db = {} } end

@@ -5,8 +5,17 @@ import { createQuestRepository } from "../src/data/questRepository";
 
 type Row = Record<string, unknown>;
 
+const NO_HINTS = (): LibQuestieDBApi["ObjectiveFirst"] => ({
+  killCreditObjectiveFirst: {},
+  objectObjectiveFirst: {},
+  itemObjectiveFirst: {},
+  eventObjectiveFirst: {},
+  spellObjectiveFirst: {},
+});
+
 function fakeLib(quests: Record<number, Row>, ranks: Record<number, number> = {}): LibQuestieDBApi {
   return {
+    ObjectiveFirst: NO_HINTS(),
     RequireContract: () => [true] as unknown as ReturnType<LibQuestieDBApi["RequireContract"]>,
     Quest: {
       Get: (id, field) => {
@@ -108,6 +117,47 @@ describe("createQuestRepository", () => {
     if (!result.ok) throw new Error(result.message);
     return result.repo;
   }
+
+  const ALL_KINDS = [[[200, "wolf"]], [[210, "chest"]], [[300, "pelt"], [301, "fang"]], [72, 3000], [[[400], 400, "x"]], [[500, "cast", 9]]];
+  const kinds = (q: { objectives: { kind: string; index: number }[] } | null) =>
+    q?.objectives.map((o) => `${o.index}:${o.kind}`);
+
+  it("numbers objectives in Questie order, rep, spell and event included", () => {
+    const repo = repoFor(fakeLib({ 1: { name: "A", questLevel: 1, objectives: ALL_KINDS, triggerEnd: ["Explore", {}] } }));
+    expect(kinds(repo.get(1))).toEqual([
+      "1:npc", "2:object", "3:item", "4:item", "5:reputation", "6:npc", "7:spell", "8:event",
+    ]);
+  });
+
+  it("applies the ObjectiveFirst hints like Questie", () => {
+    const lib = fakeLib({
+      1: { name: "A", questLevel: 1, objectives: ALL_KINDS },
+      2: { name: "B", questLevel: 1, objectives: ALL_KINDS, triggerEnd: ["Explore", {}] },
+    });
+    lib.ObjectiveFirst.itemObjectiveFirst[1] = true;
+    lib.ObjectiveFirst.killCreditObjectiveFirst[1] = true;
+    lib.ObjectiveFirst.eventObjectiveFirst[2] = true;
+    const repo = repoFor(lib);
+    expect(repo.get(1)?.objectives.slice(0, 4)).toEqual([
+      { kind: "npc", id: 400, required: 1, index: 1 },
+      { kind: "item", id: 301, required: 1, index: 2 },
+      { kind: "item", id: 300, required: 1, index: 3 },
+      { kind: "npc", id: 200, required: 1, index: 4 },
+    ]);
+    expect(kinds(repo.get(2))?.slice(0, 2)).toEqual(["1:event", "2:npc"]);
+  });
+
+  it("keeps the slot of an objective without a readable id", () => {
+    const repo = repoFor(fakeLib({ 1: { name: "A", questLevel: 1, objectives: [[["bad", "x"], [201, "y"]]] } }));
+    expect(kinds(repo.get(1))).toEqual(["1:missing", "2:npc"]);
+  });
+
+  it("reports missing ObjectiveFirst hints", () => {
+    const lib = fakeLib({ 1: { name: "A", questLevel: 1, objectives: [[[200, "x"]]] } });
+    (lib as { ObjectiveFirst: unknown }).ObjectiveFirst = null;
+    expect(repoFor(lib).get(1)?.objectives.length).toBe(1);
+    expect(reported[0]).toContain("ObjectiveFirst");
+  });
 
   it("falls back to the base NPC when the kill-credit list is empty", () => {
     const repo = repoFor(fakeLib({ 1: { name: "A", questLevel: 1, objectives: [null, null, null, null, [[[], 500, "x", 3]]] } }));

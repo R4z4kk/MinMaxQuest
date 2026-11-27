@@ -54,6 +54,7 @@ export function createPositions(repo: QuestRepository, toWorld: AreaToWorld): Co
     if (objective == null) return [];
     if (objective.kind === "npc") return collect([objective.id], []);
     if (objective.kind === "object") return collect([], [objective.id]);
+    if (objective.kind !== "item") return [];
     let sources = itemSources[objective.id];
     if (sources == null) {
       sources = repo.itemSources(objective.id);

@@ -7,7 +7,12 @@ export interface AreaPoint {
   y: number;
 }
 
-export type QuestObjectiveRef = { kind: "npc" | "object" | "item"; id: number; required: number; index: number };
+// "missing" holds the slot of a creature, object or item objective whose id cannot be read.
+export type QuestObjectiveRef =
+  | { kind: "npc" | "object" | "item"; id: number; required: number; index: number }
+  | { kind: "reputation" | "spell" | "event" | "missing"; index: number };
+
+type ObjectiveHint = keyof QuestieDBObjectiveFirst;
 
 export interface QuestInfo {
   id: number;
@@ -71,6 +76,11 @@ function numList(value: unknown): number[] {
   return out;
 }
 
+function present<T>(value: T | null, what: string): T {
+  if (value == null) throw new Error(`${what} is missing`);
+  return value;
+}
+
 function readSpawns(spawns: unknown): AreaPoint[] {
   if (spawns == null || typeof spawns !== "object") return [];
   const points: AreaPoint[] = [];
@@ -87,28 +97,39 @@ function readSpawns(spawns: unknown): AreaPoint[] {
   return points;
 }
 
+// Same order as Questie QuestieDB.GetQuest ObjectiveData, so indexes match the quest log objective rows.
 function readObjectives(
   raw: unknown,
+  triggerEnd: unknown,
+  first: (hint: ObjectiveHint) => boolean,
   isEliteNpc: (npcId: number) => boolean,
 ): { refs: QuestObjectiveRef[]; elite: boolean } {
   const refs: QuestObjectiveRef[] = [];
   let elite = false;
-  const push = (kind: QuestObjectiveRef["kind"], id: number | null, required: number | null): void => {
-    if (id != null) refs.push({ kind, id, required: required ?? 1, index: refs.length + 1 });
+  const add = (ref: QuestObjectiveRef, hint: ObjectiveHint | null): void => {
+    if (hint != null && first(hint)) refs.unshift(ref);
+    else refs.push(ref);
   };
+  const tracked = (kind: "npc" | "object" | "item", id: number | null, required: number | null, hint: ObjectiveHint | null): void =>
+    add(id == null ? { kind: "missing", index: 0 } : { kind, id, required: required ?? 1, index: 0 }, hint);
 
   for (const entry of entries(slot(raw, 0))) {
     const id = num(slot(entry, 0));
     if (id != null && isEliteNpc(id)) elite = true;
-    push("npc", id, num(slot(entry, 2)));
+    tracked("npc", id, num(slot(entry, 2)), null);
   }
-  for (const entry of entries(slot(raw, 1))) push("object", num(slot(entry, 0)), num(slot(entry, 2)));
-  for (const entry of entries(slot(raw, 2))) push("item", num(slot(entry, 0)), num(slot(entry, 2)));
+  for (const entry of entries(slot(raw, 1))) tracked("object", num(slot(entry, 0)), num(slot(entry, 2)), "objectObjectiveFirst");
+  for (const entry of entries(slot(raw, 2))) tracked("item", num(slot(entry, 0)), num(slot(entry, 2)), "itemObjectiveFirst");
+  if (slot(raw, 3) != null) add({ kind: "reputation", index: 0 }, null);
   for (const entry of entries(slot(raw, 4))) {
     const credits = numList(slot(entry, 0));
     if (credits.some((credit) => isEliteNpc(credit))) elite = true;
-    push("npc", credits.length > 0 ? credits[0] : num(slot(entry, 1)), num(slot(entry, 3)));
+    const id = credits.length > 0 ? credits[0] : num(slot(entry, 1));
+    tracked("npc", id, num(slot(entry, 3)), "killCreditObjectiveFirst");
   }
+  for (const _entry of entries(slot(raw, 5))) add({ kind: "spell", index: 0 }, "spellObjectiveFirst");
+  if (triggerEnd != null) add({ kind: "event", index: 0 }, "eventObjectiveFirst");
+  for (let i = 0; i < refs.length; i++) refs[i].index = i + 1;
   return { refs, elite };
 }
 
@@ -130,11 +151,16 @@ function buildRepository(lib: LibQuestieDBApi): QuestRepository {
     }
   };
 
-  const xpDb = safe<QuestieDBIdMap<QuestieDBPair> | null>("QuestXP", null, () => lib.Support.Get("QuestXP").db ?? null);
+  const xpDb = safe<QuestieDBIdMap<QuestieDBPair> | null>("QuestXP", null, () =>
+    present(lib.Support.Get("QuestXP").db, "QuestXP.db"),
+  );
   const areaToUiMap = safe<QuestieDBIdMap<number> | null>(
     "ZoneDB",
     null,
-    () => lib.Support.Get("ZoneDB").private.areaIdToUiMapId ?? null,
+    () => present(lib.Support.Get("ZoneDB").private.areaIdToUiMapId, "ZoneDB.private.areaIdToUiMapId"),
+  );
+  const hints = safe<QuestieDBObjectiveFirst | null>("ObjectiveFirst", null, () =>
+    present(lib.ObjectiveFirst, "LibQuestieDB.ObjectiveFirst"),
   );
   const quests: Record<number, QuestInfo> = {};
   const missing: Record<number, true> = {};
@@ -158,7 +184,12 @@ function buildRepository(lib: LibQuestieDBApi): QuestRepository {
 
     const startedBy = field(id, "startedBy");
     const finishedBy = field(id, "finishedBy");
-    const objectives = readObjectives(field(id, "objectives"), isEliteNpc);
+    const objectives = readObjectives(
+      field(id, "objectives"),
+      field(id, "triggerEnd"),
+      (hint) => hints != null && hints[hint]?.[id] === true,
+      isEliteNpc,
+    );
     const nextInChain = num(field(id, "nextQuestInChain"));
     const maxLevel = num(field(id, "requiredMaxLevel"));
     const zone = num(field(id, "zoneOrSort"));

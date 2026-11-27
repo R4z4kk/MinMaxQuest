@@ -69,8 +69,10 @@ describe("positionsFor", () => {
         { kind: "npc", id: 11, required: 1, index: 1 },
         { kind: "object", id: 50, required: 1, index: 2 },
         { kind: "item", id: 7, required: 1, index: 3 },
+        { kind: "reputation", index: 5 },
       ],
     });
+    expect(positionsFor(q, "objective", 5)).toEqual([]);
     expect(xs(positionsFor(q, "objective", 1))).toEqual([30]);
     expect(xs(positionsFor(q, "objective", 2))).toEqual([50]);
     expect(xs(positionsFor(q, "objective", 3))).toEqual([30, 50]);

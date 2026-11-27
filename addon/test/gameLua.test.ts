@@ -127,3 +127,20 @@ it("prints help and keeps the quest lookup", async () => {
     s.close();
   }
 });
+
+it("numbers objectives like the quest log, ObjectiveFirst hints included", async () => {
+  const s = await loggedIn(`
+    quests[100].objectives = { { { 500 } }, nil, nil, nil, { { { 501 }, 501 } } }
+    LibQuestieDB.ObjectiveFirst.killCreditObjectiveFirst[100] = true
+    logQuests = { 100 }
+    objectives[100] = { { finished = false }, { finished = true } }
+  `);
+  try {
+    await s.cmd("pin 100");
+    await s.cmd("targets");
+    expect(await s.printed()).toContain("[100] Test Quest · objective 1");
+    expect(await s.calls()).toContain("font|SetText|127 m");
+  } finally {
+    s.close();
+  }
+});
