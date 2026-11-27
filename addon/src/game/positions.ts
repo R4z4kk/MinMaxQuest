@@ -17,6 +17,11 @@ export function mapToWorld(repo: QuestRepository): AreaToWorld {
   };
 }
 
+// As Questie DistanceUtils.GetNearestFinisherOrStarter with IsFriendlyToPlayer: nil friendlyToFaction counts as friendly.
+export function isFriendlyTo(read: "A" | "H" | "AH" | null, side: "A" | "H"): boolean {
+  return read == null || read === "AH" || read === side;
+}
+
 const FRIENDLY = "friendly";
 const HOSTILE = "hostile";
 
@@ -55,15 +60,13 @@ export function createPositions(
     return out;
   };
 
-  // As Questie DistanceUtils.GetNearestFinisherOrStarter with IsFriendlyToPlayer: nil friendlyToFaction counts as friendly.
   const friendlyNpcs = (npcs: number[]): number[] => {
     const side = faction();
     if (side == null) return npcs;
     return npcs.filter((id) => {
       let to = friendly[id];
       if (to == null) {
-        const read = repo.npcFriendlyTo(id);
-        to = read == null || read === "AH" || read === side ? FRIENDLY : HOSTILE;
+        to = isFriendlyTo(repo.npcFriendlyTo(id), side) ? FRIENDLY : HOSTILE;
         friendly[id] = to;
       }
       return to !== HOSTILE;

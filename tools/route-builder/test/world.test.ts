@@ -53,6 +53,12 @@ function fixture(flightMasterYards = 3): QuestieSnapshot {
     9: quest("Crates", { objectives: [null, [[600, null, 2]], [[502, null, 3]]] }),
     10: quest("Into the Core", { zoneOrSort: 2717 }),
     11: quest("Into the Gulch", { zoneOrSort: 3277 }),
+    13: quest("Willix", { startedBy: [[104]], finishedBy: [[104]] }),
+    14: quest("Core objective", { objectives: [[[105, null, 1]]] }),
+    15: quest("Mixed drops", { objectives: [null, null, [[503, null, 2]]] }),
+    16: quest("Coldridge", { requiredLevel: 1, startedBy: [[110]], finishedBy: [[110]], zoneOrSort: 1 }),
+    17: quest("Shadowglen", { requiredLevel: 1, startedBy: [[111]], finishedBy: [[111]], zoneOrSort: 141 }),
+    18: quest("Zephras", { requiredLevel: 1, startedBy: [[112]], finishedBy: [[112]], zoneOrSort: 16593 }),
     92432: quest("An Alarming Request", { requiredLevel: 30, questLevel: 33 }),
   };
   const questXp: Record<number, [number, number]> = {};
@@ -64,7 +70,13 @@ function fixture(flightMasterYards = 3): QuestieSnapshot {
       100: npc({ 12: [[48, 42]] }),
       101: npc({ 999: [[50, 50]] }),
       102: npc({ 12: [[49, 42]] }, { friendlyToFaction: "H" }),
-      103: npc({ 209: [[50, 50]] }, { rank: 1, minLevel: 20, maxLevel: 20 }),
+      103: npc({ 209: [[-1, -1]] }, { rank: 1, minLevel: 20, maxLevel: 20 }),
+      104: npc({ 209: [[-1, -1]] }),
+      105: npc({ 2717: [[-1, -1]] }, { npcFlags: 0 }),
+      106: npc({ 209: [[-1, -1]] }, { npcFlags: 0 }),
+      110: npc({ 1: [[30, 70]] }),
+      111: npc({ 141: [[58, 44]] }),
+      112: npc({ 16593: [[47, 22]] }),
       200: npc({ 12: [[40, 50], [40.5, 50], [41, 50.5], [80, 80]] }, { minLevel: 6, maxLevel: 7, npcFlags: 0 }),
       300: npc({ 12: [[NODE_PERCENT.x, NODE_PERCENT.y + flightMasterYards / YARDS_PER_Y_PERCENT]] }, { npcFlags: 8 }),
       400: npc({ 12: [[44, 66]] }, { npcFlags: 128 }),
@@ -74,9 +86,10 @@ function fixture(flightMasterYards = 3): QuestieSnapshot {
       500: { npcDrops: [200], objectDrops: [] },
       501: { npcDrops: [200], objectDrops: [] },
       502: { npcDrops: [], objectDrops: [600] },
+      503: { npcDrops: [106, 200], objectDrops: [] },
     },
-    dropRates: { 501: { 200: 35 } },
-    areaIdToUiMapId: { 12: 1429, 40: 1436, 209: 310 },
+    dropRates: { 501: { 200: 35 }, 503: { 106: 50, 200: 20 } },
+    areaIdToUiMapId: { 1: 1426, 12: 1429, 40: 1436, 141: 1438, 209: 310, 16593: 2521 },
     dungeons: {
       209: { name: "Shadowfang Keep", altAreaIds: [], parentZone: 40, entrances: [{ areaId: 40, x: 60, y: 60 }] },
       2717: { name: "Molten Core", altAreaIds: [], parentZone: 40, entrances: [{ areaId: 40, x: 61, y: 61 }] },
@@ -129,7 +142,7 @@ describe("buildWorld", () => {
     expect(w.quests.get(1)).toMatchObject({ dungeonAreaId: null, accessChain: false });
     expect(w.quests.get(92432)!.accessChain).toBe(true);
     expect(w.dungeons).toEqual([
-      { areaId: 209, name: "Shadowfang Keep", entrance: expect.objectContaining({ uiMapId: 1436, x: 60, y: 60 }), questIds: [5, 6] },
+      { areaId: 209, name: "Shadowfang Keep", entrance: expect.objectContaining({ uiMapId: 1436, x: 60, y: 60 }), questIds: [5, 6, 13] },
     ]);
   });
 
@@ -140,7 +153,8 @@ describe("buildWorld", () => {
   it("keeps party instances and excludes raid and battleground quests", () => {
     expect(w.quests.has(10)).toBe(false);
     expect(w.quests.has(11)).toBe(false);
-    expect(w.excluded.get("raidOrBattleground")).toBe(2);
+    expect(w.excluded.get("raidOrBattleground")).toBe(3);
+    expect(w.quests.has(14)).toBe(false);
     expect(w.dungeons.map((d) => d.areaId)).toEqual([209]);
   });
 
@@ -152,7 +166,26 @@ describe("buildWorld", () => {
     expect(() => buildWorld(s, zones(), "A", taxi(), INSTANCES)).toThrow("world: dungeon 5000 (Nowhere Keep) has no instance type");
   });
 
-  it("finds inns, taxi zones, the capital node and the start zone", () => {
+  it("places sentinel in-dungeon starters at the entrance and marks the quest as a dungeon quest", () => {
+    expect(w.quests.get(13)).toMatchObject({
+      dungeonAreaId: 209,
+      accept: { uiMapId: 1436, x: 60, y: 60, npcId: 104, objectId: null },
+      turnin: { uiMapId: 1436, x: 60, y: 60, npcId: 104 },
+    });
+  });
+
+  it("keeps an outdoor quest outdoors when only one drop source is inside a dungeon", () => {
+    expect(w.quests.get(15)).toMatchObject({ dungeonAreaId: null });
+    expect(w.quests.get(15)!.tasks[0]).toMatchObject({ kind: "collect", dropChance: 0.2 });
+  });
+
+  it("refuses a start area that has no zone map", () => {
+    const rects = zones();
+    rects.delete(2521);
+    expect(() => buildWorld(fixture(), rects, "A", taxi(), INSTANCES)).toThrow("world: start zone zephras-isle (area 16593) has no zone map");
+  });
+
+  it("finds inns, taxi zones, the capital node and the start zones", () => {
     expect(w.faction).toBe("A");
     expect(w.raceMask).toBe(1 + 4 + 8 + 64 + 4294967296);
     expect(w.inns.map((i) => i.place.npcId)).toEqual([400]);
@@ -161,6 +194,9 @@ describe("buildWorld", () => {
     expect(w.conversionOffsetYards).toBeCloseTo(3, 5);
     expect(w.startZones).toEqual([
       { key: "elwynn-forest", faction: "A", raceMask: 1, areaId: 12, start: w.quests.get(1)!.accept },
+      { key: "dun-morogh", faction: "A", raceMask: 4 + 64, areaId: 1, start: w.quests.get(16)!.accept },
+      { key: "teldrassil", faction: "A", raceMask: 8, areaId: 141, start: w.quests.get(17)!.accept },
+      { key: "zephras-isle", faction: "A", raceMask: 4294967296, areaId: 16593, start: w.quests.get(18)!.accept },
     ]);
   });
 

@@ -9,6 +9,7 @@ import {
   type QuestRepository,
 } from "../../../addon/src/data/questRepository";
 import { TRAVEL, type TravelData } from "../../../addon/src/data/generated/travel";
+import { isFriendlyTo } from "../../../addon/src/game/positions";
 import { isAvailable, maskAllows } from "../../../addon/src/quests/availability";
 import { CLUSTER_RADIUS_YARDS, clusterSpawns, killLoop } from "../../../addon/src/targets/spawns";
 import { INSTANCE_PARTY, INSTANCE_PVP, INSTANCE_RAID, loadInstanceTypes } from "../ingest/instances";
@@ -152,11 +153,7 @@ export function buildWorld(
     return places;
   };
 
-  // As positions.ts: nil friendlyToFaction counts as friendly.
-  const isFriendly = (npcId: number): boolean => {
-    const to = repo.npcFriendlyTo(npcId);
-    return to == null || to === "AH" || to === faction;
-  };
+  const isFriendly = (npcId: number): boolean => isFriendlyTo(repo.npcFriendlyTo(npcId), faction);
 
   const dungeonOfArea = new Map<number, number>();
   for (const [key, d] of Object.entries(s.dungeons)) {
@@ -177,43 +174,57 @@ export function buildWorld(
     }
     return entrances.get(dungeonAreaId) ?? null;
   };
-  // A spawn inside an instance has no outdoor map: it converts to nothing but its area is a dungeon area.
-  const dungeonOfSpawns = (points: AreaPoint[]): number | null => {
-    for (const p of points) {
-      const d = dungeonOfArea.get(p.areaId);
-      if (d != null && toPlace(p, null, null) == null) return d;
+  type Entity = { kind: "npc" | "object"; id: number };
+  const outdoorPlaces = (e: Entity): Place[] => (e.kind === "npc" ? npcPlaces(e.id) : objectPlaces(e.id));
+  // Raw area keys: the repository drops the [-1, -1] sentinels QuestieDB uses for in-instance spawns.
+  const entityDungeon = (e: Entity): number | null => {
+    const spawns = e.kind === "npc" ? s.npcs[e.id]?.spawns : s.objects[e.id]?.spawns;
+    if (spawns == null || typeof spawns !== "object" || outdoorPlaces(e).length > 0) return null;
+    for (const key of Object.keys(spawns)) {
+      const d = dungeonOfArea.get(Number(key));
+      if (d != null) return d;
+    }
+    return null;
+  };
+  // A group (starters, finishers, one objective's sources) is inside a dungeon only if none of it is outdoors.
+  const groupDungeon = (group: Entity[]): number | null => {
+    if (group.some((e) => outdoorPlaces(e).length > 0)) return null;
+    for (const e of group) {
+      const d = entityDungeon(e);
+      if (d != null) return d;
+    }
+    return null;
+  };
+  const entities = (npcs: number[], objects: number[]): Entity[] => [
+    ...npcs.map((id): Entity => ({ kind: "npc", id })),
+    ...objects.map((id): Entity => ({ kind: "object", id })),
+  ];
+
+  const placeOf = (group: Entity[]): Place | null => {
+    for (const e of group) if (outdoorPlaces(e).length > 0) return outdoorPlaces(e)[0];
+    for (const e of group) {
+      const d = entityDungeon(e);
+      const entrance = d == null ? null : entranceOf(d);
+      if (entrance != null) return e.kind === "npc" ? { ...entrance, npcId: e.id } : { ...entrance, objectId: e.id };
     }
     return null;
   };
 
-  const placeOf = (npcs: number[], objects: number[]): Place | null => {
-    for (const id of npcs) if (npcPlaces(id).length > 0) return npcPlaces(id)[0];
-    for (const id of objects) if (objectPlaces(id).length > 0) return objectPlaces(id)[0];
-    for (const id of npcs) {
-      const d = dungeonOfSpawns(repo.npcSpawns(id));
-      const entrance = d == null ? null : entranceOf(d);
-      if (entrance != null) return { ...entrance, npcId: id };
-    }
-    for (const id of objects) {
-      const d = dungeonOfSpawns(repo.objectSpawns(id));
-      const entrance = d == null ? null : entranceOf(d);
-      if (entrance != null) return { ...entrance, objectId: id };
-    }
-    return null;
-  };
-
-  const objectiveSpawns = (o: QuestObjectiveRef): AreaPoint[] => {
-    if (o.kind === "npc") return repo.npcSpawns(o.id);
-    if (o.kind === "object") return repo.objectSpawns(o.id);
+  const objectiveGroup = (o: QuestObjectiveRef): Entity[] => {
+    if (o.kind === "npc") return entities([o.id], []);
+    if (o.kind === "object") return entities([], [o.id]);
     if (o.kind !== "item") return [];
     const sources = repo.itemSources(o.id);
-    return [...sources.npcs.flatMap((id) => repo.npcSpawns(id)), ...sources.objects.flatMap((id) => repo.objectSpawns(id))];
+    return entities(sources.npcs, sources.objects);
   };
 
-  const dungeonOf = (q: QuestInfo): number | null => {
+  const dungeonOf = (q: QuestInfo, starters: Entity[], finishers: Entity[]): number | null => {
     if (q.zoneAreaId != null && dungeonOfArea.has(q.zoneAreaId)) return dungeonOfArea.get(q.zoneAreaId) ?? null;
-    const starterSpawns = [...q.starterNpcs.flatMap((id) => repo.npcSpawns(id)), ...q.starterObjects.flatMap((id) => repo.objectSpawns(id))];
-    return dungeonOfSpawns(starterSpawns) ?? dungeonOfSpawns(q.objectives.flatMap(objectiveSpawns));
+    for (const group of [starters, finishers, ...q.objectives.map(objectiveGroup)]) {
+      const d = groupDungeon(group);
+      if (d != null) return d;
+    }
+    return null;
   };
 
   // The task cluster is the biggest one; its center is the member nearest the centroid.
@@ -280,16 +291,16 @@ export function buildWorld(
     if (q.hasUnsupportedRequirement) exclude("unsupportedRequirement");
     if (q.starterNpcs.length + q.starterObjects.length === 0) exclude("noStarter");
     if (q.finisherNpcs.length + q.finisherObjects.length === 0) exclude("noFinisher");
-    const starters = q.starterNpcs.filter(isFriendly);
-    const finishers = q.finisherNpcs.filter(isFriendly);
-    if (starters.length + q.starterObjects.length === 0 || finishers.length + q.finisherObjects.length === 0) exclude("wrongFaction");
-    const instance = dungeonOf(q);
+    const starters = entities(q.starterNpcs.filter(isFriendly), q.starterObjects);
+    const finishers = entities(q.finisherNpcs.filter(isFriendly), q.finisherObjects);
+    if (starters.length === 0 || finishers.length === 0) exclude("wrongFaction");
+    const instance = dungeonOf(q, starters, finishers);
     const instanceType = instance == null ? null : (instanceTypes.get(instance) ?? null);
     if (instanceType === INSTANCE_RAID || instanceType === INSTANCE_PVP) exclude("raidOrBattleground");
     // Non-instance entries of QuestieDB's dungeon list (Deeprun Tram, PvP barracks) are ordinary quest areas.
     const dungeonAreaId = instanceType == null || instanceType === INSTANCE_PARTY ? instance : null;
-    const accept = placeOf(starters, q.starterObjects) ?? exclude("noPosition");
-    const turnin = placeOf(finishers, q.finisherObjects) ?? exclude("noPosition");
+    const accept = placeOf(starters) ?? exclude("noPosition");
+    const turnin = placeOf(finishers) ?? exclude("noPosition");
     if (dungeonAreaId != null && entranceOf(dungeonAreaId) == null) exclude("noPosition");
     // A dungeon quest's objectives are done by the dungeon step.
     const tasks = dungeonAreaId != null ? [] : q.objectives.map(taskOf);
@@ -310,8 +321,6 @@ export function buildWorld(
       excluded.set(error.reason, (excluded.get(error.reason) ?? 0) + 1);
     }
   }
-  const repoError = repo.lastError();
-  if (repoError != null) throw new Error(`world: QuestieDB read failed (${repoError})`);
 
   const chainIds = new Set(ACCESS_CHAINS.flatMap((def) => resolveSteps(def, faction, (id) => repo.get(id))));
   for (const q of quests.values()) {
@@ -368,7 +377,7 @@ export function buildWorld(
   const startZones: StartZone[] = [];
   for (const area of START_AREAS.filter((a) => a.faction === faction)) {
     const uiMapId = repo.uiMapIdForArea(area.areaId);
-    if (uiMapId == null || !zones.has(uiMapId)) continue;
+    if (uiMapId == null || !zones.has(uiMapId)) throw new Error(`world: start zone ${area.key} (area ${area.areaId}) has no zone map`);
     const zoneMask = raceUnion(s, area.races);
     const player = { level: 1, raceMask: zoneMask, classMask: 0, completed: new Set<number>(), inLog: new Set<number>() };
     let best: RouteQuest | null = null;
@@ -380,5 +389,7 @@ export function buildWorld(
     startZones.push({ key: area.key, faction, raceMask: zoneMask, areaId: area.areaId, start: best.accept });
   }
 
+  const repoError = repo.lastError();
+  if (repoError != null) throw new Error(`world: QuestieDB read failed (${repoError})`);
   return { faction, raceMask, quests, inns, dungeons, startZones, taxiZone, capitalTaxiNode, conversionOffsetYards, excluded };
 }
