@@ -1,5 +1,8 @@
+export type LanguageSetting = "auto" | "enUS" | "frFR";
+
 export interface AccountDb {
   version: 1;
+  locale: LanguageSetting;
 }
 
 export interface CharDb {
@@ -8,8 +11,9 @@ export interface CharDb {
   activeMode: "quest" | "completion";
   window: { x: number; y: number } | null;
   arrow: { x: number; y: number; locked: boolean } | null;
+  itemButton: { x: number; y: number } | null;
   completion: {
-    mode: "proximity" | "zone";
+    mode: "proximity" | "zone" | "log";
     zoneAreaId: number | null;
     showTrivial: boolean;
     showElite: boolean;
@@ -30,7 +34,7 @@ export interface CharDb {
   dungeonReturns: number[];
 }
 
-export const ACCOUNT_DEFAULTS: AccountDb = { version: 1 };
+export const ACCOUNT_DEFAULTS: AccountDb = { version: 1, locale: "auto" };
 
 export const CHAR_DEFAULTS: CharDb = {
   version: 1,
@@ -38,6 +42,7 @@ export const CHAR_DEFAULTS: CharDb = {
   activeMode: "quest",
   window: null,
   arrow: null,
+  itemButton: null,
   completion: { mode: "proximity", zoneAreaId: null, showTrivial: true, showElite: true },
   minLevelGap: null,
   routeElites: false,
@@ -59,6 +64,7 @@ export const CHAR_DEFAULTS: CharDb = {
 const CHAR_SHAPES = {
   window: { x: 0, y: 0 },
   arrow: { x: 0, y: 0, locked: false },
+  itemButton: { x: 0, y: 0 },
   completion: { zoneAreaId: 0 },
   minLevelGap: 0,
   pinnedQuestId: 0,
@@ -111,12 +117,14 @@ export function loadCharDb(saved: unknown): CharDb {
   if (!isIndex(db.route.startIndex)) db.route.startIndex = 0;
   if (!isIndexList(db.route.skippedSteps)) db.route.skippedSteps = [];
   if (!isIndexList(db.dungeonReturns)) db.dungeonReturns = [];
-  if (db.completion.mode !== "proximity" && db.completion.mode !== "zone") {
+  if (db.completion.mode !== "proximity" && db.completion.mode !== "zone" && db.completion.mode !== "log") {
     db.completion.mode = CHAR_DEFAULTS.completion.mode;
   }
   return db;
 }
 
 export function loadAccountDb(saved: unknown): AccountDb {
-  return withDefaults(saved, ACCOUNT_DEFAULTS);
+  const db = withDefaults(saved, ACCOUNT_DEFAULTS);
+  if (db.locale !== "auto" && db.locale !== "enUS" && db.locale !== "frFR") db.locale = ACCOUNT_DEFAULTS.locale;
+  return db;
 }

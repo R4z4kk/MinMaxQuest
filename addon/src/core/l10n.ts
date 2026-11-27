@@ -1,3 +1,5 @@
+import type { LanguageSetting } from "./storage";
+
 export type L10nKey =
   | "questieMissing"
   | "questNotFound"
@@ -31,6 +33,10 @@ export type L10nKey =
   | "zonePicker"
   | "modeProximity"
   | "modeZone"
+  | "modeLog"
+  | "remainingInLog"
+  | "questsInLogOne"
+  | "questsInLogMany"
   | "questsCount"
   | "percent"
   | "showFilters"
@@ -61,6 +67,7 @@ export type L10nKey =
   | "includeDungeons"
   | "autoFly"
   | "nativeWaypoint"
+  | "lockArrow"
   | "otherSpots"
   | "taxiNotKnown"
   | "maxQuestLevel"
@@ -99,7 +106,12 @@ export type L10nKey =
   | "routeChainUnplaceable"
   | "routeReturnUnreadable"
   | "routeChainUnknown"
-  | "bannerRoutesBuild";
+  | "bannerRoutesBuild"
+  | "corpse"
+  | "corpseUnknown"
+  | "language"
+  | "languageAuto"
+  | "reload";
 
 const EN: Record<L10nKey, string> = {
   questieMissing: "QuestieDB is required",
@@ -134,6 +146,10 @@ const EN: Record<L10nKey, string> = {
   zonePicker: "Zone",
   modeProximity: "Proximity",
   modeZone: "Zone",
+  modeLog: "Log",
+  remainingInLog: "Remaining in log · {n}",
+  questsInLogOne: "{n} quest in log",
+  questsInLogMany: "{n} quests in log",
   questsCount: "{done} / {total} quests",
   percent: "{p}%",
   showFilters: "Show:",
@@ -164,6 +180,7 @@ const EN: Record<L10nKey, string> = {
   includeDungeons: "Include dungeons",
   autoFly: "Auto-fly at flight masters",
   nativeWaypoint: "Blizzard map waypoint",
+  lockArrow: "Lock arrow",
   otherSpots: "+{n} other spots",
   taxiNotKnown: "flight destination not available from this flight master",
   maxQuestLevel: "Max quest level (below yours)",
@@ -203,6 +220,11 @@ const EN: Record<L10nKey, string> = {
   routeReturnUnreadable: "Dungeon return #{id} could not be read and is left out of the route",
   routeChainUnknown: "tracked chain {id} is unknown",
   bannerRoutesBuild: "Routes built for build {build}",
+  corpse: "Your corpse",
+  corpseUnknown: "corpse position unknown",
+  language: "Language",
+  languageAuto: "Auto",
+  reload: "Reload",
 };
 
 const FR: Record<L10nKey, string> = {
@@ -238,6 +260,10 @@ const FR: Record<L10nKey, string> = {
   zonePicker: "Zone",
   modeProximity: "Proximité",
   modeZone: "Zone",
+  modeLog: "Journal",
+  remainingInLog: "Restant dans le journal · {n}",
+  questsInLogOne: "{n} quête dans le journal",
+  questsInLogMany: "{n} quêtes dans le journal",
   questsCount: "{done} / {total} quêtes",
   percent: "{p} %",
   showFilters: "Afficher :",
@@ -268,6 +294,7 @@ const FR: Record<L10nKey, string> = {
   includeDungeons: "Inclure les donjons",
   autoFly: "Vol automatique aux maîtres de vol",
   nativeWaypoint: "Repère de la carte Blizzard",
+  lockArrow: "Verrouiller la flèche",
   otherSpots: "+{n} autres zones",
   taxiNotKnown: "destination de vol indisponible depuis ce maître de vol",
   maxQuestLevel: "Niveau max des quêtes (sous le tien)",
@@ -307,12 +334,29 @@ const FR: Record<L10nKey, string> = {
   routeReturnUnreadable: "Le retour en donjon #{id} est illisible et reste hors de la route",
   routeChainUnknown: "chaîne suivie {id} inconnue",
   bannerRoutesBuild: "Routes générées pour le build {build}",
+  corpse: "Ton corps",
+  corpseUnknown: "position du corps inconnue",
+  language: "Langue",
+  languageAuto: "Auto",
+  reload: "Recharger",
 };
 
 let french: boolean | null = null;
 
 export function setLocale(locale: string): void {
   french = locale === "frFR";
+}
+
+function clientLocale(): "frFR" | "enUS" {
+  return typeof GetLocale === "function" && GetLocale() === "frFR" ? "frFR" : "enUS";
+}
+
+export function resolveLanguage(setting: LanguageSetting): "frFR" | "enUS" {
+  return setting === "auto" ? clientLocale() : setting;
+}
+
+export function applyLanguage(setting: LanguageSetting): void {
+  setLocale(resolveLanguage(setting));
 }
 
 function isFrench(): boolean {

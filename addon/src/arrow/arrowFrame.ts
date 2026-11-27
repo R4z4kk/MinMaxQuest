@@ -9,8 +9,10 @@ export interface ArrowTarget {
 }
 
 export interface ArrowApi {
+  frame: WowFrame;
   setTarget(target: ArrowTarget | null): void;
-  setMoveMode(on: boolean): void;
+  setLocked(locked: boolean): void;
+  isLocked(): boolean;
 }
 
 const FRAME_NAME = "MinMaxQuestArrow";
@@ -46,7 +48,7 @@ export function createArrow(db: CharDb): ArrowApi {
 
   const labelText = frame.CreateFontString(null, "OVERLAY");
   labelText.SetFont(FONT_PATH, 12, "");
-  labelText.SetTextColor(0.545, 0.545, 0.545);
+  labelText.SetTextColor(0.902, 0.902, 0.902);
   labelText.SetPoint("TOP", distanceText, "BOTTOM", 0, -2);
 
   const grip = frame.CreateFontString(null, "OVERLAY");
@@ -73,7 +75,8 @@ export function createArrow(db: CharDb): ArrowApi {
   }
 
   let target: ArrowTarget | null = null;
-  let moveMode = false;
+  let locked = db.arrow?.locked ?? false;
+  let placing = false;
   let elapsedSum = 0;
   let lastKey = -1;
   const player: WorldPos = { continent: 0, x: 0, y: 0 };
@@ -85,13 +88,13 @@ export function createArrow(db: CharDb): ArrowApi {
 
   function refresh(): void {
     if (target == null) {
-      applyVisibility(moveMode);
+      applyVisibility(placing);
       return;
     }
     const [x, y, , instance] = UnitPosition("player");
     const facing = GetPlayerFacing();
     if (x == null || y == null || instance == null || facing == null) {
-      applyVisibility(moveMode);
+      applyVisibility(placing);
       return;
     }
     player.continent = instance;
@@ -99,7 +102,7 @@ export function createArrow(db: CharDb): ArrowApi {
     player.y = y;
     const angle = heading(player, facing, target.pos);
     if (angle == null) {
-      applyVisibility(moveMode);
+      applyVisibility(placing);
       return;
     }
     const yards = distance(player, target.pos);
@@ -126,6 +129,38 @@ export function createArrow(db: CharDb): ArrowApi {
     frame.Hide();
   }
 
+  function savePosition(): void {
+    const left = frame.GetLeft();
+    const top = frame.GetTop();
+    if (left != null && top != null) db.arrow = { x: left, y: top, locked };
+  }
+
+  function applyLock(next: boolean): void {
+    locked = next;
+    for (const edge of outline) {
+      if (locked) edge.Hide();
+      else edge.Show();
+    }
+    if (locked) grip.Hide();
+    else grip.Show();
+    frame.SetMovable(!locked);
+    frame.EnableMouse(!locked);
+    if (locked) {
+      frame.SetScript("OnDragStart", null);
+      frame.SetScript("OnDragStop", null);
+    } else {
+      frame.RegisterForDrag("LeftButton");
+      frame.SetScript("OnDragStart", () => frame.StartMoving());
+      frame.SetScript("OnDragStop", () => {
+        frame.StopMovingOrSizing();
+        savePosition();
+      });
+    }
+    refresh();
+  }
+
+  applyLock(locked);
+
   const driver = CreateFrame("Frame", FRAME_NAME + "Driver", UIParent);
   driver.SetScript("OnUpdate", (_, elapsed) => {
     elapsedSum += elapsed;
@@ -135,35 +170,18 @@ export function createArrow(db: CharDb): ArrowApi {
   });
 
   return {
+    frame,
     setTarget(next) {
       target = next;
       lastKey = -1;
       labelText.SetText(next == null ? "" : next.label);
       refresh();
     },
-    setMoveMode(on) {
-      const wasOn = moveMode;
-      moveMode = on;
-      for (const edge of outline) {
-        if (on) edge.Show();
-        else edge.Hide();
-      }
-      if (on) grip.Show();
-      else grip.Hide();
-      frame.SetMovable(on);
-      frame.EnableMouse(on);
-      if (on) {
-        frame.RegisterForDrag("LeftButton");
-        frame.SetScript("OnDragStart", (f) => f.StartMoving());
-        frame.SetScript("OnDragStop", (f) => f.StopMovingOrSizing());
-      } else {
-        frame.SetScript("OnDragStart", null);
-        frame.SetScript("OnDragStop", null);
-        const left = frame.GetLeft();
-        const top = frame.GetTop();
-        if (wasOn && left != null && top != null) db.arrow = { x: left, y: top, locked: true };
-      }
-      refresh();
+    setLocked(next) {
+      placing = !next;
+      applyLock(next);
+      savePosition();
     },
+    isLocked: () => locked,
   };
 }

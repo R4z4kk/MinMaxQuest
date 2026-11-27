@@ -36,6 +36,8 @@ export interface QuestInfo {
   hasUnsupportedRequirement: boolean;
   isElite: boolean;
   zoneAreaId: number | null;
+  sourceItemId: number | null;
+  requiredSourceItems: number[];
 }
 
 export interface QuestRepository {
@@ -218,6 +220,7 @@ function buildRepository(lib: LibQuestieDBApi): QuestRepository {
     const nextInChain = num(field(id, "nextQuestInChain"));
     const maxLevel = num(field(id, "requiredMaxLevel"));
     const zone = num(field(id, "zoneOrSort"));
+    const sourceItem = num(field(id, "sourceItemId"));
 
     return {
       id,
@@ -245,6 +248,8 @@ function buildRepository(lib: LibQuestieDBApi): QuestRepository {
         (field(id, "requiredSpell") ?? 0) !== 0,
       isElite: objectives.elite,
       zoneAreaId: zone != null && zone > 0 ? zone : null,
+      sourceItemId: sourceItem != null && sourceItem > 0 ? sourceItem : null,
+      requiredSourceItems: numList(field(id, "requiredSourceItems")),
     };
   };
 

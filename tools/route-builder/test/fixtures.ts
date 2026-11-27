@@ -94,6 +94,8 @@ export function info(id: number, overrides: Partial<QuestInfo> = {}): QuestInfo 
     hasUnsupportedRequirement: false,
     isElite: false,
     zoneAreaId: null,
+    sourceItemId: null,
+    requiredSourceItems: [],
     ...overrides,
   };
 }

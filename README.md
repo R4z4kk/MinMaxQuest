@@ -27,14 +27,16 @@
 - Each tab resizes the window to fit its content.
 - The window and the last opened tab are remembered across sessions.
 - Black background with a muted gold accent and simple fonts.
-- Available in English and French (frFR).
+- Available in English and French. The **Language** row in the Quest tab Options (Auto, English, Français) is saved account-wide; Auto follows the game client. A **Reload** button appears when a change needs a UI reload. Quest, NPC and zone names always follow the game client language.
 
 ### Guide arrow
-- **What it points to:** quest givers, quest items, objects and mob areas, with the distance and the step label.
+- **What it points to:** quest givers, quest items, objects and mob areas, with the distance and the step label as white text under the arrow.
 - **Kill objectives:** it loops through the mob spawn points of the area and moves on to the next point when you reach one. It doesn't send you to a single spot.
 - **Many spawn locations:** it targets the closest group and shows "+N other spots" for the rest.
 - **Objectives:** it follows them in quest log order, honouring QuestieDB ordering hints.
-- **Moving it:** `/mmq arrow move`, then `/mmq arrow lock`. The position is saved.
+- **Moving it:** drag it with the left mouse button while it is unlocked (the default on a new character). The position is saved. Tick **Lock arrow** in the Options (or `/mmq arrow lock`) to freeze it; a locked arrow lets clicks through. `/mmq arrow move` unlocks it. An unlocked arrow with no target stays hidden until you untick **Lock arrow** or use `/mmq arrow move`.
+- **Quest item button:** when the arrow's quest has a usable item in your bags (the item the quest giver hands you, then the items the quest requires), a square button with its icon, count, cooldown and tooltip appears to the right of the arrow. Click it to use the item. Works in the Quest and Completion tabs. It is movable on its own: drag it by its thin gold border while the arrow is unlocked, out of combat; its position is saved per character. **Lock arrow** locks it too. A change asked for in combat (new item, lock) is applied when combat ends.
+- **Corpse run:** while dead at your body the arrow hides, silently. Once you release as a ghost it points to your corpse, overriding every other target. If the corpse position is unknown it hides and says so once.
 - **When it hides:** in instances, during flights, and when there is no target.
 - **Performance:** at most 30 updates per second. Route refreshes are batched: at most one every 2 seconds, skipped while standing still or flying, and immediate when an objective changes.
 
@@ -48,6 +50,7 @@
 - Lists every quest you can still do, at any level, and keeps working past level 60.
 - **Proximity** mode sorts quests by real travel time.
 - **Zone** mode shows one zone, picked from a zone list.
+- **Log** mode only targets quests already in your quest log: objectives and turn-ins, sorted by travel time. No new quests; the Grey and Elite filters and the zone are ignored.
 - Shows the nearest target, the next one, and the remaining quests with their estimated travel time.
 - Progress counters for the zone and in total.
 - **Grey** and **Elite** filters. Quests you can't take yet are never shown.
@@ -71,7 +74,7 @@
 - **Access chains:** tracked access chains are inserted into the route.
 - **Dungeons:** a named list with one checkbox per dungeon that has a return trip. Tick one to add its return trip to the route. All are unticked by default.
 - **Active mode:** the arrow follows whichever of the Quest or Completion tabs you opened last.
-- **Options** (variants, auto-fly, Blizzard map waypoint) and **Dungeons** are sections you open with a click, closed by default. The window grows while one is open.
+- **Options** (variants, auto-fly, Blizzard map waypoint, lock arrow) and **Dungeons** are sections you open with a click, closed by default. The window grows while one is open.
 - **Route finished** shows at level 60, with a button to open the Completion tab.
 - If the route files are missing or can't be read, a message says so and offers a button to open the Completion tab.
 
@@ -118,7 +121,7 @@
 | `/mmq pin <id>` / `/mmq unpin` | Force a quest / back to automatic (`/mmq pin` alone also unpins) |
 | `/mmq skip [confirm]` | Skip the current step |
 | `/mmq skipped` / `/mmq unskip <id>\|all` | List / re-activate skipped quests |
-| `/mmq arrow move` / `lock` / `test` | Move, lock or test the arrow |
+| `/mmq arrow move` / `lock` / `test` | Unlock, lock or test the arrow |
 | `/mmq debug build <n>` | Simulate a build mismatch (shows the banner) |
 | `/mmq debug prof` | Show refresh timings |
 

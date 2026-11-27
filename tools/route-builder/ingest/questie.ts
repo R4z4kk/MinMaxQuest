@@ -49,6 +49,8 @@ const QUEST_FIELDS: Record<string, FieldKind> = {
   nextQuestInChain: "number",
   requiredSpell: "number",
   requiredMaxLevel: "number",
+  sourceItemId: "number",
+  requiredSourceItems: "list",
 };
 
 const SELECT_FILES = String.raw`
@@ -538,7 +540,7 @@ function staleField(raw: unknown): string | null {
   if (!isRecord(raw)) return null;
   const missing = (table: unknown, field: string): boolean =>
     isRecord(table) && Object.values(table).some((row) => isRecord(row) && !(field in row));
-  if (missing(raw.quests, "objectivesText")) return "quests[].objectivesText";
+  for (const field of ["objectivesText", "sourceItemId", "requiredSourceItems"]) if (missing(raw.quests, field)) return `quests[].${field}`;
   for (const table of ["npcs", "objects", "items"]) if (missing(raw[table], "name")) return `${table}[].name`;
   return null;
 }

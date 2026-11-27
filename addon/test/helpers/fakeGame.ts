@@ -11,12 +11,28 @@ end
 calls = {}
 created = 0
 scripts = {}
-local VALUES = { GetStringWidth = 40, GetLeft = 100, GetTop = 700, GetFrameLevel = 1 }
+local VALUES = { GetStringWidth = 40, GetLeft = 100, GetTop = 700, GetRight = 156, GetFrameLevel = 1 }
+-- Layout state is kept per object. Set CHAR_WIDTH to a number to size GetStringWidth by text length
+-- (colour codes dropped, a |T..|t icon counts as two characters); otherwise it stays 40.
+CHAR_WIDTH = false
+layout = {}
+function textWidth(text)
+  text = string.gsub(text, "|c%x%x%x%x%x%x%x%x", "")
+  text = string.gsub(text, "|r", "")
+  text = string.gsub(text, "|T.-|t", "ii")
+  text = string.gsub(text, "[\\128-\\191]", "")
+  return #text * CHAR_WIDTH
+end
 local function fake(name)
   name = name or "anon"
   local shown = true
+  local rec = { name = name, points = {}, text = "", shown = true }
+  layout[#layout + 1] = rec
   return setmetatable({}, {
     __index = function(t, method)
+      if method == "__rec" then return rec end
+      if method == "GetWidth" then return function() return rec.width end end
+      if method == "GetStringWidth" and type(CHAR_WIDTH) == "number" then return function() return textWidth(rec.text) end end
       if method == "SetScript" then
         return function(self, event, fn) scripts[name .. "." .. event] = fn end
       end
@@ -26,6 +42,11 @@ local function fake(name)
       if VALUES[method] ~= nil then return function() return VALUES[method] end end
       return function(self, ...)
         if method == "Show" then shown = true elseif method == "Hide" then shown = false end
+        if method == "Show" or method == "Hide" then rec.shown = shown end
+        if method == "SetText" then rec.text = (...) or ""
+        elseif method == "SetWidth" then rec.width = (...)
+        elseif method == "ClearAllPoints" then rec.points = {}
+        elseif method == "SetPoint" then local point, rel, relPoint, x = ...; rec.points[#rec.points + 1] = { point, rel, relPoint, x } end
         local parts = { name, method }
         for i = 1, select("#", ...) do parts[#parts + 1] = tostring((select(i, ...))) end
         calls[#calls + 1] = table.concat(parts, "|")
@@ -33,10 +54,18 @@ local function fake(name)
     end,
   })
 end
-CreateFrame = function(kind, name) created = created + 1; return fake(name) end
+templates = {}
+CreateFrame = function(kind, name, parent, template)
+  created = created + 1
+  if name ~= nil then templates[name] = template or false end
+  return fake(name)
+end
 UIParent = {}
 GetLocale = function() return "enUS" end
+MinMaxQuestDB = {}
 MinMaxQuestCharDB = {}
+reloads = 0
+ReloadUI = function() reloads = reloads + 1 end
 -- No route file installed: quest mode falls back to completion. QUEST_MODE loads the real one.
 MinMaxQuestRoutes = false
 now = 100
@@ -45,8 +74,17 @@ profileMs = 0
 debugprofilestop = function() return profileMs end
 onTaxi = false
 UnitOnTaxi = function() return onTaxi end
+UnitIsDeadOrGhost = function() return false end
+UnitIsGhost = function() return false end
 hearthCount = 1
-C_Item = { GetItemCount = function() return hearthCount end }
+-- Bag counts and item spells by item id; the hearthstone count stays hearthCount.
+bags = {}
+itemSpells = {}
+C_Item = {
+  GetItemCount = function(id) if id == 6948 then return hearthCount end return bags[id] or 0 end,
+  GetItemSpell = function(id) if itemSpells[id] then return itemSpells[id], 1 end end,
+  GetItemIconByID = function(id) return 1000 + id end,
+}
 player = { 1000, 2000 }
 UnitPosition = function() return player[1], player[2], 0, 0 end
 GetPlayerFacing = function() return 0 end
@@ -73,7 +111,9 @@ QuestLogTitle1 = fake("QuestLogTitle1")
 QuestLogTitle1.GetID = function() return 1 end
 QUESTS_DISPLAYED = 1
 hooksecurefunc = function() end
-InCombatLockdown = function() return false end
+inCombat = false
+InCombatLockdown = function() return inCombat end
+GameTooltip = fake("GameTooltip")
 FauxScrollFrame_GetOffset = function() return 0 end
 CreateVector2D = function(x, y) return { x = x, y = y } end
 C_Map = {

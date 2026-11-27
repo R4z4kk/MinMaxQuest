@@ -1,12 +1,15 @@
 import { createArrow, playerPosition, type ArrowApi, type ArrowTarget } from "./arrow/arrowFrame";
-import { t } from "./core/l10n";
+import { corpseTarget, type CorpseDeps } from "./arrow/corpse";
+import { createItemButton, itemUsable, type ItemButtonApi } from "./arrow/itemButton";
+import { questItemFor, type ItemDeps } from "./arrow/questItem";
+import { applyLanguage, t } from "./core/l10n";
 import { guard, isDisabled, reportOnce } from "./core/report";
-import { loadCharDb, type CharDb } from "./core/storage";
+import { loadAccountDb, loadCharDb, type AccountDb, type CharDb } from "./core/storage";
 import { TRAVEL } from "./data/generated/travel";
 import { createQuestRepository, type QuestInfo, type QuestRepository, type RepoResult } from "./data/questRepository";
 import { createCommands } from "./game/commands";
 import { createEngine, describeTarget, sameKey, targetQuest, type Engine } from "./game/engine";
-import { createPlayerState, HEARTHSTONE_SPELL_ID, playerFaction, type PlayerStateReader } from "./game/playerState";
+import { createPlayerState, HEARTHSTONE_SPELL_ID, itemCount, playerFaction, type PlayerStateReader } from "./game/playerState";
 import { createPlaceFor, createPositions, mapToWorld, uiMapToWorld } from "./game/positions";
 import { createRouting } from "./game/routing";
 import { installMapPins } from "./map/pins";
@@ -24,8 +27,12 @@ const FORCING_EVENTS = [
   "QUEST_TURNED_IN",
   "ZONE_CHANGED_NEW_AREA",
   "PLAYER_LEVEL_UP",
+  "PLAYER_DEAD",
+  "PLAYER_ALIVE",
+  "PLAYER_UNGHOST",
 ];
-const EVENTS = ["PLAYER_LOGIN", "QUEST_LOG_UPDATE", "HEARTHSTONE_BOUND", "PLAYER_REGEN_ENABLED", ...FORCING_EVENTS];
+const ITEM_EVENTS = ["BAG_UPDATE_DELAYED", "BAG_UPDATE_COOLDOWN"];
+const EVENTS = ["PLAYER_LOGIN", "QUEST_LOG_UPDATE", "HEARTHSTONE_BOUND", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", ...ITEM_EVENTS, ...FORCING_EVENTS];
 
 interface Game {
   engine: Engine;
@@ -36,9 +43,21 @@ interface Game {
   refreshPins(): void;
 }
 
+let accountDb: AccountDb | null = null;
+
+function getAccountDb(): AccountDb {
+  if (accountDb == null) {
+    accountDb = loadAccountDb(_G.MinMaxQuestDB);
+    _G.MinMaxQuestDB = accountDb;
+    applyLanguage(accountDb.locale);
+  }
+  return accountDb;
+}
+
 let db: CharDb | null = null;
 
 function getDb(): CharDb {
+  getAccountDb();
   if (db == null) {
     db = loadCharDb(_G.MinMaxQuestCharDB);
     _G.MinMaxQuestCharDB = db;
@@ -58,10 +77,41 @@ function getRepository(): QuestRepository | null {
 }
 
 let arrow: ArrowApi | null = null;
+let itemButton: ItemButtonApi | null = null;
 
+// The arrow lock also locks the item button.
 function getArrow(): ArrowApi {
-  if (arrow == null) arrow = createArrow(getDb());
+  if (arrow == null) {
+    const created = createArrow(getDb());
+    arrow = {
+      ...created,
+      setLocked: (locked) => {
+        created.setLocked(locked);
+        const button = itemButton;
+        if (button != null) guard("itemButton", () => button.setLocked(locked));
+      },
+    };
+  }
   return arrow;
+}
+
+// Created once, out of combat: a secure button cannot be created in combat.
+function ensureItemButton(): void {
+  if (itemButton != null || isDisabled("itemButton") || InCombatLockdown()) return;
+  itemButton = guard("itemButton", () => createItemButton(getDb(), () => getArrow().frame));
+  syncItem();
+}
+
+const itemDeps: ItemDeps = { count: (itemId) => itemCount(itemId), usable: (itemId) => itemUsable(itemId) };
+
+function syncItem(): void {
+  const current = game;
+  const button = itemButton;
+  if (current == null || button == null) return;
+  guard("itemButton", () => {
+    const questId = current.engine.current()?.questId ?? null;
+    button.want(questItemFor(questId == null ? null : current.repo.get(questId), itemDeps));
+  });
 }
 
 let game: Game | null = null;
@@ -71,9 +121,30 @@ let forcePending = true;
 let logDirty = true;
 let lastMode: CharDb["activeMode"] | null = null;
 
+const corpseDeps: CorpseDeps = {
+  isDead: () => UnitIsDeadOrGhost("player") === true,
+  isGhost: () => UnitIsGhost("player") === true,
+  corpseOnMap: (uiMapId) => C_DeathInfo?.GetCorpseMapPosition?.(uiMapId) ?? null,
+  playerMap: () => C_Map.GetBestMapForUnit("player"),
+  parentMap: (uiMapId) => C_Map.GetMapInfo(uiMapId)?.parentMapID ?? null,
+  toWorld: (uiMapId, x, y) => uiMapToWorld(uiMapId, x, y),
+};
+
+function currentTarget(current: Game): ArrowTarget | null {
+  if (!corpseDeps.isDead()) return current.engine.arrowTarget();
+  const corpse = guard("corpseArrow", () => corpseTarget(corpseDeps, t("corpse")));
+  if (corpse?.kind === "corpse") return corpse.target;
+  if (corpse?.kind === "atBody") return null;
+  if (corpse?.kind === "unknown") {
+    reportOnce("corpse", t("corpseUnknown"));
+    return null;
+  }
+  return current.engine.arrowTarget();
+}
+
 function syncArrow(): void {
   if (game == null) return;
-  const next = UnitOnTaxi("player") === true ? null : game.engine.arrowTarget();
+  const next = UnitOnTaxi("player") === true ? null : currentTarget(game);
   if (next === shownArrow) return;
   shownArrow = next;
   guard("arrow", () => getArrow().setTarget(next));
@@ -85,7 +156,7 @@ function clearArrow(): void {
   guard("arrow", () => getArrow().setTarget(null));
 }
 
-const ui = createUi({ db: () => getDb(), game: () => start() });
+const ui = createUi({ db: () => getDb(), account: () => getAccountDb(), game: () => start(), arrow: () => getArrow() });
 
 const commands = createCommands({
   repository: () => getRepository(),
@@ -156,6 +227,7 @@ function start(): Game | null {
     }),
   );
   if (mapPins != null) engine.onChange(() => mapPins.refresh());
+  engine.onChange(() => syncItem());
   const started: Game = {
     engine,
     player,
@@ -186,11 +258,13 @@ function start(): Game | null {
     guard("engine", () => tick(started));
     if (isDisabled("engine")) clearArrow();
   });
+  ensureItemButton();
   return started;
 }
 
 function onEvent(event: string, arg1: unknown, arg3: unknown): void {
   if (event === "PLAYER_LOGIN") {
+    getAccountDb();
     start();
     return;
   }
@@ -203,8 +277,16 @@ function onEvent(event: string, arg1: unknown, arg3: unknown): void {
     player.hearthBound();
     current.follower.hearthBound();
     forcePending = true;
+  } else if (event === "PLAYER_REGEN_DISABLED") {
+    const button = itemButton;
+    if (button != null) guard("itemButton", () => button.onCombatStart());
   } else if (event === "PLAYER_REGEN_ENABLED") {
     forcePending = true;
+    ensureItemButton();
+    const button = itemButton;
+    if (button != null) guard("itemButton", () => button.onCombatEnd());
+  } else if (ITEM_EVENTS.includes(event)) {
+    syncItem();
   } else if (event === "QUEST_LOG_UPDATE") {
     logDirty = true;
   } else if (FORCING_EVENTS.includes(event)) {

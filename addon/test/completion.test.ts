@@ -171,6 +171,33 @@ describe("selectTargets", () => {
   });
 });
 
+describe("selectTargets log mode", () => {
+  const positions: Positions = {
+    "1:accept:null": [at(1)], "2:turnin:null": [at(2)], "3:objective:1": [at(3)], "3:objective:2": [at(4)],
+    "4:accept:null": [at(5)], "5:objective:1": [at(6)],
+  };
+  const logMode = opts({ mode: "log" });
+
+  it("targets only logged quests, never accepts", () => {
+    const quests = [quest({ id: 1 }), quest({ id: 2 }), quest({ id: 3, objectives: [objective(1), objective(2)] }), quest({ id: 4 })];
+    const log = new Map([[2, logged(true)], [3, logged(false, [2])]]);
+    const targets = selectTargets(input(quests, positions, { log }), logMode);
+    expect(targets.map((t) => [t.questId, t.kind])).toEqual([[2, "turnin"], [3, "objective"]]);
+  });
+
+  it("ignores grey, elite and zone filters", () => {
+    const q = quest({ id: 5, level: 1, isElite: true, zoneAreaId: 40, objectives: [objective(1)] });
+    const log = new Map([[5, logged(false)]]);
+    const strict = opts({ mode: "log", showTrivial: false, showElite: false, zoneAreaId: 10 });
+    const targets = selectTargets(input([q], positions, { log, player: player({ level: 30 }) }), strict);
+    expect(targets.map((t) => t.questId)).toEqual([5]);
+  });
+
+  it("returns nothing for an empty log", () => {
+    expect(selectTargets(input([quest({ id: 1 })], positions), logMode)).toEqual([]);
+  });
+});
+
 describe("selectTargets edge cases", () => {
   it("keeps the pinned quest through the grey, elite and zone filters", () => {
     const pinned = quest({ id: 1, level: 1, isElite: true, zoneAreaId: 40 });

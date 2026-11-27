@@ -1,10 +1,13 @@
 declare const _G: Record<string, unknown>;
 declare const SlashCmdList: Record<string, (message: string) => void>;
 declare function GetLocale(): string;
+declare function ReloadUI(): void;
 declare const UIParent: WowFrame;
 declare function UnitPosition(unit: string): LuaMultiReturn<[number, number, number, number] | []>;
 declare function GetPlayerFacing(): number | null;
 declare function CreateFrame(kind: "Frame" | "Button", name: string | null, parent: WowFrame): WowFrame;
+declare function CreateFrame(kind: "Button", name: string, parent: WowFrame, template: "SecureActionButtonTemplate"): WowSecureButton;
+declare function CreateFrame(kind: "Cooldown", name: string, parent: WowFrame, template: "CooldownFrameTemplate"): WowCooldown;
 declare function GetBuildInfo(): LuaMultiReturn<[string, string, string, number]>;
 declare function date(format: string): string;
 declare const UISpecialFrames: string[];
@@ -15,6 +18,9 @@ declare const Enum: {
 declare function GetTime(): number;
 declare function debugprofilestop(): number;
 declare function UnitOnTaxi(unit: string): boolean;
+declare function UnitIsGhost(unit: string): boolean;
+declare function UnitIsDeadOrGhost(unit: string): boolean;
+declare const C_DeathInfo: { GetCorpseMapPosition: ((this: void, uiMapId: number) => WowVector2D | null) | null } | null;
 declare function UnitLevel(unit: string): number;
 declare function UnitXP(unit: string): number;
 declare function UnitRace(unit: string): LuaMultiReturn<[string, string, number]>;
@@ -28,7 +34,14 @@ declare const GetQuestsCompleted: ((this: void) => Record<number, boolean>) | nu
 type WowItemCooldown = (this: void, itemId: number) => LuaMultiReturn<[number, number, number | boolean]>;
 declare const GetItemCooldown: WowItemCooldown | null;
 declare const C_Container: { GetItemCooldown: WowItemCooldown | null } | null;
-declare const C_Item: { GetItemCooldown: WowItemCooldown | null; GetItemCount: WowItemCount | null } | null;
+declare const C_Item: {
+  GetItemCooldown: WowItemCooldown | null;
+  GetItemCount: WowItemCount | null;
+  GetItemSpell: WowItemSpell | null;
+  GetItemIconByID: ((this: void, itemId: number) => number | null) | null;
+} | null;
+type WowItemSpell = (this: void, itemId: number) => LuaMultiReturn<[string | null, number | null]>;
+declare const GetItemSpell: WowItemSpell | null;
 type WowItemCount = (this: void, itemId: number) => number;
 declare const GetItemCount: WowItemCount | null;
 
@@ -103,8 +116,10 @@ declare namespace C_Timer {
 interface WowRegion {
   SetSize(width: number, height: number): void;
   SetWidth(width: number): void;
+  GetWidth(): number;
   SetHeight(height: number): void;
   SetPoint(point: string, relativeTo?: WowRegion, relativePoint?: string, x?: number, y?: number): void;
+  SetAllPoints(relativeTo: WowRegion): void;
   ClearAllPoints(): void;
   Show(): void;
   Hide(): void;
@@ -113,7 +128,7 @@ interface WowRegion {
 }
 
 interface WowTexture extends WowRegion {
-  SetTexture(path: string): void;
+  SetTexture(path: string | number | null): void;
   SetColorTexture(r: number, g: number, b: number, a: number): void;
   SetRotation(radians: number): void;
 }
@@ -136,6 +151,7 @@ interface WowFrame extends WowRegion {
   StopMovingOrSizing(): void;
   GetLeft(): number | null;
   GetTop(): number | null;
+  GetRight(): number | null;
   SetScript(event: "OnUpdate", handler: ((frame: WowFrame, elapsed: number) => void) | null): void;
   SetScript(event: "OnDragStart" | "OnDragStop" | "OnClick", handler: ((frame: WowFrame) => void) | null): void;
   SetScript(event: "OnMouseWheel", handler: ((frame: WowFrame, delta: number) => void) | null): void;
@@ -152,12 +168,22 @@ interface WowFrame extends WowRegion {
   CreateFontString(name: string | null, layer: string): WowFontString;
 }
 
+interface WowSecureButton extends WowFrame {
+  SetAttribute(name: string, value: string | null): void;
+  RegisterForClicks(...buttons: string[]): void;
+}
+
+interface WowCooldown extends WowRegion {
+  SetCooldown(start: number, duration: number): void;
+}
+
 declare function hooksecurefunc(name: string, hook: (...args: unknown[]) => void): void;
 declare function InCombatLockdown(): boolean;
 declare function FauxScrollFrame_GetOffset(frame: unknown): number;
 declare const GameTooltip: {
   SetOwner(owner: WowFrame, anchor: string): void;
   SetText(text: string): void;
+  SetItemByID(itemId: number): void;
   AddLine(text: string, r: number, g: number, b: number): void;
   Show(): void;
   Hide(): void;

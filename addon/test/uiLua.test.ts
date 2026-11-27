@@ -125,6 +125,9 @@ it("changes Completion mode, zone and filters and unpins from the window", async
     await s.click("MinMaxQuestCompletionMode");
     expect(await completion()).toEqual(["zone", 12, true, true]);
     await s.click("MinMaxQuestCompletionMode");
+    expect(await completion()).toEqual(["log", 12, true, true]);
+    expect((await s.texts()).some((line) => line.endsWith("in log"))).toBe(true);
+    await s.click("MinMaxQuestCompletionMode");
     expect(await completion()).toEqual(["proximity", 12, true, true]);
     await s.click("MinMaxQuestFilterGrey");
     await s.click("MinMaxQuestFilterElite");
@@ -177,6 +180,89 @@ it("stores the Quest tab options and opens Completion from the empty state", asy
     await s.click("MinMaxQuestOpenCompletion");
     expect(await s.run("return MinMaxQuestCharDB.tab")).toBe("completion");
     expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("shows the Quest tab in French when French is stored on an English client", async () => {
+  const s = await ui(`MinMaxQuestDB = { locale = "frFR" }`);
+  try {
+    await s.cmd("");
+    const texts = await s.texts();
+    expect(texts).toContain("Quête");
+    expect(texts).not.toContain("Quest");
+  } finally {
+    s.close();
+  }
+});
+
+it("stores the language from the Options buttons and offers a reload only when it differs", async () => {
+  const s = await ui();
+  const reloadShown = async () => (await s.visibilityOf("MinMaxQuestReload")) === "MinMaxQuestReload|Show";
+  try {
+    await s.cmd("");
+    await s.click("MinMaxQuestSectionOptions");
+    expect(await s.run("return MinMaxQuestDB.locale")).toBe("auto");
+    expect(await reloadShown()).toBe(false);
+    await s.click("MinMaxQuestLanguagefrFR");
+    expect(await s.run("return MinMaxQuestDB.locale")).toBe("frFR");
+    expect(await reloadShown()).toBe(true);
+    await s.click("MinMaxQuestLanguageenUS");
+    expect(await s.run("return MinMaxQuestDB.locale")).toBe("enUS");
+    expect(await reloadShown()).toBe(false);
+    await s.click("MinMaxQuestLanguagefrFR");
+    expect(await s.run("return reloads")).toBe(0);
+    await s.click("MinMaxQuestReload");
+    expect(await s.run("return reloads")).toBe(1);
+    await s.click("MinMaxQuestLanguageauto");
+    expect(await reloadShown()).toBe(false);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("repairs an invalid stored language", async () => {
+  const s = await ui(`MinMaxQuestDB = { locale = "xx" }`);
+  try {
+    await s.cmd("");
+    expect(await s.run("return MinMaxQuestDB.locale")).toBe("auto");
+    expect(await s.texts()).toContain("Quest");
+  } finally {
+    s.close();
+  }
+});
+
+it("locks the arrow from the Options checkbox and from the slash commands", async () => {
+  const s = await ui();
+  const locked = () => s.run("return MinMaxQuestCharDB.arrow and MinMaxQuestCharDB.arrow.locked");
+  try {
+    expect(await s.run("return MinMaxQuestCharDB.arrow == nil")).toBe(true);
+    await s.cmd("");
+    await s.click("MinMaxQuestLockArrow");
+    expect(await locked()).toBe(true);
+    await s.click("MinMaxQuestLockArrow");
+    expect(await locked()).toBe(false);
+    await s.cmd("arrow lock");
+    expect(await locked()).toBe(true);
+    await s.click("MinMaxQuestLockArrow");
+    expect(await locked()).toBe(false);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("draws the Lock arrow checkbox from the arrow itself", async () => {
+  const s = await ui();
+  try {
+    await s.cmd("arrow lock");
+    await s.run("MinMaxQuestCharDB.arrow.locked = false");
+    await s.clearCalls();
+    await s.cmd("");
+    const marks = (await s.calls()).filter((c) => /^texture\|(Show|Hide)$/.test(c));
+    expect(marks.pop()).toBe("texture|Show");
   } finally {
     s.close();
   }
@@ -503,7 +589,7 @@ it("opens at 270x262 and fits every option above the footer while Options is ope
       expect(x + width).toBeLessThanOrEqual(270);
       expect(50 - y + boxHeight).toBeLessThanOrEqual(height - FOOTER_TOP);
     };
-    for (const name of ["MinMaxQuestRouteElites", "MinMaxQuestRouteDungeons", "MinMaxQuestAutoFly", "MinMaxQuestNativeWaypoint"]) {
+    for (const name of ["MinMaxQuestRouteElites", "MinMaxQuestRouteDungeons", "MinMaxQuestAutoFly", "MinMaxQuestNativeWaypoint", "MinMaxQuestLockArrow"]) {
       const point = lastCall(`${name}|SetPoint|`);
       const size = lastCall(`${name}|SetSize|`);
       inside(Number(point[5]), Number(point[6]), Number(size[2]), Number(size[3]));
@@ -517,8 +603,201 @@ it("opens at 270x262 and fits every option above the footer while Options is ope
       inside(x, y, width, buttonHeight);
       x += width + 4;
     }
+    const language = lastCall("MinMaxQuestLanguageauto|SetPoint|");
+    let languageX = Number(language[5]);
+    for (const code of ["auto", "enUS", "frFR"]) {
+      const width = Number(lastCall(`MinMaxQuestLanguage${code}|SetWidth|`)[2]);
+      const buttonHeight = Number(lastCall(`MinMaxQuestLanguage${code}|SetHeight|`)[2]);
+      inside(languageX, Number(language[6]), width, buttonHeight);
+      languageX += width + 4;
+    }
+    const reload = lastCall("MinMaxQuestReload|SetPoint|");
+    const reloadWidth = Number(lastCall("MinMaxQuestReload|SetWidth|")[2]);
+    inside(270 + Number(reload[5]) - reloadWidth, Number(reload[6]), reloadWidth, 16);
+    expect(270 + Number(reload[5]) - reloadWidth).toBeGreaterThan(0);
     await s.click("MinMaxQuestSectionOptions");
     expect(await s.last("MinMaxQuestWindow|SetHeight|")).toBe("MinMaxQuestWindow|SetHeight|262");
+  } finally {
+    s.close();
+  }
+});
+
+const LAYOUT_LUA = `
+local function edge(rec, side)
+  local p = rec.points[1]
+  local rel = p[2].__rec
+  local anchor
+  if rel.width == nil then
+    anchor = (p[3] == "LEFT" or p[3] == "TOPLEFT") and 0 or 300
+  else
+    local l, r = (function() local a, b = extentOf(rel) return a, b end)()
+    anchor = (p[3] == "LEFT" or p[3] == "TOPLEFT") and l or r
+  end
+  local x = anchor + p[4]
+  if p[1] == "TOPLEFT" or p[1] == "LEFT" then return x, x + rec.width end
+  return x - rec.width, x
+end
+extentOf = edge
+local function named(name)
+  for i = #layout, 1, -1 do if layout[i].name == name then return layout[i] end end
+end
+local mode, zone = named("MinMaxQuestCompletionMode"), named("MinMaxQuestCompletionZone")
+local header
+for i = #layout, 1, -1 do
+  local r = layout[i]
+  if r.name == "font" and r.width ~= nil and r.text == HEADER then header = r break end
+end
+local ml, mr = edge(mode)
+local zl, zr = edge(zone)
+local hl, hr = edge(header)
+return { ml, mr, zone.shown and 1 or 0, zl, zr, hl, hr, textWidth(header.text), header.width }
+`;
+
+const HEADERS = {
+  enUS: { proximity: "Elwynn Forest", zone: "Elwynn Forest", log: "2 quests in log" },
+  frFR: { proximity: "Elwynn Forest", zone: "Elwynn Forest", log: "2 quêtes dans le journal" },
+} as const;
+
+for (const locale of ["enUS", "frFR"] as const) {
+  for (const mode of ["proximity", "zone", "log"] as const) {
+    it(`keeps the Completion header controls apart and inside the window (${locale}, ${mode})`, async () => {
+      const setup = `CHAR_WIDTH = 6; logQuests = { 100, 101 }
+        MinMaxQuestDB = { locale = "${locale}" }
+        MinMaxQuestCharDB = { completion = { mode = "${mode}", zoneAreaId = 12 } }`;
+      const s = await ui(setup);
+      try {
+        await s.cmd("");
+        await s.click("MinMaxQuestTabcompletion");
+        const [ml, mr, zoneShown, zl, zr, hl, hr, textW, headerW] = (await s.run(
+          `HEADER = ${JSON.stringify(HEADERS[locale][mode])}
+${LAYOUT_LUA}`,
+        )) as number[];
+        const boxes = [[ml, mr], [hl, hr], ...(zoneShown === 1 ? [[zl, zr]] : [])];
+        for (const [l, r] of boxes) expect(l >= 0 && r <= 300).toBe(true);
+        boxes.sort((a, b) => a[0] - b[0]);
+        for (let i = 1; i < boxes.length; i++) expect(boxes[i - 1][1] <= boxes[i][0]).toBe(true);
+        expect(textW <= headerW).toBe(true);
+        expect(zoneShown).toBe(mode === "log" ? 0 : 1);
+      } finally {
+        s.close();
+      }
+    });
+  }
+}
+
+const ITEM_FAKES = `quests[100].sourceItemId = 900
+quests[100].requiredSourceItems = { 901 }
+bags[900] = 2
+itemSpells[900] = "Use"
+itemSpells[901] = "Use"`;
+const SECURE_CALL = /^MinMaxQuestItem(Holder|Button)\|(SetAttribute|Show|Hide|SetPoint|ClearAllPoints|StartMoving|StopMovingOrSizing|EnableMouse)\b/;
+
+it("shows the quest item button for the target's usable bag item, right of the arrow", async () => {
+  const s = await ui(ITEM_FAKES);
+  try {
+    expect(await s.run(`return templates.MinMaxQuestItemButton`)).toBe("SecureActionButtonTemplate");
+    expect(await s.run(`return templates.MinMaxQuestItemButtonCooldown`)).toBe("CooldownFrameTemplate");
+    const calls = await s.calls();
+    expect(calls).toContain("MinMaxQuestItemButton|SetAttribute|type|item");
+    expect(calls.filter((c) => c.startsWith("MinMaxQuestItemButton|SetAttribute|item|")).pop()).toBe(
+      "MinMaxQuestItemButton|SetAttribute|item|item:900",
+    );
+    expect(calls.filter((c) => c.startsWith("MinMaxQuestItemHolder|SetPoint|")).pop()).toMatch(/\|TOPLEFT\|.*\|BOTTOMLEFT\|160\|700$/);
+    expect(await s.visibilityOf("MinMaxQuestItemHolder")).toBe("MinMaxQuestItemHolder|Show");
+    expect(calls).toContain("font|SetText|2");
+    await s.run("bags[900] = 0; bags[901] = 0");
+    await s.event(`"BAG_UPDATE_DELAYED"`);
+    expect(await s.visibilityOf("MinMaxQuestItemHolder")).toBe("MinMaxQuestItemHolder|Hide");
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("defers an item change in combat until PLAYER_REGEN_ENABLED", async () => {
+  const s = await ui(ITEM_FAKES);
+  try {
+    await s.clearCalls();
+    await s.run("inCombat = true; bags[900] = 0; bags[901] = 1");
+    await s.event(`"BAG_UPDATE_DELAYED"`);
+    await s.cmd("arrow lock");
+    expect((await s.calls()).filter((c) => SECURE_CALL.test(c))).toEqual([]);
+    await s.run("inCombat = false");
+    await s.event(`"PLAYER_REGEN_ENABLED"`);
+    const calls = await s.calls();
+    expect(calls).toContain("MinMaxQuestItemButton|SetAttribute|item|item:901");
+    expect(await s.visibilityOf("MinMaxQuestItemHolder")).toBe("MinMaxQuestItemHolder|Show");
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("drags the item holder by its grip only while unlocked and out of combat", async () => {
+  const s = await ui(ITEM_FAKES);
+  const drag = async () => {
+    await s.clearCalls();
+    await s.run(`scripts["MinMaxQuestItemHolder.OnDragStart"](nil); scripts["MinMaxQuestItemHolder.OnDragStop"](nil)`);
+    return (await s.calls()).includes("MinMaxQuestItemHolder|StartMoving");
+  };
+  try {
+    await s.cmd("arrow lock");
+    expect(await drag()).toBe(false);
+    expect(await s.run("return MinMaxQuestCharDB.itemButton == nil")).toBe(true);
+    await s.cmd("arrow move");
+    await s.run("inCombat = true");
+    expect(await drag()).toBe(false);
+    expect(await s.run("return MinMaxQuestCharDB.itemButton == nil")).toBe(true);
+    await s.run("inCombat = false");
+    expect(await drag()).toBe(true);
+    expect(await s.run("return MinMaxQuestCharDB.itemButton.x .. ',' .. MinMaxQuestCharDB.itemButton.y")).toBe("100,700");
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("places the item holder at its saved position", async () => {
+  const s = await ui(`${ITEM_FAKES}
+MinMaxQuestCharDB = { itemButton = { x = 300, y = 400 } }`);
+  try {
+    expect((await s.calls()).filter((c) => c.startsWith("MinMaxQuestItemHolder|SetPoint|")).pop()).toMatch(/\|TOPLEFT\|.*\|BOTTOMLEFT\|300\|400$/);
+  } finally {
+    s.close();
+  }
+});
+
+it("stops dragging the item holder when combat starts and leaves it alone afterwards", async () => {
+  const s = await ui(ITEM_FAKES);
+  try {
+    await s.cmd("arrow move");
+    await s.run(`scripts["MinMaxQuestItemHolder.OnDragStart"](nil)`);
+    await s.clearCalls();
+    await s.run("inCombat = true");
+    await s.event(`"PLAYER_REGEN_DISABLED"`);
+    expect(await s.run("return MinMaxQuestCharDB.itemButton.x .. ',' .. MinMaxQuestCharDB.itemButton.y")).toBe("100,700");
+    expect((await s.calls()).filter((c) => c === "MinMaxQuestItemHolder|StopMovingOrSizing")).toHaveLength(1);
+    await s.clearCalls();
+    await s.run(`scripts["MinMaxQuestItemHolder.OnDragStop"](nil)`);
+    await s.event(`"PLAYER_REGEN_DISABLED"`);
+    expect((await s.calls()).filter((c) => /^MinMaxQuestItemHolder\|/.test(c))).toEqual([]);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("clears the item icon when the item goes away and sets no attribute when the icon lookup fails", async () => {
+  const s = await ui(ITEM_FAKES);
+  try {
+    await s.clearCalls();
+    await s.run("bags[900] = 0; bags[901] = 0");
+    await s.event(`"BAG_UPDATE_DELAYED"`);
+    expect(await s.calls()).toContain("texture|SetTexture|nil");
+    await s.run("bags[901] = 1; C_Item.GetItemIconByID = nil");
+    await s.clearCalls();
+    await s.event(`"BAG_UPDATE_DELAYED"`);
+    expect((await s.calls()).filter((c) => c.startsWith("MinMaxQuestItemButton|SetAttribute|item|"))).toEqual([]);
   } finally {
     s.close();
   }

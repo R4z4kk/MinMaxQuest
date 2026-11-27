@@ -122,12 +122,17 @@ export function footerTexts(
 }
 
 export function remainingLabel(mode: Mode, n: number): string {
-  return t(mode === "zone" ? "remainingInZone" : "remainingNearby").replace("{n}", String(n));
+  const key = mode === "zone" ? "remainingInZone" : mode === "log" ? "remainingInLog" : "remainingNearby";
+  return t(key).replace("{n}", String(n));
+}
+
+export function logHeader(n: number): string {
+  const singular = n === 1 || (n === 0 && currentLocale() === "frFR");
+  return t(singular ? "questsInLogOne" : "questsInLogMany").replace("{n}", String(n));
 }
 
 export function modeText(mode: Mode): string {
-  const tone = (on: boolean): string => colorCode(on ? COLOR.text : COLOR.sub);
-  return `${tone(mode === "proximity")}${t("modeProximity")}|r | ${tone(mode === "zone")}${t("modeZone")}|r`;
+  return t(mode === "zone" ? "modeZone" : mode === "log" ? "modeLog" : "modeProximity");
 }
 
 export function rowLines(view: CompletionView, slots: number): RowLine[] {
