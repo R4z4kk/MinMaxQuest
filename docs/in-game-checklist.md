@@ -19,7 +19,7 @@ Prérequis : `npm test` (construit `build/MinMaxQuest.lua`), puis lancer WoW For
 - [ ] Filtres Grises / Élites ; aucune quête bloquée n'apparaît.
 - [ ] Les objectifs « tuer X » : la flèche parcourt les points du groupe de mobs et passe au suivant à ~25 m.
 - [ ] Les donneurs de l'autre faction ne sont pas proposés.
-- [ ] Mode Journal : seules les quêtes du journal sont ciblées (objectifs puis remises) ; filtres Grises/Élites et zone ignorés ; en-tête sans chevauchement, en frFR comme en enUS.
+- [ ] Mode Journal : seules les quêtes du journal sont ciblées (objectifs et rendus, triés par temps de trajet) ; filtres Grises/Élites et zone ignorés ; en-tête sans chevauchement, en frFR comme en enUS.
 
 ## Flèche
 - [ ] `/mmq arrow test` : pointe vers le haut face au nord, tourne dans le bon sens quand on pivote (si elle tourne à l'envers, le signe de rotation est inversé).
