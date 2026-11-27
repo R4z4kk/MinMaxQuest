@@ -67,6 +67,20 @@ describe("parseAttune", () => {
     expect(step(20)).toEqual({ id: 20, kind: "pickUp", ref: 5722, follows: [10], origin: "attune" });
   });
 
+  it("keeps item counts, the rep standing goal and OR rows", async () => {
+    const { entries } = await parseAttune(ATTUNE_FILES, RACE_MASKS);
+    expect(entries[0].steps.find((s) => s.id === 40)).toEqual({ id: 40, kind: "item", ref: 14544, follows: [20], origin: "attune", count: 20 });
+    expect(entries[1].steps[0]).toEqual({ id: 10, kind: "rep", ref: 749, follows: [], origin: "attune", count: 9000, orGroup: true });
+  });
+
+  it("throws on a COUNT that is not a positive integer or sits on a step without a count", async () => {
+    await expect(parseAttune({ ...ATTUNE_FILES, data: ATTUNE_DATA.replace("COUNT=20", 'COUNT="x"') }, RACE_MASKS)).rejects.toThrow(
+      "attune 160 step 40: COUNT is not a positive integer",
+    );
+    const data = ATTUNE_DATA.replace('ID_WOWHEAD="5722",FOLLOWS="10",STAGE="20"}', 'ID_WOWHEAD="5722",FOLLOWS="10",STAGE="20",COUNT=2}');
+    await expect(parseAttune({ ...ATTUNE_FILES, data }, RACE_MASKS)).rejects.toThrow('attune 160 step 20: COUNT on a "Pick Up" step');
+  });
+
   it("throws on an unknown NORACE token", async () => {
     const data = ATTUNE_DATA.replace('NORACE="Scourge|Orc"', 'NORACE="Pandaren"');
     await expect(parseAttune({ ...ATTUNE_FILES, data }, RACE_MASKS)).rejects.toThrow('attune 160 step 70: unknown NORACE race "Pandaren"');

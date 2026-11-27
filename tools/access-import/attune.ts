@@ -14,7 +14,7 @@ export interface AttuneNotes {
   droppedSteps: string[];
   droppedFollows: string[];
   orFollows: string[];
-  filteredSteps: { excludedRaces: number; optional: number };
+  filteredSteps: { excludedRaces: number; optional: number; counted: number; orGroup: number };
   placeholderRefs: string[];
   frenchFallbacks: string[];
 }
@@ -64,6 +64,7 @@ const STEP_KINDS: Record<string, AccessStepKind> = {
 const DROPPED_TYPES = new Set(["Spacer", "Attune"]);
 const UNSUPPORTED_TYPES = new Set(["Stat"]);
 const PLACEHOLDER_KINDS = new Set<AccessStepKind>(["interact", "click"]);
+const COUNT_KINDS = new Set<AccessStepKind>(["item", "kill"]);
 // NORACE holds UnitRace file names; race ids per https://warcraft.wiki.gg/wiki/API_UnitRace.
 const RACE_IDS: Record<string, number> = { Human: 1, Orc: 2, Dwarf: 3, NightElf: 4, Scourge: 5, Tauren: 6, Gnome: 7, Troll: 8 };
 
@@ -178,6 +179,18 @@ function excludedRaces(step: RawStep, raceMaskById: Record<number, number>): num
   return mask;
 }
 
+// item and kill: Attune's COUNT. rep: the goal ID_WOWHEAD in reputation earned from Neutral (Honored 9000), as Attune.lua compares it
+// with the earned value; its OFFSET only scales the tooltip percent.
+function stepCount(step: RawStep, kind: AccessStepKind): number | null {
+  const what = `attune ${step.attune} step ${step.id}`;
+  if (kind === "rep") return integer(text(step.row, "ID_WOWHEAD", what), `${what}: ID_WOWHEAD`);
+  const count = step.row.COUNT;
+  if (count == null) return null;
+  if (!COUNT_KINDS.has(kind)) throw new Error(`${what}: COUNT on a "${step.type}" step`);
+  if (typeof count !== "number" || !Number.isInteger(count) || count < 1) throw new Error(`${what}: COUNT is not a positive integer`);
+  return count;
+}
+
 function buildSteps(attune: string, raws: RawStep[], notes: AttuneNotes, raceMaskById: Record<number, number>): AccessStep[] {
   const kept = new Map<number, RawStep>();
   const dropped = new Map<number, RawStep[]>();
@@ -213,7 +226,12 @@ function buildSteps(attune: string, raws: RawStep[], notes: AttuneNotes, raceMas
       if (followsAny) notes.orFollows.push(`${attune}/${step.id}`);
       const follows = [...new Set(followsOf(step).flatMap((id) => resolve(id, [step.id])))];
       const excluded = excludedRaces(step, raceMaskById);
+      const count = stepCount(step, kind);
       const result: AccessStep = { id: step.id, kind, ref: stepRef(step, kind, notes), follows, origin: "attune" };
+      if (count != null) {
+        result.count = count;
+        notes.filteredSteps.counted += 1;
+      }
       if (excluded != null) {
         result.excludedRaces = excluded;
         notes.filteredSteps.excludedRaces += 1;
@@ -223,13 +241,17 @@ function buildSteps(attune: string, raws: RawStep[], notes: AttuneNotes, raceMas
         notes.filteredSteps.optional += 1;
       }
       if (followsAny) result.followsAny = true;
+      if (step.row.OR === true) {
+        result.orGroup = true;
+        notes.filteredSteps.orGroup += 1;
+      }
       return result;
     });
 }
 
 export async function parseAttune(files: AttuneFiles, raceMaskById: Record<number, number>): Promise<AttuneImport> {
   const { attunes, steps, enUS, frFR } = await evaluate(files);
-  const notes: AttuneNotes = { skippedEntries: [], droppedSteps: [], droppedFollows: [], orFollows: [], filteredSteps: { excludedRaces: 0, optional: 0 }, placeholderRefs: [], frenchFallbacks: [] };
+  const notes: AttuneNotes = { skippedEntries: [], droppedSteps: [], droppedFollows: [], orFollows: [], filteredSteps: { excludedRaces: 0, optional: 0, counted: 0, orGroup: 0 }, placeholderRefs: [], frenchFallbacks: [] };
 
   const stepsByAttune = new Map<string, RawStep[]>();
   steps.forEach((row, index) => {
