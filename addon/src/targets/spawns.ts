@@ -39,7 +39,8 @@ export function pickCluster(clusters: SpawnCluster[], timeTo: (p: WorldPos) => n
   let best: SpawnCluster | null = null;
   let bestTime = Infinity;
   for (const cluster of clusters) {
-    const time = timeTo(cluster.center);
+    const raw = timeTo(cluster.center);
+    const time = Number.isNaN(raw) ? Infinity : raw;
     if (best === null || time < bestTime || (time === bestTime && cluster.points.length > best.points.length)) {
       best = cluster;
       bestTime = time;
@@ -71,6 +72,6 @@ export function killLoop(cluster: SpawnCluster, start: WorldPos): WorldPos[] {
 
 export function nextLoopIndex(loop: WorldPos[], current: number, player: WorldPos, advanceYards: number): number {
   if (loop.length === 0 || current < 0 || current >= loop.length) return 0;
-  if (distance(player, loop[current]) > advanceYards) return current;
+  if (!(distance(player, loop[current]) <= advanceYards)) return current;
   return (current + 1) % loop.length;
 }

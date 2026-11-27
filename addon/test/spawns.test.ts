@@ -32,6 +32,10 @@ describe("pickCluster", () => {
     const big = { center: at(5, 0), points: [at(5, 0), at(6, 0)] };
     expect(pickCluster([near, big], () => 10)).toBe(big);
   });
+  it("treats a NaN time as Infinity", () => {
+    const times = new Map([[near, NaN], [far, 50]]);
+    expect(pickCluster([near, far], (p) => times.get(p === near.center ? near : far) ?? NaN)).toBe(far);
+  });
   it("returns null when empty", () => expect(pickCluster([], () => 0)).toBeNull());
 });
 
@@ -43,9 +47,20 @@ describe("killLoop", () => {
   });
 });
 
+describe("killLoop edge cases", () => {
+  it("returns [] for an empty cluster", () => expect(killLoop({ center: at(0, 0), points: [] }, at(0, 0))).toEqual([]));
+  it("visits every point once from another continent", () => {
+    const cluster = { center: at(0, 0), points: [at(30, 0), at(10, 0), at(20, 0)] };
+    const loop = killLoop(cluster, at(0, 0, 1));
+    expect(loop).toHaveLength(3);
+    expect(new Set(loop).size).toBe(3);
+  });
+});
+
 describe("nextLoopIndex", () => {
   const loop = [at(0, 0), at(100, 0), at(200, 0)];
   it("advances at 20 yards", () => expect(nextLoopIndex(loop, 0, at(20, 0), 25)).toBe(1));
+  it("stays put on NaN player coordinates", () => expect(nextLoopIndex(loop, 1, at(NaN, 0), 25)).toBe(1));
   it("stays at 30 yards", () => expect(nextLoopIndex(loop, 0, at(30, 0), 25)).toBe(0));
   it("wraps at the end", () => expect(nextLoopIndex(loop, 2, at(200, 0), 25)).toBe(0));
   it("returns 0 for an empty loop", () => expect(nextLoopIndex([], 5, at(0, 0), 25)).toBe(0));
