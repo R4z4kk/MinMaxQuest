@@ -12,6 +12,7 @@ import { createCommands } from "./game/commands";
 import { createEngine, describeTarget, sameKey, targetQuest, type Engine } from "./game/engine";
 import { createPlayerState, HEARTHSTONE_SPELL_ID, itemCount, playerFaction, type PlayerStateReader } from "./game/playerState";
 import { createPlaceFor, createPositions, mapToWorld, uiMapToWorld } from "./game/positions";
+import { createNeighbourFinder, type HbdMapData } from "./game/neighbours";
 import { createRouting } from "./game/routing";
 import { installMapPins } from "./map/pins";
 import { installPinButtons } from "./questlog/pinButtons";
@@ -208,7 +209,10 @@ function start(): Game | null {
   const charDb = getDb();
   const player = createPlayerState(_G.LibQuestieDB as LibQuestieDBApi, charDb);
   const positionsFor = createPositions(repo, mapToWorld(repo), () => playerFaction());
-  const routing = createRouting(repo, charDb, positionsFor);
+  const neighbours = createNeighbourFinder(
+    () => (LibStub?.("HereBeDragons-2.0", true) as { mapData: HbdMapData } | null)?.mapData ?? null,
+  );
+  const routing = createRouting(repo, charDb, positionsFor, TRAVEL, () => neighbours.around(C_Map.GetBestMapForUnit("player")));
   const follower = createRouteFollower({
     db: charDb,
     faction: () => playerFaction(),

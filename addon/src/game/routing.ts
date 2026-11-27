@@ -45,6 +45,7 @@ export function createRouting(
   db: CharDb,
   positionsFor: CompletionInput["positionsFor"],
   data: TravelData = TRAVEL,
+  nearbyMaps: (() => Set<number>) | null = null,
 ): Routing {
   let quests: QuestInfo[] | null = null;
   let graph: TravelGraph | null = null;
@@ -103,8 +104,12 @@ export function createRouting(
           positionsFor,
           timeTo: (p) => travelTime(current.plan, current.graph, p, current.ctx),
           clusters,
+          uiMapOf: (areaId) => repo.uiMapIdForArea(areaId),
         },
-        { mode, zoneAreaId, showTrivial, showElite, minLevelGap: db.minLevelGap, pinnedQuestId: db.pinnedQuestId },
+        {
+          mode, zoneAreaId, showTrivial, showElite, minLevelGap: db.minLevelGap, pinnedQuestId: db.pinnedQuestId,
+          ...(mode === "proximity" && nearbyMaps != null ? { nearbyMaps: nearbyMaps() } : {}),
+        },
       );
     },
     firstHop(target) {

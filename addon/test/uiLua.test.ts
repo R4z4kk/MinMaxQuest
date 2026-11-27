@@ -58,10 +58,10 @@ it("switches the three tabs, resizing the window and saving the tab", async () =
     expect(await s.run("return MinMaxQuestCharDB.tab")).toBe("completion");
     const texts = await s.texts();
     expect(texts).toContain("Elwynn Forest");
-    expect(texts).toContain("0 / 2 quests");
+    expect(texts).toContain("0 / 3 quests");
     expect(texts).toContain("Test Quest");
     expect(texts).toContain("pick up · <1 min · 22 m");
-    expect(texts).toContain("Eastern Kingdoms · 0 / 2");
+    expect(texts).toContain("Eastern Kingdoms · 0 / 3");
     await s.click("MinMaxQuestTabaccess");
     expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|320|420");
     expect((await s.texts()).some((line) => line.startsWith("KEYS · "))).toBe(true);

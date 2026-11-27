@@ -100,6 +100,26 @@ describe("routing caches", () => {
   });
 });
 
+describe("routing proximity perimeter", () => {
+  const withMaps = (nearby: Set<number>) => {
+    const db = loadCharDb(null);
+    const local: QuestRepository = { ...repo, uiMapIdForArea: (areaId) => (areaId === 12 ? 100 : 200) };
+    return { db, routing: createRouting(local, db, (q) => [at(q.id * 70)], NO_TRAVEL, () => nearby) };
+  };
+
+  it("keeps only nearby zone maps in proximity, leaving zone mode alone", () => {
+    const { db, routing } = withMaps(new Set([100]));
+    expect(routing.completion(snapshot(at(0))).map((t) => t.questId)).toEqual([1, 2]);
+    db.completion.mode = "zone";
+    db.completion.zoneAreaId = 40;
+    expect(routing.completion(snapshot(at(0))).map((t) => t.questId)).toEqual([3]);
+  });
+
+  it("lists nothing in proximity when no zone can be resolved", () => {
+    expect(withMaps(new Set<number>()).routing.completion(snapshot(at(0)))).toEqual([]);
+  });
+});
+
 describe("routing", () => {
   it("lists every known quest sorted by walking time", () => {
     const { routing } = setup();

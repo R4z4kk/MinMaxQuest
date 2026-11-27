@@ -21,9 +21,10 @@ function lib.AddMinimapIconWorld(self, ref, icon, inst, x, y, edge)
 end
 function lib.RemoveWorldMapIcon(self, ref, icon) log[#log + 1] = "unworld|" .. idOf(icon) end
 function lib.RemoveMinimapIcon(self, ref, icon) log[#log + 1] = "unmini|" .. idOf(icon) end
-LibStub = function(name)
+local baseStub = LibStub
+LibStub = function(name, silent)
   if name == "HereBeDragons-Pins-2.0" then return lib end
-  return nil
+  return baseStub(name, silent)
 end
 
 UISpecialFrames = {}

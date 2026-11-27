@@ -129,14 +129,21 @@ InCombatLockdown = function() return inCombat end
 GameTooltip = fake("GameTooltip")
 FauxScrollFrame_GetOffset = function() return 0 end
 CreateVector2D = function(x, y) return { x = x, y = y } end
+LibStub = function(name)
+  if name == "HereBeDragons-2.0" then
+    return { mapData = { [1429] = { 1000, 1000, 1000, 1000, instance = 0, mapType = 3, parent = 0 } } }
+  end
+  return setmetatable({}, { __index = function() return function() return true end end })
+end
 C_Map = {
+  GetBestMapForUnit = function() return 1429 end,
   GetWorldPosFromMapPos = function(map, v) return 0, { x = 1000 + v.x * 100, y = 2000 + v.y * 100 } end,
 }
 C_Timer = { NewTicker = function(seconds, fn) ticker = fn end }
 quests = {
-  [100] = { name = "Test Quest", questLevel = 10, requiredLevel = 1, startedBy = { { 500 } } },
-  [101] = { name = "Second", questLevel = 10, requiredLevel = 1, startedBy = { { 501 } } },
-  [102] = { name = "Later", questLevel = 11, requiredLevel = 11, startedBy = { { 501 } } },
+  [100] = { name = "Test Quest", questLevel = 10, requiredLevel = 1, zoneOrSort = 12, startedBy = { { 500 } } },
+  [101] = { name = "Second", questLevel = 10, requiredLevel = 1, zoneOrSort = 12, startedBy = { { 501 } } },
+  [102] = { name = "Later", questLevel = 11, requiredLevel = 11, zoneOrSort = 12, startedBy = { { 501 } } },
 }
 spawns = { [500] = { [12] = { { 10, 20 } } }, [501] = { [12] = { { 90, 90 } } } }
 zonePrivate = {

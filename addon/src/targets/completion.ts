@@ -43,6 +43,8 @@ export interface CompletionOptions {
   showElite: boolean;
   minLevelGap: number | null;
   pinnedQuestId: number | null;
+  // Proximity only: ui maps allowed; absent means no restriction.
+  nearbyMaps?: Set<number>;
 }
 
 export interface CompletionInput {
@@ -54,11 +56,18 @@ export interface CompletionInput {
   timeTo: (p: WorldPos) => number;
   // Spawns never change, so clusters are kept across refreshes, keyed by questId:objectiveIndex.
   clusters: Map<string, SpawnCluster[]>;
+  uiMapOf?: (zoneAreaId: number) => number | null;
 }
 
 export interface ZoneProgress {
   done: number;
   total: number;
+}
+
+function inNearbyMaps(q: QuestInfo, maps: Set<number>, uiMapOf: CompletionInput["uiMapOf"]): boolean {
+  if (q.zoneAreaId == null || uiMapOf == null) return false;
+  const uiMapId = uiMapOf(q.zoneAreaId);
+  return uiMapId != null && maps.has(uiMapId);
 }
 
 export function selectTargets(input: CompletionInput, opts: CompletionOptions): Target[] {
@@ -121,6 +130,7 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
     } else if (!pinned) {
       if (!opts.showElite && q.isElite) continue;
       if (!opts.showTrivial && trivial) continue;
+      if (opts.mode === "proximity" && opts.nearbyMaps != null && !inNearbyMaps(q, opts.nearbyMaps, input.uiMapOf)) continue;
       if (opts.mode === "zone" && (opts.zoneAreaId == null || q.zoneAreaId !== opts.zoneAreaId)) continue;
     }
 
