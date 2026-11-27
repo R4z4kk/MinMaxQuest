@@ -393,8 +393,21 @@ Principe (utilisateur) : **pas de modélisation fine des données qu'on n'a pas.
 - **Temps de kill (utilisateur) : aucune valeur unique.**
   - **Hors du jeu :** chaque route est évaluée sur une **plage de scénarios** : temps par kill d'un mob normal (20, 30 et 50 s), facteur élite (1,5 à 3) et durée de donjon. L'optimiseur garde la route dont le temps moyen jusqu'au 60 est le plus bas. Ce sont des hypothèses de robustesse, pas une estimation du joueur. Elles sont datées et marquées « non vérifiées ».
   - **En jeu (Plan 3) :** le temps de kill est mesuré pour le joueur. Première piste : PV du mob lus en jeu (`UnitHealthMax`) divisés par le DPS mesuré du joueur, plus un temps de recherche des mobs mesuré par zone (zones surpeuplées). La disponibilité des événements de combat sous les restrictions de Midnight est **à vérifier**. Ces mesures servent à l'affichage et aux décisions locales (grind ou quête).
-  - **Pas de cmangos** : les PV de QuestieDB sont abandonnés (valeurs 0 ou 1), et les PV lus en jeu sont plus fiables.
-- **Tailles de cartes [choix Claude] :** `Data/Zones.lua` de Shortest Path Forever, de la même version que les fichiers déjà vendus. Ses rectangles viennent de `UiMapAssignment` du build `wowf`. Ils servent à convertir les pourcentages de zone en yards hors du jeu. Contrôle hors du jeu à chaque génération : les maîtres de vol de QuestieDB, une fois convertis, doivent tomber sur les relais de griffon de Shortest Path Forever. Sinon la génération s'arrête.
+  - **PV des mobs : pas de cmangos.** Les PV de QuestieDB sont abandonnés (valeurs 0 ou 1), et les PV lus en jeu sont plus fiables. cmangos ne sert qu'aux quantités d'objectifs (ci-dessous).
+- **Quantités d'objectifs (utilisateur) :**
+  - d'abord le texte d'objectif de QuestieDB (`objectivesText`, à jour pour Forever) : « Kill 10 Kobold Vermin », nombres écrits en lettres, et un nom seul au singulier sans nombre compte pour 1 ;
+  - sinon `quest_template` de cmangos classic-db (`ReqCreatureOrGOCount`, `ReqItemCount`) à un commit épinglé, lu à la génération seulement, jamais redistribué ;
+  - sinon la quête est exclue (`noCount`). Le rapport donne la couverture et les désaccords entre les deux sources.
+- **Taux de drop inconnus (utilisateur) :** un objet sans taux de drop connu (objets propres à Forever) prend le taux du scénario `questDropChance` (rapide 0,6, moyen 0,4, lent 0,25). Hypothèse de robustesse datée et « non vérifiée ». Un taux nul reste exclu.
+- **Choix du candidat [choix Claude] :**
+  - chaque scénario construit un candidat, simulé ensuite sous les trois scénarios ;
+  - un candidat est écarté s'il viole une règle stricte sous un autre scénario, ou s'il finit sous le niveau cible sous un scénario. La génération ne s'arrête que si aucun candidat n'est valide ;
+  - chaque route se termine par un grind jusqu'au niveau cible, à sa dernière position : sans effet quand le niveau est atteint, il comble l'écart d'un scénario qui tue moins de mobs (drops supposés) ;
+  - le contrôle par race note si la route atteint le niveau cible ; l'étalon RXP ne compare que nos routes qui atteignent le niveau comparé.
+- **Coût du grind [choix Claude] :** le constructeur estime le grind avec le coût par kill du simulateur (kill, loot, marche à l'espacement moyen du groupe de mobs).
+- **Donjons de groupe [choix Claude] :** le type d'instance vient des tables wago.tools `Map` et `AreaTable` du build `wowf`. Seuls les donjons de groupe sont gardés. Les quêtes de raid et de champ de bataille sont exclues.
+- **Tailles de cartes [choix Claude] :** `Data/Zones.lua` de Shortest Path Forever, de la même version que les fichiers déjà vendus. Ses rectangles viennent de `UiMapAssignment` du build `wowf`. Zephras (absente de ce fichier) prend son rectangle dans `UiMapAssignment` de wago.tools, vendu dans `vendor/wago/`. Ils servent à convertir les pourcentages de zone en yards hors du jeu. Contrôle hors du jeu à chaque génération : les maîtres de vol de QuestieDB, une fois convertis, doivent tomber sur les relais de griffon de Shortest Path Forever (écart médian). Sinon la génération s'arrête.
+  - Par relais : un relais sans maître de vol à moins de 100 yards n'est pas apprenable. La route ne l'apprend ni ne l'utilise, et le rapport le liste.
 - **Lecture de QuestieDB [choix Claude] :** clone du tag QuestieDB épinglé et daté, chargé dans wasmoon avec l'émulateur hors jeu de QuestieDB (`emulator/client.lua`, `emulator/metadata.lua`). Les corrections de QuestieDB sont donc appliquées comme en jeu. Le résultat est un instantané JSON en cache, non commité.
 - **Réutilisation [choix Claude] :** le générateur importe directement le code TS pur de l'add-on : graphe de trajet, `questXp`, `XP_PER_LEVEL`, disponibilité et constantes datées. Le trajet est donc calculé hors jeu exactement comme en jeu.
 - **Pierre de foyer (utilisateur) :** le simulateur suit l'auberge liée et le temps de recharge (`hearthCooldownSec`, déjà sourcé). L'optimiseur choisit où lier la pierre (étape `setHearth` chez un aubergiste) et quand l'utiliser (étape `hearth`). En jeu, si la pierre est en recharge, le graphe de trajet passe par la marche ou le griffon.
@@ -404,6 +417,7 @@ Principe (utilisateur) : **pas de modélisation fine des données qu'on n'a pas.
   - le tronc commun part du niveau 10, depuis la capitale de la faction. Chaque segment de départ va du niveau 1 au niveau 10, ou jusqu'à épuisement des quêtes de la zone de départ, puis comble par du grind.
 - **Périmètre :**
   - le Plan 2 tourne en local (`npm run gen:routes`) sur le QuestieDB installé, et écrit les routes et un rapport (temps simulé jusqu'au 60, XP/h par variante) ;
+  - une génération partielle (`--faction`, `--variant`) écrit dans `tools/route-builder/.cache/partial/`, jamais dans `data/routes/` ;
   - les tests utilisent de petites données de test, pour que la CI n'ait pas besoin de QuestieDB ;
   - les routes ne sont pas encore chargées en jeu : le suivi de route, les add-ons de données chargés à la demande et la régénération en CI sont au Plan 3.
 - **Étalon :** les guides RXP Forever 1-22 installés en local, passés dans le simulateur pour comparer, jamais redistribués.

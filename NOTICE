@@ -18,4 +18,16 @@ Shortest Path Forever data (vendor/shortest-path-forever)
   Copyright (c) 2009-2024 TotalPackage, 2022 Deranjata, 2025-2026 LudiusMaximus
   (full MIT text in vendor/shortest-path-forever/LICENSE).
 
+QuestieDB-derived route data (data/routes)
+  Quest, NPC, object and item data from QuestieDB v1.1.6. GPL-3.0.
+  https://github.com/Questie/QuestieDB
+
+wago.tools DB2 tables (vendor/wago)
+  UiMapAssignment, Map and AreaTable CSVs of build 1.60.1.71139, retrieved from
+  https://wago.tools. Game data (c) Blizzard Entertainment.
+
+cmangos classic-db (build time only, not redistributed)
+  quest_template objective counts read by tools/route-builder at a pinned commit. GPL-3.0.
+  https://github.com/cmangos/classic-db
+
 Details and checksums for the vendored libraries: libs/HereBeDragons/SOURCES.txt.
