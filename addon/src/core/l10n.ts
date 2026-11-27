@@ -33,6 +33,10 @@ export type L10nKey =
   | "zonePicker"
   | "modeProximity"
   | "modeZone"
+  | "modeLog"
+  | "remainingInLog"
+  | "questsInLogOne"
+  | "questsInLogMany"
   | "questsCount"
   | "percent"
   | "showFilters"
@@ -142,6 +146,10 @@ const EN: Record<L10nKey, string> = {
   zonePicker: "Zone",
   modeProximity: "Proximity",
   modeZone: "Zone",
+  modeLog: "Log",
+  remainingInLog: "Remaining in log · {n}",
+  questsInLogOne: "{n} quest in log",
+  questsInLogMany: "{n} quests in log",
   questsCount: "{done} / {total} quests",
   percent: "{p}%",
   showFilters: "Show:",
@@ -252,6 +260,10 @@ const FR: Record<L10nKey, string> = {
   zonePicker: "Zone",
   modeProximity: "Proximité",
   modeZone: "Zone",
+  modeLog: "Journal",
+  remainingInLog: "Restant dans le journal · {n}",
+  questsInLogOne: "{n} quête dans le journal",
+  questsInLogMany: "{n} quêtes dans le journal",
   questsCount: "{done} / {total} quêtes",
   percent: "{p} %",
   showFilters: "Afficher :",

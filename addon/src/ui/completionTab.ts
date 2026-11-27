@@ -12,7 +12,7 @@ import {
 } from "./theme";
 import type { TabView } from "./window";
 import {
-  completionView, footerTexts, headerZone, modeText, percentText, progressText, remainingLabel, rowLines, zoneLabel,
+  completionView, footerTexts, headerZone, logHeader, modeText, percentText, progressText, remainingLabel, rowLines, zoneLabel,
   type RowLine,
 } from "./viewModel";
 import { createZonePicker } from "./zonePicker";
@@ -125,19 +125,29 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
     zoneButton.frame.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, -7);
     anchor = zoneButton.frame;
     const mode = button(parent, "MinMaxQuestCompletionMode", "", () => {
-      const toZone = db.completion.mode !== "zone";
-      if (toZone && db.completion.zoneAreaId == null) {
-        const here = currentZone();
-        if (here == null) {
-          openPicker();
-          return;
+      if (db.completion.mode === "log") {
+        db.completion.mode = "proximity";
+      } else if (db.completion.mode === "zone") {
+        db.completion.mode = "log";
+      } else {
+        if (db.completion.zoneAreaId == null) {
+          const here = currentZone();
+          if (here == null) {
+            openPicker();
+            return;
+          }
+          db.completion.zoneAreaId = here;
         }
-        db.completion.zoneAreaId = here;
+        db.completion.mode = "zone";
       }
-      db.completion.mode = toZone ? "zone" : "proximity";
       applyOptions();
     });
     mode.frame.SetPoint("RIGHT", zoneButton.frame, "LEFT", -4, 0);
+    const logAnchored = (inLog: boolean): void => {
+      mode.frame.ClearAllPoints();
+      if (inLog) mode.frame.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, -7);
+      else mode.frame.SetPoint("RIGHT", zoneButton.frame, "LEFT", -4, 0);
+    };
     setLabel(label(parent, PAD, -60), t("nearestTarget"));
     const pinned = button(parent, "MinMaxQuestCompletionUnpin", `${t("pinnedTag")} · ${GLYPH.close}`, () => {
       engine.pin(null);
@@ -183,6 +193,7 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
       zonePercent: at(text(parent, SIZE.small, COLOR.sub, "RIGHT"), parent, -27, true),
       zoneBar: bar(parent, INNER, PAD, -42),
       mode,
+      logAnchored,
       zoneButton,
       pinned,
       nearestName: at(text(parent, SIZE.body, COLOR.text), parent, -76),
@@ -209,12 +220,23 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
     const options = db.completion;
     const zoneId = headerZone(options.mode, options.zoneAreaId, currentZone());
     const zone = (zoneId == null ? null : totals.get(zoneId)) ?? EMPTY;
-    w.zoneName.SetText(zoneLabel(index, zoneId));
-    w.zoneCount.SetText(progressText(zone));
-    w.zonePercent.SetText(percentText(zone));
-    w.zoneBar.setFraction(zone.total > 0 ? zone.done / zone.total : 0);
+    const inLog = options.mode === "log";
+    w.logAnchored(inLog);
+    if (inLog) {
+      w.zoneName.SetText(logHeader(engine.snapshot()?.state.inLog.size ?? 0));
+      w.zoneCount.SetText("");
+      w.zonePercent.SetText("");
+      w.zoneBar.setFraction(0);
+      w.zoneButton.frame.Hide();
+    } else {
+      w.zoneName.SetText(zoneLabel(index, zoneId));
+      w.zoneCount.SetText(progressText(zone));
+      w.zonePercent.SetText(percentText(zone));
+      w.zoneBar.setFraction(zone.total > 0 ? zone.done / zone.total : 0);
+      w.zoneButton.setText(`${zoneLabel(index, options.zoneAreaId ?? zoneId)} ${GLYPH.dropdown}`);
+      w.zoneButton.frame.Show();
+    }
     w.mode.setText(modeText(options.mode));
-    w.zoneButton.setText(`${zoneLabel(index, options.zoneAreaId ?? zoneId)} ${GLYPH.dropdown}`);
     if (db.pinnedQuestId != null) w.pinned.frame.Show();
     else w.pinned.frame.Hide();
 

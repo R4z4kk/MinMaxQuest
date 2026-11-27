@@ -12,7 +12,7 @@ export interface CharDb {
   window: { x: number; y: number } | null;
   arrow: { x: number; y: number; locked: boolean } | null;
   completion: {
-    mode: "proximity" | "zone";
+    mode: "proximity" | "zone" | "log";
     zoneAreaId: number | null;
     showTrivial: boolean;
     showElite: boolean;
@@ -114,7 +114,7 @@ export function loadCharDb(saved: unknown): CharDb {
   if (!isIndex(db.route.startIndex)) db.route.startIndex = 0;
   if (!isIndexList(db.route.skippedSteps)) db.route.skippedSteps = [];
   if (!isIndexList(db.dungeonReturns)) db.dungeonReturns = [];
-  if (db.completion.mode !== "proximity" && db.completion.mode !== "zone") {
+  if (db.completion.mode !== "proximity" && db.completion.mode !== "zone" && db.completion.mode !== "log") {
     db.completion.mode = CHAR_DEFAULTS.completion.mode;
   }
   return db;

@@ -64,6 +64,7 @@ describe("loadCharDb", () => {
   it("rejects an unknown tab or mode", () => {
     expect(loadCharDb({ tab: "nope" }).tab).toBe("quest");
     expect(loadCharDb({ completion: { mode: "nope" } }).completion.mode).toBe("proximity");
+    expect(loadCharDb({ completion: { mode: "log" } }).completion.mode).toBe("log");
   });
 });
 

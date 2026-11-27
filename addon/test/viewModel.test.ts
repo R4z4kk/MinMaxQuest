@@ -13,6 +13,7 @@ import {
   headerZone,
   lostText,
   modeText,
+  logHeader,
   percentText,
   progressText,
   remainingLabel,
@@ -185,9 +186,14 @@ describe("completion header and footer", () => {
     expect(remainingLabel("zone", 3)).toBe("Remaining in zone · 3");
     const on = colorCode(COLOR.text);
     const off = colorCode(COLOR.sub);
-    expect(modeText("proximity")).toBe(`${on}Proximity|r | ${off}Zone|r`);
-    expect(modeText("zone")).toBe(`${off}Proximity|r | ${on}Zone|r`);
+    expect(modeText("proximity")).toBe(`${on}Proximity|r | ${off}Zone|r | ${off}Log|r`);
+    expect(modeText("zone")).toBe(`${off}Proximity|r | ${on}Zone|r | ${off}Log|r`);
+    expect(remainingLabel("log", 3)).toBe("Remaining in log · 3");
+    expect(modeText("log")).toBe(`${off}Proximity|r | ${off}Zone|r | ${on}Log|r`);
+    expect(logHeader(1)).toBe("1 quest in log");
+    expect(logHeader(4)).toBe("4 quests in log");
     setLocale("frFR");
+    expect(logHeader(4)).toBe("4 quêtes dans le journal");
     expect(remainingLabel("zone", 2)).toBe("Restant dans la zone · 2");
   });
 });

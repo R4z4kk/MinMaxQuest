@@ -37,7 +37,7 @@ export interface Target {
 }
 
 export interface CompletionOptions {
-  mode: "proximity" | "zone";
+  mode: "proximity" | "zone" | "log";
   zoneAreaId: number | null;
   showTrivial: boolean;
   showElite: boolean;
@@ -114,13 +114,16 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
 
   for (const q of input.quests) {
     const trivial = isTrivial(q, player, greenRange);
-    if (q.id !== opts.pinnedQuestId) {
+    const entry = log.get(q.id);
+    const pinned = q.id === opts.pinnedQuestId;
+    if (opts.mode === "log") {
+      if (entry == null && !pinned) continue;
+    } else if (!pinned) {
       if (!opts.showElite && q.isElite) continue;
       if (!opts.showTrivial && trivial) continue;
       if (opts.mode === "zone" && (opts.zoneAreaId == null || q.zoneAreaId !== opts.zoneAreaId)) continue;
     }
 
-    const entry = log.get(q.id);
     if (entry == null) {
       if (!isAvailable(q, player) || !passesMaxLevelOption(q, player, opts.minLevelGap)) continue;
       const pos = nearest(positionsFor(q, "accept", null));

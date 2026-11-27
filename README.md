@@ -49,6 +49,7 @@
 - Lists every quest you can still do, at any level, and keeps working past level 60.
 - **Proximity** mode sorts quests by real travel time.
 - **Zone** mode shows one zone, picked from a zone list.
+- **Log** mode only targets quests already in your quest log: objectives, then turn-ins. No new quests; the Grey and Elite filters and the zone are ignored.
 - Shows the nearest target, the next one, and the remaining quests with their estimated travel time.
 - Progress counters for the zone and in total.
 - **Grey** and **Elite** filters. Quests you can't take yet are never shown.

@@ -125,6 +125,9 @@ it("changes Completion mode, zone and filters and unpins from the window", async
     await s.click("MinMaxQuestCompletionMode");
     expect(await completion()).toEqual(["zone", 12, true, true]);
     await s.click("MinMaxQuestCompletionMode");
+    expect(await completion()).toEqual(["log", 12, true, true]);
+    expect((await s.texts()).some((line) => line.endsWith("in log"))).toBe(true);
+    await s.click("MinMaxQuestCompletionMode");
     expect(await completion()).toEqual(["proximity", 12, true, true]);
     await s.click("MinMaxQuestFilterGrey");
     await s.click("MinMaxQuestFilterElite");
