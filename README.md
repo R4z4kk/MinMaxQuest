@@ -26,7 +26,7 @@
 - A single window with three tabs: **Quest**, **Access** and **Completion**.
 - Each tab resizes the window to fit its content.
 - The window and the last opened tab are remembered across sessions.
-- **Eye button** left of the gear: hides the window, the arrow and the quest item button together. `/mmq` brings them back. The hidden state is saved per character.
+- **Eye button** left of the gear: hides the window, the arrow, the quest item button and the map and minimap pins together, and pauses automatic flying. `/mmq` brings them back. The hidden state is saved per character.
 - Black background with a muted gold accent and simple fonts.
 - Available in English and French. The **Language** row in the Quest tab Options (Auto, English, Français) is saved account-wide; Auto follows the game client. A **Reload** button appears when a change needs a UI reload. Quest, NPC and zone names always follow the game client language.
 

@@ -301,3 +301,27 @@ it("moves the objective pin to the current waypoint as the player advances", asy
     s.close();
   }
 });
+
+it("removes the pins and the waypoint with the eye button and restores them when shown again", async () => {
+  const s = await pins();
+  try {
+    await s.cmd("");
+    await s.run("log = {}");
+    await s.run(`scripts["MinMaxQuestEye.OnClick"](nil, "LeftButton")`);
+    expect(await s.list("log")).toEqual(["unworld|1", "unmini|2", "unworld|3"]);
+    expect(await s.list("way")).toEqual(["set|1429|0.25|0.75", "track|true", "clear"]);
+    await s.refresh();
+    expect(await s.list("log")).toEqual(["unworld|1", "unmini|2", "unworld|3"]);
+    await s.run("log = {}");
+    await s.cmd("");
+    expect(await s.list("log")).toEqual([
+      "world|1|0|2020|1010|3",
+      "mini|2|0|2020|1010|true",
+      "world|3|0|2090|1090|3",
+    ]);
+    expect((await s.list("way")).pop()).toBe("track|true");
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});

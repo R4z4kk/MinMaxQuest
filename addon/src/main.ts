@@ -170,6 +170,7 @@ function setAllHidden(hidden: boolean): void {
   guard("arrow", () => getArrow().setHidden(hidden));
   const button = itemButton;
   if (button != null) guard("itemButton", () => button.setHidden(hidden));
+  game?.refreshPins();
 }
 
 function toggleAll(): void {

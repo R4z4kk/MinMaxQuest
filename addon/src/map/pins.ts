@@ -189,10 +189,11 @@ export function installMapPins(deps: MapPinsDeps): MapPins {
   return {
     refresh() {
       guard(FEATURE, () => {
+        const shown = !deps.db.hidden;
         const { current, next } = deps.getPins();
-        place(slots[0], current);
-        place(slots[1], next);
-        waypoint.sync(deps.db.nativeWaypoint, current);
+        place(slots[0], shown ? current : null);
+        place(slots[1], shown ? next : null);
+        waypoint.sync(shown && deps.db.nativeWaypoint, current);
       });
     },
   };
