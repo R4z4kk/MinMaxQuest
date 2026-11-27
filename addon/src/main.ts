@@ -8,6 +8,7 @@ import { createEngine, type Engine } from "./game/engine";
 import { createPlayerState, HEARTHSTONE_SPELL_ID, type PlayerStateReader } from "./game/playerState";
 import { createPositions, mapToWorld } from "./game/positions";
 import { createRouting } from "./game/routing";
+import { installPinButtons } from "./questlog/pinButtons";
 import { createUi } from "./ui/ui";
 
 _G.MinMaxQuest = { version: "0.1.0" };
@@ -116,6 +117,13 @@ function start(): Game | null {
   );
   const started: Game = { engine, player, repo, quests: () => routing.quests() };
   game = started;
+  const refreshPins = guard("pinButtons", () =>
+    installPinButtons(
+      (id) => engine.pin(charDb.pinnedQuestId === id ? null : id),
+      (id) => charDb.pinnedQuestId === id,
+    ),
+  );
+  if (refreshPins != null) engine.onChange(() => refreshPins());
   C_Timer.NewTicker(TICK_SEC, () => guard("engine", () => tick(started)));
   return started;
 }

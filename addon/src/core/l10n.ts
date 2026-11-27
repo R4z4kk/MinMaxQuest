@@ -39,6 +39,8 @@ export type L10nKey =
   | "eliteTag"
   | "totalProgress"
   | "pinnedTag"
+  | "pinTooltip"
+  | "pinUnavailable"
   | "unknownZone"
   | "stepsCount"
   | "trackInRoute"
@@ -104,6 +106,8 @@ const EN: Record<L10nKey, string> = {
   eliteTag: "Elite",
   totalProgress: "Total · {count}",
   pinnedTag: "Pinned",
+  pinTooltip: "Pin with MinMaxQuest",
+  pinUnavailable: "quest log pin buttons unavailable (quest log frame not found)",
   unknownZone: "Unknown zone",
   stepsCount: "{done}/{total} steps",
   trackInRoute: "Track in route",
@@ -170,6 +174,8 @@ const FR: Record<L10nKey, string> = {
   eliteTag: "Élite",
   totalProgress: "Total · {count}",
   pinnedTag: "Épinglée",
+  pinTooltip: "Épingler avec MinMaxQuest",
+  pinUnavailable: "boutons d'épinglage indisponibles (journal de quêtes introuvable)",
   unknownZone: "Zone inconnue",
   stepsCount: "{done}/{total} étapes",
   trackInRoute: "Suivre dans la route",

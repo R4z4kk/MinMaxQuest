@@ -107,9 +107,20 @@ interface WowFrame extends WowRegion {
   SetFrameLevel(level: number): void;
   GetFrameLevel(): number;
   EnableMouseWheel(enabled: boolean): void;
+  SetScript(event: "OnEnter" | "OnLeave", handler: ((frame: WowFrame) => void) | null): void;
   SetScript(event: "OnEvent", handler: (frame: WowFrame, event: string, ...args: unknown[]) => void): void;
   RegisterEvent(event: string): void;
   RegisterUnitEvent(event: string, unit: string): void;
   CreateTexture(name: string | null, layer: string): WowTexture;
   CreateFontString(name: string | null, layer: string): WowFontString;
 }
+
+declare function hooksecurefunc(name: string, hook: (...args: unknown[]) => void): void;
+declare function InCombatLockdown(): boolean;
+declare function FauxScrollFrame_GetOffset(frame: unknown): number;
+declare const GameTooltip: {
+  SetOwner(owner: WowFrame, anchor: string): void;
+  SetText(text: string): void;
+  Show(): void;
+  Hide(): void;
+};

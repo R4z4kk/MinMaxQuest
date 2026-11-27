@@ -56,6 +56,13 @@ C_QuestLog = {
   IsComplete = function() return false end,
   GetTrivialRange = function() return 5 end,
 }
+QuestLog_Update = function() end
+QuestLogTitle1 = fake("QuestLogTitle1")
+QuestLogTitle1.GetID = function() return 1 end
+QUESTS_DISPLAYED = 1
+hooksecurefunc = function() end
+InCombatLockdown = function() return false end
+FauxScrollFrame_GetOffset = function() return 0 end
 CreateVector2D = function(x, y) return { x = x, y = y } end
 C_Map = {
   GetWorldPosFromMapPos = function(map, v) return 0, { x = 1000 + v.x * 100, y = 2000 + v.y * 100 } end,
