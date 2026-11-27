@@ -38,8 +38,9 @@ function evaluated(steps: RouteStep[], average: number): Evaluated {
   return {
     steps,
     secondsByScenario: { fast: average - 60, medium: average, slow: average + 60 },
+    levelByScenario: { fast: 60, medium: 60, slow: 60 },
     average,
-    worstRace: { raceMask: RACE, seconds: average + 5, skipped: 1 },
+    worstRace: { raceMask: RACE, seconds: average + 5, skipped: 1, level: 9, reached: false },
     discardedCandidates: [],
   };
 }
@@ -123,10 +124,10 @@ describe("emitReport", () => {
   const report = emitReport([routes], [w], meta, data);
 
   it("has a header and one row per variant for the faction and the zone", () => {
-    expect(report).toContain("| Variant | Fast h | Medium h | Slow h | Average h | Quests | Grind % | Steps | Worst race h | Skipped |");
+    expect(report).toContain("| Variant | Fast h | Medium h | Slow h | Average h | Quests | Grind % | Steps | Worst race h | Skipped | Worst race level |");
     const rows = report.split("\n").filter((l) => /^\| e\dd\dx\d /.test(l));
     expect(rows).toHaveLength(2 * keys.length);
-    expect(report).toContain("| e0d0x0 | 0.98 | 1.00 | 1.02 | 1.00 | 2 | 0.0 | 5 | 1.00 | 1 |");
+    expect(report).toContain("| e0d0x0 | 0.98 | 1.00 | 1.02 | 1.00 | 2 | 0.0 | 5 | 1.00 | 1 | 9 (short) |");
   });
 
   it("adds a benchmark table only when rows are given", () => {

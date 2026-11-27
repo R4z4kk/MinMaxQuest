@@ -104,13 +104,14 @@ function medium(): Scenario {
   return found;
 }
 
-function bestOurs(zone: string, variants: Record<string, Evaluated>): { variant: string; seconds: number } {
+function bestOurs(zone: string, level: number, variants: Record<string, Evaluated>): { variant: string; seconds: number } {
   let best: { variant: string; seconds: number } | null = null;
   for (const [variant, evaluated] of Object.entries(variants)) {
+    if (evaluated.levelByScenario.medium < level) continue;
     const seconds = evaluated.secondsByScenario.medium;
     if (best == null || seconds < best.seconds) best = { variant, seconds };
   }
-  if (best == null) throw new Error(`rxp: no variant built for ${zone}`);
+  if (best == null) throw new Error(`rxp: no variant of ${zone} reaches level ${level} under medium`);
   return best;
 }
 
@@ -134,7 +135,7 @@ export function benchmarkRxp(dir: string, world: World, routes: FactionRoutes, t
     const parsed = parseRxpGuide(text, world, path);
     const start = initialState(seg.start, seg.level, seg.knownTaxi, seg.hearth?.pos ?? null);
     const run = runRxp(parsed.steps, start, world, medium(), seg.targetLevel, seg.zoneMask, travel);
-    const ours = bestOurs(guide.zone, variants);
+    const ours = bestOurs(guide.zone, seg.targetLevel, variants);
     rows.push({
       faction: world.faction,
       zone: guide.zone,

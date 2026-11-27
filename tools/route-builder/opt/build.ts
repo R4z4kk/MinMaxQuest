@@ -369,6 +369,22 @@ function grindChild(c: Context, node: Node): Node | null {
   return finish(c, d);
 }
 
+// A no-op where the build scenario reached the target; it closes the gap where another scenario (fewer assumed-drop kills) ends short.
+function closingGrind(c: Context, node: Node): Draft {
+  const d = draft(node);
+  const last = d.steps.at(-1);
+  if (last == null || (last.type === "grind" && last.grindToLevel != null && last.grindToLevel >= c.req.targetLevel)) return d;
+  const pick = grindTask(c, d.state);
+  apply(c, d, {
+    type: "grind",
+    place: last.place,
+    grindToLevel: c.req.targetLevel,
+    grindMobLevel: pick?.mobLevel ?? d.state.level,
+    grindSpacingYards: pick == null ? 0 : loopSpacing(pick.task.cluster.loop),
+  });
+  return d;
+}
+
 function zoneOpen(c: Context, s: SimState, b: Block): boolean {
   return b.quests.some((q) => s.inLog.has(q.id) || acceptable(c, s, q));
 }
@@ -455,7 +471,7 @@ export function buildRoute(req: BuildRequest, travel: TravelData = TRAVEL): Buil
   for (;;) {
     const open = beam.filter((n) => n.state.level < target);
     if (open.length === 0) {
-      const best = [...beam].sort((a, b) => a.state.seconds - b.state.seconds || compareNodes(a, b))[0];
+      const best = closingGrind(c, [...beam].sort((a, b) => a.state.seconds - b.state.seconds || compareNodes(a, b))[0]);
       return { steps: best.steps, end: best.state };
     }
     const next = beam.filter((n) => n.state.level >= target);

@@ -207,6 +207,28 @@ describe("buildRoute", () => {
     expect(() => buildRoute({ ...request(w, start(), 3), areaIds: new Set([77]) }, data)).toThrow(/area 77/);
   });
 
+  it("ends with a grind to the target so a scenario with fewer assumed-drop kills still reaches it", () => {
+    const at = place(0, 0, 1);
+    const drops: Task = { ...kill(place(0, 20, 1), 5), kind: "collect", dropChance: 0, assumedDropChance: true };
+    const q = quest(900, at, { baseXp: 50, objectives: [{ index: 0, kind: "item", id: 1, required: 1 }] }, [drops]);
+    const slow = SCENARIOS[2];
+    const fast = SCENARIOS[0];
+    const req = { ...request(worldOf([q]), start(), 2), scenario: slow };
+    const route = buildRoute(req, data);
+    expect(route.steps.at(-1)).toMatchObject({ type: "grind", grindToLevel: 2, place: route.steps.at(-2)?.place });
+    expect(simulate(route.steps, req.start, req.world, slow, options(req), data).state.seconds).toBeCloseTo(route.end.seconds, 6);
+    expect(simulate(route.steps.slice(0, -1), req.start, req.world, fast, options(req), data).state.level).toBe(1);
+    const underFast = simulate(route.steps, req.start, req.world, fast, options(req), data);
+    expect(underFast.violations).toEqual([]);
+    expect(underFast.state.level).toBe(2);
+  });
+
+  it("does not append a grind after a final grind that already reaches the target", () => {
+    const route = build(request(worldOf([quest(950, place(0, 0, 1), { baseXp: 1 }, [kill(place(0, 20, 1))])]), start(), 3));
+    expect(route.steps.filter((s, i) => s.type === "grind" && i > 0 && route.steps[i - 1].type === "grind" && s.grindToLevel === route.steps[i - 1].grindToLevel)).toEqual([]);
+    expect(route.steps.at(-1)).toMatchObject({ type: "grind", grindToLevel: 3 });
+  });
+
   it("names the level and remaining blocks when nothing can progress", () => {
     const blocked = quest(600, place(0, 0, 1), { requiredLevel: 5 });
     expect(() => buildRoute(request(worldOf([blocked]), start(), 3), data)).toThrow(/level 1.*1 blocks? left/);

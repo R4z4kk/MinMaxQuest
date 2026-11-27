@@ -7,12 +7,19 @@ import { initialState, simulate, type RouteStep, type SimOptions, type SimState 
 import { buildRoute, type Variant } from "./build";
 
 export type VariantKey = string;
+export interface RaceRun { raceMask: number; seconds: number; skipped: number; level: number; reached: boolean }
 export interface Evaluated {
   steps: RouteStep[];
   secondsByScenario: Record<Scenario["name"], number>;
+  levelByScenario: Record<Scenario["name"], number>;
   average: number;
-  worstRace: { raceMask: number; seconds: number; skipped: number };
+  worstRace: RaceRun;
   discardedCandidates: { scenario: Scenario["name"]; violation: string }[];
+}
+export interface Scored {
+  secondsByScenario: Record<Scenario["name"], number>;
+  levelByScenario: Record<Scenario["name"], number>;
+  violation: string | null;
 }
 export interface FactionRoutes {
   faction: "A" | "H";
@@ -102,14 +109,45 @@ function mean(values: number[]): number {
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
-export function pickWinner(label: string, valid: Evaluated[], discarded: Evaluated["discardedCandidates"]): Evaluated {
-  let best: Evaluated | null = null;
+export function pickWinner<T extends { average: number }>(label: string, valid: T[], discarded: Evaluated["discardedCandidates"]): T {
+  let best: T | null = null;
   for (const candidate of valid) if (best == null || candidate.average < best.average) best = candidate;
   if (best == null) {
     const all = discarded.map((d) => `${d.scenario} route, ${d.violation}`).join("; ");
     throw new Error(`buildFaction: ${label} has no candidate valid under all scenarios: ${all}`);
   }
   return best;
+}
+
+// A strict violation or an end below the target under any scenario makes the candidate invalid.
+export function scoreCandidate(
+  steps: RouteStep[],
+  start: () => SimState,
+  world: World,
+  targetLevel: number,
+  strict: SimOptions,
+  travel: TravelData,
+): Scored {
+  const secondsByScenario = {} as Record<Scenario["name"], number>;
+  const levelByScenario = {} as Record<Scenario["name"], number>;
+  let violation: string | null = null;
+  for (const s of SCENARIOS) {
+    const result = simulate(steps, start(), world, s, strict, travel);
+    if (violation == null && result.violations.length > 0) violation = `scenario ${s.name}: ${result.violations[0]}`;
+    if (violation == null && result.state.level < targetLevel) {
+      violation = `ends at level ${result.state.level} < target ${targetLevel} under ${s.name}`;
+    }
+    secondsByScenario[s.name] = result.state.seconds;
+    levelByScenario[s.name] = result.state.level;
+  }
+  return { secondsByScenario, levelByScenario, violation };
+}
+
+// Worse: ends below the target first, then more skipped quests, then more seconds.
+export function worseRace(a: RaceRun, b: RaceRun): boolean {
+  if (a.reached !== b.reached) return !a.reached;
+  if (a.skipped !== b.skipped) return a.skipped > b.skipped;
+  return a.seconds > b.seconds;
 }
 
 function evaluate(
@@ -123,7 +161,7 @@ function evaluate(
   const start = (): SimState => initialState(seg.start, seg.level, seg.knownTaxi, seg.hearth?.pos ?? null);
   const strict: SimOptions = { maxLevelGap: variant.maxLevelGap, tolerant: false, raceMask: world.raceMask };
   const tag = `[${world.faction}] ${seg.name} ${key}`;
-  const valid: Evaluated[] = [];
+  const valid: Omit<Evaluated, "worstRace">[] = [];
   const discarded: Evaluated["discardedCandidates"] = [];
 
   for (const built of SCENARIOS) {
@@ -134,13 +172,7 @@ function evaluate(
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`buildFaction: ${seg.name} ${key} ${built.name}: ${message}`, { cause: error });
     }
-    const secondsByScenario = {} as Record<Scenario["name"], number>;
-    let violation: string | null = null;
-    for (const s of SCENARIOS) {
-      const result = simulate(steps, start(), world, s, strict, travel);
-      if (violation == null && result.violations.length > 0) violation = `scenario ${s.name}: ${result.violations[0]}`;
-      secondsByScenario[s.name] = result.state.seconds;
-    }
+    const { secondsByScenario, levelByScenario, violation } = scoreCandidate(steps, start, world, seg.targetLevel, strict, travel);
     if (violation != null) {
       console.error(`${tag} ${built.name} candidate discarded, ${violation}`);
       discarded.push({ scenario: built.name, violation });
@@ -148,24 +180,31 @@ function evaluate(
     }
     const average = mean(SCENARIOS.map((s) => secondsByScenario[s.name]));
     console.error(`${tag} ${built.name} candidate average ${average.toFixed(0)}s`);
-    valid.push({ steps, secondsByScenario, average, worstRace: { raceMask: 0, seconds: 0, skipped: 0 }, discardedCandidates: [] });
+    valid.push({ steps, secondsByScenario, levelByScenario, average, discardedCandidates: [] });
   }
-  const best: Evaluated = { ...pickWinner(`${seg.name} ${key}`, valid, discarded), discardedCandidates: [...discarded] };
+  const winner = pickWinner(`${seg.name} ${key}`, valid, discarded);
   const checked = SCENARIOS.find((s) => s.name === RACE_CHECK_SCENARIO);
   if (checked == null) throw new Error(`buildFaction: scenario ${RACE_CHECK_SCENARIO} missing`);
   if (seg.raceMasks.length === 0) {
     const zone = seg.zoneMask == null ? "" : ` (zone mask ${seg.zoneMask})`;
     throw new Error(`buildFaction: ${seg.name}${zone} has no race to check, faction masks [${world.raceMasks.join(",")}]`);
   }
+  let worst: RaceRun | null = null;
   for (const raceMask of seg.raceMasks) {
-    const result = simulate(best.steps, start(), world, checked, { ...strict, tolerant: true, raceMask }, travel);
-    const skipped = result.state.skipped.size;
-    const w = best.worstRace;
-    if (skipped > w.skipped || (skipped === w.skipped && result.state.seconds > w.seconds)) {
-      best.worstRace = { raceMask, seconds: result.state.seconds, skipped };
-    }
+    const result = simulate(winner.steps, start(), world, checked, { ...strict, tolerant: true, raceMask }, travel);
+    const run: RaceRun = {
+      raceMask,
+      seconds: result.state.seconds,
+      skipped: result.state.skipped.size,
+      level: result.state.level,
+      reached: result.state.level >= seg.targetLevel,
+    };
+    if (worst == null || worseRace(run, worst)) worst = run;
   }
-  console.error(`${tag} winner average ${best.average.toFixed(0)}s worst race ${best.worstRace.raceMask} skipped ${best.worstRace.skipped}`);
+  if (worst == null) throw new Error(`buildFaction: ${seg.name} race check ran no race`);
+  const best: Evaluated = { ...winner, worstRace: worst, discardedCandidates: [...discarded] };
+  const short = worst.reached ? "" : `, ends at level ${worst.level} < target ${seg.targetLevel}`;
+  console.error(`${tag} winner average ${best.average.toFixed(0)}s worst race ${worst.raceMask} skipped ${worst.skipped}${short}`);
   return best;
 }
 

@@ -10,7 +10,7 @@ import { applyStep, initialState, type RouteStep, type SimOptions, type SimState
 export interface EmitMeta { build: string; questieDb: string; generatedOn: string; constants: Record<string, number> }
 
 const FACTION_NAMES = { A: "Alliance", H: "Horde" };
-const REPORT_COLUMNS = ["Variant", "Fast h", "Medium h", "Slow h", "Average h", "Quests", "Grind %", "Steps", "Worst race h", "Skipped"];
+const REPORT_COLUMNS = ["Variant", "Fast h", "Medium h", "Slow h", "Average h", "Quests", "Grind %", "Steps", "Worst race h", "Skipped", "Worst race level"];
 
 export function luaLongString(content: string): string {
   for (let level = 0; ; level++) {
@@ -170,13 +170,14 @@ function reportTable(title: string, name: string, variants: Record<string, Evalu
       String(v.steps.length),
       hours(v.worstRace.seconds),
       String(v.worstRace.skipped),
+      v.worstRace.reached ? String(v.worstRace.level) : `${v.worstRace.level} (short)`,
     ];
     return `| ${cells.join(" | ")} |`;
   });
   return [`## ${title}`, "", `| ${REPORT_COLUMNS.join(" | ")} |`, `|${REPORT_COLUMNS.map(() => " --- ").join("|")}|`, ...rows, ""];
 }
 
-const BENCH_COLUMNS = ["Zone", "Level", "RXP h", "Ours h", "Ours variant", "RXP steps", "RXP unknown ids", "RXP skipped quests"];
+const BENCH_COLUMNS = ["Zone", "Level compared", "RXP h", "Ours h", "Ours variant", "RXP steps", "RXP unknown ids", "RXP skipped quests"];
 
 function benchTable(faction: string, rows: BenchRow[]): string[] {
   const lines = rows.map((r) => {
@@ -186,7 +187,7 @@ function benchTable(faction: string, rows: BenchRow[]): string[] {
   return [
     `## ${faction} RXP benchmark`,
     "",
-    "Medium scenario, tolerant simulation from the start-zone state; both times run to the same level.",
+    "Medium scenario, tolerant simulation from the start-zone state; both times run to the compared level, ours among the variants that reach it.",
     "",
     `| ${BENCH_COLUMNS.join(" | ")} |`,
     `|${BENCH_COLUMNS.map(() => " --- ").join("|")}|`,

@@ -88,11 +88,12 @@ describe("benchmarkRxp", () => {
     areaUiMap: new Map([[12, 1]]),
     startZones: ALLIANCE_ZONES.map((key) => ({ key, faction: "A" as const, raceMask: 1, areaId: 12, start: startPlace })),
   });
-  const evaluated = (seconds: number): Evaluated => ({
+  const evaluated = (seconds: number, level = 10): Evaluated => ({
     steps: [],
     secondsByScenario: { fast: seconds, medium: seconds, slow: seconds },
+    levelByScenario: { fast: level, medium: level, slow: level },
     average: seconds,
-    worstRace: { raceMask: 1, seconds, skipped: 0 },
+    worstRace: { raceMask: 1, seconds, skipped: 0, level, reached: level >= 10 },
     discardedCandidates: [],
   });
   const routesOf = (segmentsByZone: FactionRoutes["segments"]): FactionRoutes => ({ faction: "A", segments: segmentsByZone, trunk: {}, returnBlocks: {} });
@@ -117,6 +118,14 @@ describe("benchmarkRxp", () => {
       expect(rows.map((r) => r.faction)).toEqual(ALLIANCE_ZONES.map(() => "A"));
       const row = rows.find((r) => r.zone === zoneKey);
       expect(row).toMatchObject({ faction: "A", zone: zoneKey, file: guide.file, level: 10, oursSeconds: 900, variant: "e1d0x0", dropped: 0 });
+    });
+  });
+
+  it("compares only our routes that reach the benchmark level", () => {
+    withDir(SNIPPET, (dir) => {
+      const rows = benchmarkRxp(dir, bw, routesOf(allZones({ e0d0x0: evaluated(1000), e1d0x0: evaluated(500, 9) })), data);
+      expect(rows.find((r) => r.zone === zoneKey)).toMatchObject({ level: 10, oursSeconds: 1000, variant: "e0d0x0" });
+      expect(() => benchmarkRxp(dir, bw, routesOf(allZones({ e1d0x0: evaluated(500, 9) })), data)).toThrow(/teldrassil.*level 10/);
     });
   });
 

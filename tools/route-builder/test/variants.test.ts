@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { travel as travelFixture } from "./fixtures";
 import { SCENARIOS } from "../model/constants";
 import type { RouteQuest, World } from "../model/world";
-import { allVariants, buildFaction, pickWinner, variantKey, type Evaluated, type FactionRoutes } from "../opt/variants";
+import { allVariants, buildFaction, pickWinner, scoreCandidate, variantKey, worseRace, type Evaluated, type FactionRoutes, type RaceRun } from "../opt/variants";
 import { buildRoute, type Variant } from "../opt/build";
 import { initialState, simulate } from "../sim/simulate";
 import { kill, place, quest, worldOf } from "./fixtures";
@@ -169,8 +169,9 @@ describe("scenario selection", () => {
   const candidate = (average: number): Evaluated => ({
     steps: [],
     secondsByScenario: { fast: average, medium: average, slow: average },
+    levelByScenario: { fast: 60, medium: 60, slow: 60 },
     average,
-    worstRace: { raceMask: 0, seconds: 0, skipped: 0 },
+    worstRace: { raceMask: 0, seconds: 0, skipped: 0, level: 60, reached: true },
     discardedCandidates: [],
   });
 
@@ -181,9 +182,35 @@ describe("scenario selection", () => {
     );
   });
 
+  it("discards a candidate that ends below the target under a scenario", () => {
+    const w = trunkOnly([mk(1, 0, 900000, 1)]);
+    const start = () => initialState(place(5, 5, 2), 10, [2], null);
+    const strict = { maxLevelGap: null, tolerant: false, raceMask: w.raceMask };
+    const short = scoreCandidate([], start, w, 60, strict, data);
+    expect(short.violation).toBe("ends at level 10 < target 60 under fast");
+    expect(short.levelByScenario).toEqual({ fast: 10, medium: 10, slow: 10 });
+    expect(() => pickWinner("trunk e0d0x0", [], [{ scenario: "fast", violation: short.violation ?? "" }])).toThrow(
+      /trunk e0d0x0 has no candidate valid.*fast route, ends at level 10 < target 60 under fast/,
+    );
+    const routes = buildFaction(w, { beamWidth: 4, branching: 3 }, data);
+    for (const e of Object.values(routes.trunk)) expect(Object.values(e.levelByScenario).every((level) => level >= 60)).toBe(true);
+  });
+
   it("returns the lowest average among several valid candidates", () => {
     const winner = pickWinner("trunk e0d0x1", [candidate(300), candidate(100), candidate(200)], []);
     expect(winner.average).toBe(100);
+  });
+});
+
+describe("worseRace", () => {
+  const run = (over: Partial<RaceRun>): RaceRun => ({ raceMask: 1, seconds: 100, skipped: 0, level: 10, reached: true, ...over });
+
+  it("ranks a run below the target first, then skipped quests, then seconds", () => {
+    expect(worseRace(run({ reached: false, level: 9, skipped: 0, seconds: 1 }), run({ skipped: 5, seconds: 900 }))).toBe(true);
+    expect(worseRace(run({ skipped: 5, seconds: 900 }), run({ reached: false, level: 9 }))).toBe(false);
+    expect(worseRace(run({ skipped: 2 }), run({ skipped: 1, seconds: 900 }))).toBe(true);
+    expect(worseRace(run({ seconds: 200 }), run({ seconds: 100 }))).toBe(true);
+    expect(worseRace(run({ seconds: 100 }), run({ seconds: 100 }))).toBe(false);
   });
 });
 
@@ -205,6 +232,8 @@ describe("race check inputs", () => {
     expect(e.steps.some((s) => s.questId === 20)).toBe(true);
     expect(e.worstRace.raceMask).toBe(RACE_A);
     expect(e.worstRace.skipped).toBe(0);
+    expect(e.worstRace).toMatchObject({ reached: true });
+    expect(e.worstRace.level).toBeGreaterThanOrEqual(10);
   });
 
   it("throws naming the segment and zone mask when no race applies", () => {
