@@ -47,6 +47,9 @@ function setup(initial: Target[], quests: QuestInfo[] = []) {
     hop: null as TravelHop | null,
     completionCalls: 0,
     changes: 0,
+    taxi: false,
+    ms: 0,
+    msStep: 0,
   };
   const byId = new Map(quests.map((q) => [q.id, q]));
   const db = loadCharDb(null);
@@ -63,6 +66,8 @@ function setup(initial: Target[], quests: QuestInfo[] = []) {
       getQuest: (id) => byId.get(id) ?? null,
       allQuests: () => quests,
       onTargets: () => {},
+      onTaxi: () => world.taxi,
+      clockMs: () => (world.ms += world.msStep),
     },
     db,
   );
@@ -80,8 +85,46 @@ describe("refreshTargets", () => {
     engine.refreshTargets(false);
     expect(world.completionCalls).toBe(1);
     world.clock = 2;
+    if (world.snap != null) world.snap.pos = at(20);
     engine.refreshTargets(false);
     expect(world.completionCalls).toBe(2);
+  });
+
+  it("skips an unforced refresh while the player stays within 10 yards", () => {
+    const { engine, world } = setup([target(1)]);
+    engine.refreshTargets(false);
+    world.clock = 5;
+    if (world.snap != null) world.snap.pos = at(9);
+    engine.refreshTargets(false);
+    expect(world.completionCalls).toBe(1);
+    if (world.snap != null) world.snap.pos = at(11);
+    engine.refreshTargets(false);
+    expect(world.completionCalls).toBe(2);
+    world.clock = 5.1;
+    engine.refreshTargets(true);
+    expect(world.completionCalls).toBe(3);
+  });
+
+  it("skips unforced refreshes on a taxi but still runs forced ones", () => {
+    const { engine, world } = setup([target(1)]);
+    engine.refreshTargets(false);
+    world.taxi = true;
+    world.clock = 5;
+    if (world.snap != null) world.snap.pos = at(500);
+    engine.refreshTargets(false);
+    expect(world.completionCalls).toBe(1);
+    engine.refreshTargets(true);
+    expect(world.completionCalls).toBe(2);
+  });
+
+  it("measures the first and the last full refresh", () => {
+    const { engine, world } = setup([target(1)]);
+    expect(engine.profile()).toEqual({ first: null, last: null });
+    world.msStep = 4;
+    engine.refreshTargets(true);
+    world.msStep = 1;
+    engine.refreshTargets(true);
+    expect(engine.profile()).toEqual({ first: 4, last: 1 });
   });
 
   it("bypasses the throttle when forced", () => {
@@ -239,6 +282,13 @@ describe("arrowTarget", () => {
     world.list = [target(1, { seconds: 9 })];
     engine.refreshTargets(true);
     expect(engine.arrowTarget()).toEqual({ pos: at(600), label: "Take the boat" });
+  });
+
+  it("asks to use the hearthstone when the route starts with it", () => {
+    const { engine, world } = setup([target(1)], [quest(1)]);
+    world.hop = { kind: "hearth", pos: at(0), taxiNodeId: null };
+    engine.refreshTargets(true);
+    expect(engine.arrowTarget()).toEqual({ pos: at(0), label: "Use Hearthstone" });
   });
 
   it("cycles through the kill loop within 25 yards", () => {

@@ -99,6 +99,37 @@ it("records the hearth landing position after a hearthstone cast", async () => {
   }
 });
 
+it("hides the arrow on a taxi and shows it again after landing", async () => {
+  const s = await loggedIn();
+  try {
+    await s.clearCalls();
+    await s.run("onTaxi = true");
+    await s.tick();
+    expect((await s.calls()).filter((c) => c.startsWith("MinMaxQuestArrow|")).pop()).toBe("MinMaxQuestArrow|Hide");
+    await s.clearCalls();
+    await s.run("onTaxi = false");
+    await s.tick();
+    expect(await s.calls()).toContain("font|SetText|Test Quest · pick up");
+  } finally {
+    s.close();
+  }
+});
+
+it("prints the refresh durations", async () => {
+  const s = await session();
+  try {
+    await s.cmd("debug prof");
+    expect(await s.printed()).toBe("MinMaxQuest: no refresh measured yet");
+    await s.event(`"PLAYER_LOGIN"`);
+    await s.run("local n = 0; debugprofilestop = function() n = n + 1; return n * 2.5 end");
+    await s.tick();
+    await s.cmd("debug prof");
+    expect(await s.printed()).toBe("MinMaxQuest: refresh: last 2.5 ms, first 2.5 ms");
+  } finally {
+    s.close();
+  }
+});
+
 it("prints the resolved chain", async () => {
   const s = await session();
   try {

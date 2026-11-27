@@ -72,7 +72,10 @@ export type L10nKey =
   | "featureDisabled"
   | "repositoryReadFailed"
   | "repositoryLastError"
-  | "questInfo";
+  | "questInfo"
+  | "useHearth"
+  | "profile"
+  | "profileNone";
 
 const EN: Record<L10nKey, string> = {
   questieMissing: "QuestieDB is required",
@@ -82,7 +85,7 @@ const EN: Record<L10nKey, string> = {
   tabCompletion: "Completion",
   positionUnavailable: "position unavailable",
   arrowUsage: "usage: /mmq arrow move|lock|test",
-  help: "commands: /mmq (window) | help | q <id> | chain <questId> | targets | skip [confirm] | pin <id> | unpin | arrow move|lock|test | debug build <n>",
+  help: "commands: /mmq (window) | help | q <id> | chain <questId> | targets | skip [confirm] | pin <id> | unpin | arrow move|lock|test | debug build <n> | debug prof",
   targetAccept: "pick up",
   targetObjective: "objective",
   targetTurnin: "turn in",
@@ -149,6 +152,9 @@ const EN: Record<L10nKey, string> = {
   repositoryReadFailed: "QuestieDB read failed ({method}): {error}",
   repositoryLastError: "last QuestieDB error: {error}",
   questInfo: "[{id}] {name} level {level}, {n} objective(s)",
+  useHearth: "Use Hearthstone",
+  profile: "refresh: last {last} ms, first {first} ms",
+  profileNone: "no refresh measured yet",
 };
 
 const FR: Record<L10nKey, string> = {
@@ -159,7 +165,7 @@ const FR: Record<L10nKey, string> = {
   tabCompletion: "Complétion",
   positionUnavailable: "position indisponible",
   arrowUsage: "usage : /mmq arrow move|lock|test",
-  help: "commandes : /mmq (fenêtre) | help | q <id> | chain <questId> | targets | skip [confirm] | pin <id> | unpin | arrow move|lock|test | debug build <n>",
+  help: "commandes : /mmq (fenêtre) | help | q <id> | chain <questId> | targets | skip [confirm] | pin <id> | unpin | arrow move|lock|test | debug build <n> | debug prof",
   targetAccept: "prendre",
   targetObjective: "objectif",
   targetTurnin: "rendre",
@@ -226,6 +232,9 @@ const FR: Record<L10nKey, string> = {
   repositoryReadFailed: "lecture QuestieDB échouée ({method}) : {error}",
   repositoryLastError: "dernière erreur QuestieDB : {error}",
   questInfo: "[{id}] {name} niveau {level}, {n} objectif(s)",
+  useHearth: "Utilise ta pierre de foyer",
+  profile: "rafraîchissement : dernier {last} ms, premier {first} ms",
+  profileNone: "aucun rafraîchissement mesuré",
 };
 
 let french: boolean | null = null;

@@ -3,6 +3,7 @@ import type { CharDb } from "../core/storage";
 import { TRAVEL, type TravelData } from "../data/generated/travel";
 import type { QuestInfo, QuestRepository } from "../data/questRepository";
 import { selectTargets, type CompletionInput, type Target } from "../targets/completion";
+import type { SpawnCluster } from "../targets/spawns";
 import {
   buildGraph,
   firstHop,
@@ -46,6 +47,7 @@ export function createRouting(
   let graph: TravelGraph | null = null;
   let builtFor = "";
   let solved: { plan: TravelPlan; graph: TravelGraph; ctx: TravelContext } | null = null;
+  const clusters = new Map<string, SpawnCluster[]>();
 
   const allQuests = (): QuestInfo[] => {
     if (quests == null) {
@@ -85,6 +87,7 @@ export function createRouting(
           greenRange: snap.greenRange,
           positionsFor,
           timeTo: (p) => travelTime(current.plan, current.graph, p, current.ctx),
+          clusters,
         },
         { mode, zoneAreaId, showTrivial, showElite, minLevelGap: db.minLevelGap },
       );

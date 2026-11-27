@@ -13,6 +13,8 @@ declare const Enum: {
   FlightPathState: { Current: number; Reachable: number; Unreachable: number } | null;
 };
 declare function GetTime(): number;
+declare function debugprofilestop(): number;
+declare function UnitOnTaxi(unit: string): boolean;
 declare function UnitLevel(unit: string): number;
 declare function UnitRace(unit: string): LuaMultiReturn<[string, string, number]>;
 declare function UnitClass(unit: string): LuaMultiReturn<[string, string, number]>;

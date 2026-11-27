@@ -63,6 +63,40 @@ describe("travelSpeed", () => {
   });
 });
 
+const FLIGHT: TravelData = {
+  ...NO_TRAVEL,
+  taxiNodes: [
+    { id: 1, name: "A", pos: at(100), faction: "AH" },
+    { id: 2, name: "B", pos: at(10000), faction: "AH" },
+  ],
+  taxiEdges: [{ from: 1, to: 2, seconds: 60 }],
+};
+
+describe("routing caches", () => {
+  it("clusters each objective once across refreshes", () => {
+    let reads = 0;
+    const db = loadCharDb(null);
+    const q = quest(1, { objectives: [{ kind: "npc", id: 5, required: 1, index: 1 }] });
+    const local: QuestRepository = { ...repo, get: (id) => (id === 1 ? q : null), allIds: () => [1] };
+    const routing = createRouting(local, db, () => (reads++, [at(70)]), NO_TRAVEL);
+    const inLog = { ...snapshot(at(0)), log: new Map([[1, { complete: false, objectivesDone: new Set<number>() }]]) };
+    const first = routing.completion(inLog);
+    const second = routing.completion(inLog);
+    expect(reads).toBe(1);
+    expect(second[0].cluster).toBe(first[0].cluster);
+  });
+
+  it("uses fresh nearest nodes after the graph is rebuilt", () => {
+    const db = loadCharDb(null);
+    const spot = at(10050);
+    const routing = createRouting({ ...repo, get: (id) => (id === 1 ? quest(1) : null), allIds: () => [1] }, db, () => [spot], FLIGHT);
+    const walk = CONSTANTS.detourFactor.value / CONSTANTS.runSpeed.value;
+    expect(routing.completion(snapshot(at(0)))[0].seconds).toBeCloseTo(10050 * walk, 6);
+    db.knownTaxiNodes = [1, 2];
+    expect(routing.completion(snapshot(at(0)))[0].seconds).toBeCloseTo(150 * walk + 60, 6);
+  });
+});
+
 describe("routing", () => {
   it("lists every known quest sorted by walking time", () => {
     const { routing } = setup();

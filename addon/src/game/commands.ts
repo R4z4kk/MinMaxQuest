@@ -138,6 +138,15 @@ export function createCommands(ctx: CommandContext): Commands {
     say(`${t("pinned")}: ${questName(game.repo, id)}`);
   };
 
+  const profileCommand = (game: CommandGame): void => {
+    const { first, last } = game.engine.profile();
+    if (first == null || last == null) {
+      say(t("profileNone"));
+      return;
+    }
+    say(t("profile").replace("{last}", last.toFixed(1)).replace("{first}", first.toFixed(1)));
+  };
+
   const withGame = (run: (game: CommandGame) => void): void => {
     guard("engine", () => {
       const game = ctx.game();
@@ -159,6 +168,7 @@ export function createCommands(ctx: CommandContext): Commands {
       else if (command === "skip") withGame((game) => skipCommand(game, arg === "confirm"));
       else if (command === "pin") withGame((game) => pinCommand(game, arg));
       else if (command === "unpin") withGame((game) => pinCommand(game, null));
+      else if (command === "debug" && arg === "prof") withGame(profileCommand);
       else if (command === "debug" && arg.startsWith("build ")) {
         const build = arg.slice(6).trim();
         setBuildOverride(build);

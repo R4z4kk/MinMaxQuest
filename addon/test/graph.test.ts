@@ -111,6 +111,17 @@ describe("travel graph", () => {
     expect(hop?.kind).toBe("walk");
   });
 
+  it("caches the nearest nodes of a target point per graph and stays exact for new origins", () => {
+    const ctx = context({ knownTaxiNodes: new Set([1, 2]) });
+    const graph = buildGraph(TAXI, ctx);
+    const target = pos(10050, 0);
+    const first = travelTime(solveFrom(graph, pos(0, 0), ctx), graph, target, ctx);
+    const second = travelTime(solveFrom(graph, pos(9000, 0), ctx), graph, target, ctx);
+    expect(graph.nearest.size).toBe(1);
+    expect(first).toBeCloseTo(100 * WALK + 60 + 50 * WALK);
+    expect(second).toBeCloseTo(evaluate(TAXI, ctx, pos(9000, 0), pos(10050, 0)).time);
+  });
+
   it("reuses a graph for several targets and origins", () => {
     const ctx = context({ knownTaxiNodes: new Set([1, 2]) });
     const graph = buildGraph(TAXI, ctx);

@@ -1,6 +1,6 @@
 import type { ArrowTarget } from "../arrow/arrowFrame";
-import type { WorldPos } from "../core/geometry";
-import { t } from "../core/l10n";
+import { distance, type WorldPos } from "../core/geometry";
+import { t, type L10nKey } from "../core/l10n";
 import type { CharDb } from "../core/storage";
 import type { QuestInfo } from "../data/questRepository";
 import type { PlayerQuestState } from "../quests/availability";
@@ -11,6 +11,13 @@ import type { TravelHop } from "../travel/graph";
 
 export const REFRESH_INTERVAL_SEC = 2;
 export const LOOP_ADVANCE_YARDS = 25;
+export const IDLE_YARDS = 10;
+
+const HOP_LABEL: Record<"taxi" | "boat" | "hearth", L10nKey> = {
+  taxi: "goFlightMaster",
+  boat: "goBoat",
+  hearth: "useHearth",
+};
 
 export interface PlayerSnapshot {
   pos: WorldPos | null;
@@ -31,6 +38,13 @@ export interface EngineDeps {
   getQuest(id: number): QuestInfo | null;
   allQuests(): QuestInfo[];
   onTargets(list: Target[], current: Target | null): void;
+  onTaxi(): boolean;
+  clockMs(): number;
+}
+
+export interface RefreshProfile {
+  first: number | null;
+  last: number | null;
 }
 
 export interface SkipResult {
@@ -51,6 +65,7 @@ export interface Engine {
   onChange(cb: Listener): void;
   zoneProgress(zoneAreaId: number): ZoneProgress | null;
   snapshot(): PlayerSnapshot | null;
+  profile(): RefreshProfile;
 }
 
 export function targetAction(target: Target): string {
@@ -91,6 +106,8 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
   let hop: TravelHop | null = null;
   let snapshot: PlayerSnapshot | null = null;
   let lastRun: number | null = null;
+  let lastRunPos: WorldPos | null = null;
+  const profile: RefreshProfile = { first: null, last: null };
   let arrow: ArrowTarget | null = null;
   let label = "";
   let loop: WorldPos[] | null = null;
@@ -112,11 +129,11 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
   // Runs once per refresh; ticks only advance the loop index.
   const retarget = (pos: WorldPos | null): void => {
     const target = currentTarget;
-    if (target == null || (hop != null && (hop.kind === "taxi" || hop.kind === "boat"))) {
+    if (target == null || (hop != null && hop.kind !== "walk")) {
       loop = null;
       loopKey = "";
       if (target == null) arrow = null;
-      else if (hop != null) showArrow(hop.pos, t(hop.kind === "taxi" ? "goFlightMaster" : "goBoat"));
+      else if (hop != null && hop.kind !== "walk") showArrow(hop.pos, t(HOP_LABEL[hop.kind]));
       return;
     }
     label = describeTarget(target, deps.getQuest(target.questId));
@@ -161,31 +178,49 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
     return true;
   };
 
-  const refreshTargets = (force: boolean): void => {
-    const now = deps.now();
-    if (!force && lastRun != null && now - lastRun < REFRESH_INTERVAL_SEC) {
-      advanceLoop(deps.readPosition());
-      return;
-    }
-    lastRun = now;
+  // Returns true when listeners were notified.
+  const fullRefresh = (): boolean => {
     const snap = deps.readPlayer();
-    if (snap == null) return;
+    if (snap == null) return false;
     snapshot = snap;
     const pinned = db.pinnedQuestId;
     if (pinned != null && snap.state.completed.has(pinned)) db.pinnedQuestId = null;
-    if (snap.pos == null) {
-      apply(false, null);
-      return;
-    }
+    if (snap.pos == null) return apply(false, null);
+    lastRunPos = snap.pos;
     const skipped = new Set(db.skippedQuests);
     const next = deps.completion(snap).filter((target) => !skipped.has(target.questId));
     const changed = !sameTargets(list, next);
     list = next;
-    apply(changed, snap.pos);
+    return apply(changed, snap.pos);
+  };
+
+  const refreshTargets = (force: boolean): boolean => {
+    if (!force && deps.onTaxi()) return false;
+    const now = deps.now();
+    if (!force && lastRun != null && now - lastRun < REFRESH_INTERVAL_SEC) {
+      advanceLoop(deps.readPosition());
+      return false;
+    }
+    if (!force && lastRunPos != null) {
+      const pos = deps.readPosition();
+      if (pos != null && distance(pos, lastRunPos) < IDLE_YARDS) {
+        advanceLoop(pos);
+        return false;
+      }
+    }
+    lastRun = now;
+    const started = deps.clockMs();
+    const notified = fullRefresh();
+    const elapsed = deps.clockMs() - started;
+    profile.last = elapsed;
+    if (profile.first == null) profile.first = elapsed;
+    return notified;
   };
 
   return {
-    refreshTargets: (force) => refreshTargets(force),
+    refreshTargets: (force) => {
+      refreshTargets(force);
+    },
     pin(questId) {
       db.pinnedQuestId = questId;
       if (!apply(false, deps.readPosition())) notifyListeners();
@@ -214,5 +249,6 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
       return zoneProgress(deps.allQuests(), snapshot.state.completed, zoneAreaId, snapshot.state);
     },
     snapshot: () => snapshot,
+    profile: () => profile,
   };
 }

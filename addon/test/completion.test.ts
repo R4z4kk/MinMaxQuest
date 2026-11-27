@@ -41,6 +41,7 @@ function input(quests: QuestInfo[], positions: Positions, overrides: Partial<Com
     greenRange: 5,
     positionsFor: (q: QuestInfo, kind: TargetKind, index: number | null) => positions[`${q.id}:${kind}:${index}`] ?? [],
     timeTo: (p) => p.x,
+    clusters: new Map(),
     ...overrides,
   };
 }
@@ -187,6 +188,21 @@ describe("selectTargets edge cases", () => {
     const targets = selectTargets(input([q], positions, { log: new Map([[1, logged(false)]]), timeTo }), opts());
     expect(targets[0].pos).toEqual(at(30));
     expect(targets[0].seconds).toBe(30);
+  });
+
+  it("reuses the clusters of an objective across refreshes", () => {
+    let reads = 0;
+    const q = quest({ id: 1, objectives: [objective(1)] });
+    const spawns = [at(10), at(20)];
+    const cached = input([q], {}, {
+      log: new Map([[1, logged(false)]]),
+      positionsFor: () => (reads++, spawns),
+    });
+    const [first] = selectTargets(cached, opts());
+    const [second] = selectTargets({ ...cached, timeTo: (p) => p.x + 1 }, opts());
+    expect(reads).toBe(1);
+    expect(second.cluster).toBe(first.cluster);
+    expect(second.seconds).toBe(first.seconds + 1);
   });
 
   it("calls timeTo once per position", () => {

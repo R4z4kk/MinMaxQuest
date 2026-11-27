@@ -69,7 +69,7 @@ let logDirty = true;
 
 function syncArrow(): void {
   if (game == null) return;
-  const next = game.engine.arrowTarget();
+  const next = UnitOnTaxi("player") === true ? null : game.engine.arrowTarget();
   if (next === shownArrow) return;
   shownArrow = next;
   guard("arrow", () => getArrow().setTarget(next));
@@ -115,6 +115,8 @@ function start(): Game | null {
         commands.targetChanged(current);
         syncArrow();
       },
+      onTaxi: () => UnitOnTaxi("player") === true,
+      clockMs: () => debugprofilestop(),
     },
     charDb,
   );

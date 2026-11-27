@@ -40,6 +40,8 @@ export interface CompletionInput {
   greenRange: number;
   positionsFor: (q: QuestInfo, kind: TargetKind, objectiveIndex: number | null) => WorldPos[];
   timeTo: (p: WorldPos) => number;
+  // Spawns never change, so clusters are kept across refreshes, keyed by questId:objectiveIndex.
+  clusters: Map<string, SpawnCluster[]>;
 }
 
 export interface ZoneProgress {
@@ -114,7 +116,12 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
     } else {
       for (const obj of q.objectives) {
         if (entry.objectivesDone.has(obj.index)) continue;
-        const clusters = clusterSpawns(positionsFor(q, "objective", obj.index), CLUSTER_RADIUS_YARDS);
+        const key = `${q.id}:${obj.index}`;
+        let clusters = input.clusters.get(key);
+        if (clusters == null) {
+          clusters = clusterSpawns(positionsFor(q, "objective", obj.index), CLUSTER_RADIUS_YARDS);
+          input.clusters.set(key, clusters);
+        }
         const cluster = pickCluster(clusters, timeTo);
         if (cluster != null) push(q, trivial, "objective", obj.index, cluster.center, cluster, clusters.length - 1);
       }
