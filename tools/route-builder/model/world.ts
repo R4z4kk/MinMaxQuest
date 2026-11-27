@@ -11,6 +11,7 @@ import {
 import { TRAVEL, type TravelData } from "../../../addon/src/data/generated/travel";
 import { isAvailable, maskAllows } from "../../../addon/src/quests/availability";
 import { CLUSTER_RADIUS_YARDS, clusterSpawns, killLoop } from "../../../addon/src/targets/spawns";
+import { INSTANCE_PARTY, INSTANCE_PVP, INSTANCE_RAID, loadInstanceTypes } from "../ingest/instances";
 import { dropRate, hasFlag, npcInfo, snapshotLib, type QuestieSnapshot } from "../ingest/snapshot";
 import { zonePercentToWorld, type UiMapRect } from "../ingest/zones";
 import { BUILDER } from "./constants";
@@ -63,7 +64,8 @@ export type ExclusionReason =
   | "noPosition"
   | "unsupportedObjective"
   | "noDropRate"
-  | "noMobLevel";
+  | "noMobLevel"
+  | "raidOrBattleground";
 
 // Race ids: QuestieDB src/corrections/enum/expansions.lua, Forever raceKeys ALL_ALLIANCE / ALL_HORDE.
 const FACTION_RACES: Record<"A" | "H", number[]> = { A: [1, 3, 4, 7, 95], H: [2, 5, 6, 8, 96] };
@@ -116,6 +118,7 @@ export function buildWorld(
   zones: Map<number, UiMapRect>,
   faction: "A" | "H",
   travel: TravelData = TRAVEL,
+  instanceTypes: Map<number, number> = loadInstanceTypes(),
 ): World {
   const result = createQuestRepository(snapshotLib(s));
   if (!result.ok) throw new Error(`world: ${result.message}`);
@@ -280,12 +283,19 @@ export function buildWorld(
     const starters = q.starterNpcs.filter(isFriendly);
     const finishers = q.finisherNpcs.filter(isFriendly);
     if (starters.length + q.starterObjects.length === 0 || finishers.length + q.finisherObjects.length === 0) exclude("wrongFaction");
-    const dungeonAreaId = dungeonOf(q);
+    const instance = dungeonOf(q);
+    const instanceType = instance == null ? null : (instanceTypes.get(instance) ?? null);
+    if (instanceType === INSTANCE_RAID || instanceType === INSTANCE_PVP) exclude("raidOrBattleground");
+    // Non-instance entries of QuestieDB's dungeon list (Deeprun Tram, PvP barracks) are ordinary quest areas.
+    const dungeonAreaId = instanceType == null || instanceType === INSTANCE_PARTY ? instance : null;
     const accept = placeOf(starters, q.starterObjects) ?? exclude("noPosition");
     const turnin = placeOf(finishers, q.finisherObjects) ?? exclude("noPosition");
     if (dungeonAreaId != null && entranceOf(dungeonAreaId) == null) exclude("noPosition");
     // A dungeon quest's objectives are done by the dungeon step.
     const tasks = dungeonAreaId != null ? [] : q.objectives.map(taskOf);
+    if (instance != null && instanceType == null) {
+      throw new Error(`world: dungeon ${instance} (${s.dungeons[instance].name}) has no instance type`);
+    }
     return { id: q.id, info: q, accept, turnin, tasks, dungeonAreaId, accessChain: false, returnVisit: false };
   };
 

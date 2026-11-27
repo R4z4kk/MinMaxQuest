@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { TravelData } from "../../../addon/src/data/generated/travel";
 import type { QuestieSnapshot } from "../ingest/snapshot";
+import { parseInstanceTypes } from "../ingest/instances";
 import { zonePercentToWorld } from "../ingest/zones";
 import { buildWorld } from "../model/world";
 import { ELWYNN, snapshot, travel, zones } from "./fixtures";
@@ -8,6 +9,23 @@ import { ELWYNN, snapshot, travel, zones } from "./fixtures";
 const RACES = { 1: 1, 2: 2, 3: 4, 4: 8, 5: 16, 6: 32, 7: 64, 8: 128, 95: 4294967296, 96: 8589934592 };
 const NODE_PERCENT = { x: 30, y: 30 };
 const YARDS_PER_Y_PERCENT = (ELWYNN.maxX - ELWYNN.minX) / 100;
+
+const AREA_CSV = [
+  "ID,AreaName_lang,ContinentID",
+  "209,\"Shadowfang Keep\",33",
+  "2717,\"Molten Core\",409",
+  "3277,\"Warsong Gulch\",489",
+  "1583,\"Blackrock Spire\",0",
+].join("\n");
+const MAP_CSV = [
+  "ID,MapName_lang,InstanceType,AreaTableID",
+  "0,\"Eastern Kingdoms\",0,0",
+  "33,\"Shadowfang, Keep\",1,0",
+  "409,Molten Core,2,2717",
+  "489,Warsong Gulch,3,3277",
+  "229,Blackrock Spire,1,1583",
+].join("\n");
+const INSTANCES = parseInstanceTypes(AREA_CSV, "AreaTable.csv", MAP_CSV, "Map.csv");
 
 type Npc = QuestieSnapshot["npcs"][number];
 
@@ -33,6 +51,8 @@ function fixture(flightMasterYards = 3): QuestieSnapshot {
     7: quest("For the Horde", { startedBy: [[102]] }),
     8: quest("Fangs", { objectives: [null, null, [[501, null, 4]]] }),
     9: quest("Crates", { objectives: [null, [[600, null, 2]], [[502, null, 3]]] }),
+    10: quest("Into the Core", { zoneOrSort: 2717 }),
+    11: quest("Into the Gulch", { zoneOrSort: 3277 }),
     92432: quest("An Alarming Request", { requiredLevel: 30, questLevel: 33 }),
   };
   const questXp: Record<number, [number, number]> = {};
@@ -57,7 +77,12 @@ function fixture(flightMasterYards = 3): QuestieSnapshot {
     },
     dropRates: { 501: { 200: 35 } },
     areaIdToUiMapId: { 12: 1429, 40: 1436, 209: 310 },
-    dungeons: { 209: { name: "Shadowfang Keep", altAreaIds: [], parentZone: 40, entrances: [{ areaId: 40, x: 60, y: 60 }] } },
+    dungeons: {
+      209: { name: "Shadowfang Keep", altAreaIds: [], parentZone: 40, entrances: [{ areaId: 40, x: 60, y: 60 }] },
+      2717: { name: "Molten Core", altAreaIds: [], parentZone: 40, entrances: [{ areaId: 40, x: 61, y: 61 }] },
+      3277: { name: "Warsong Gulch", altAreaIds: [], parentZone: 40, entrances: [{ areaId: 40, x: 62, y: 62 }] },
+      5000: { name: "Nowhere Keep", altAreaIds: [], parentZone: 40, entrances: [{ areaId: 40, x: 63, y: 63 }] },
+    },
     npcFlagValues: { innkeeper: 128, flightMaster: 8 },
     raceMaskById: RACES,
   });
@@ -68,7 +93,7 @@ function taxi(): TravelData {
 }
 
 describe("buildWorld", () => {
-  const w = buildWorld(fixture(), zones(), "A", taxi());
+  const w = buildWorld(fixture(), zones(), "A", taxi(), INSTANCES);
 
   it("turns a kill objective into one kill task on the biggest cluster", () => {
     const q = w.quests.get(1)!;
@@ -108,6 +133,25 @@ describe("buildWorld", () => {
     ]);
   });
 
+  it("joins AreaTable to Map, falling back to Map.AreaTableID for outdoor-continent rows", () => {
+    expect(INSTANCES).toEqual(new Map([[209, 1], [2717, 2], [3277, 3], [1583, 1]]));
+  });
+
+  it("keeps party instances and excludes raid and battleground quests", () => {
+    expect(w.quests.has(10)).toBe(false);
+    expect(w.quests.has(11)).toBe(false);
+    expect(w.excluded.get("raidOrBattleground")).toBe(2);
+    expect(w.dungeons.map((d) => d.areaId)).toEqual([209]);
+  });
+
+  it("throws for an unresolved instance that holds a candidate quest", () => {
+    const s = fixture();
+    expect(() => buildWorld(s, zones(), "A", taxi(), INSTANCES)).not.toThrow();
+    s.quests[12] = quest("Into Nowhere", { zoneOrSort: 5000 });
+    s.questXp[12] = [5, 100];
+    expect(() => buildWorld(s, zones(), "A", taxi(), INSTANCES)).toThrow("world: dungeon 5000 (Nowhere Keep) has no instance type");
+  });
+
   it("finds inns, taxi zones, the capital node and the start zone", () => {
     expect(w.faction).toBe("A");
     expect(w.raceMask).toBe(1 + 4 + 8 + 64 + 4294967296);
@@ -121,7 +165,7 @@ describe("buildWorld", () => {
   });
 
   it("fails the conversion check when flight masters sit far from their nodes", () => {
-    expect(() => buildWorld(fixture(100), zones(), "A", taxi())).toThrow(
+    expect(() => buildWorld(fixture(100), zones(), "A", taxi(), INSTANCES)).toThrow(
       "world: zone conversion check failed, median offset 100.0 yd",
     );
   });
@@ -129,6 +173,6 @@ describe("buildWorld", () => {
   it("refuses a faction without any flight master", () => {
     const s = fixture();
     delete s.npcs[300];
-    expect(() => buildWorld(s, zones(), "A", taxi())).toThrow(/no flight master/);
+    expect(() => buildWorld(s, zones(), "A", taxi(), INSTANCES)).toThrow(/no flight master/);
   });
 });

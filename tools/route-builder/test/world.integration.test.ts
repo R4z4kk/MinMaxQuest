@@ -20,6 +20,7 @@ describe("world from the real QuestieDB snapshot", () => {
           faction,
           `candidates ${w.quests.size}`,
           `offset ${w.conversionOffsetYards.toFixed(2)} yd`,
+          `dungeons ${w.dungeons.map((d) => `${d.name}:${d.questIds.length}`).join(",")}`,
           `start ${w.startZones.map((z) => z.key).join(",")}`,
           `excluded ${JSON.stringify(Object.fromEntries(w.excluded))}`,
         );
