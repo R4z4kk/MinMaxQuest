@@ -1,0 +1,31 @@
+name: Release
+
+# Tag "vX.Y.Z" = release, "vX.Y.Z-beta*" = beta, "vX.Y.Z-alpha*" = alpha.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      # The packager skips untracked files; staging the git-ignored bundle keeps it in the zip.
+      - run: git add -f build/MinMaxQuest.lua
+      - uses: BigWigsMods/packager@v2
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
