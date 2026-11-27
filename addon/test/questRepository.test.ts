@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { setLocale } from "../src/core/l10n";
+import { resetReports, setReportSink } from "../src/core/report";
 import { createQuestRepository } from "../src/data/questRepository";
 
 type Row = Record<string, unknown>;
@@ -29,6 +31,14 @@ function fakeLib(quests: Record<number, Row>, ranks: Record<number, number> = {}
     },
   };
 }
+
+let reported: string[] = [];
+beforeEach(() => {
+  setLocale("enUS");
+  reported = [];
+  resetReports();
+  setReportSink((line) => reported.push(line));
+});
 
 describe("createQuestRepository", () => {
   it("returns error result on contract mismatch", () => {
@@ -124,7 +134,7 @@ describe("createQuestRepository", () => {
     const lib = fakeLib({ 1: { name: "A", questLevel: 1 } });
     lib.Support.Get = (() => null) as unknown as LibQuestieDBApi["Support"]["Get"];
     const repo = repoFor(lib);
-    expect(repo.get(1)?.baseXp).toBe(0);
+    expect(repo.get(1)?.baseXp).toBeNull();
     expect(repo.uiMapIdForArea(12)).toBeNull();
     expect(repo.lastError()).toContain("QuestXP");
   });
@@ -151,5 +161,16 @@ describe("createQuestRepository", () => {
     expect(repo.lastError()).toBeNull();
     repo.get(2);
     expect(repo.lastError()).toContain("get");
+  });
+
+  it("reports each failing method once", () => {
+    const repo = repoFor(fakeLib({ 2: { __throw: true }, 3: { __throw: true } }));
+    repo.get(2);
+    repo.get(3);
+    expect(reported).toEqual(["MinMaxQuest: QuestieDB read failed (get): Error: boom"]);
+  });
+
+  it("leaves the XP unknown when the quest has no QuestXP entry", () => {
+    expect(repoFor(fakeLib({ 1: { name: "A", questLevel: 1 } })).get(1)?.baseXp).toBeNull();
   });
 });

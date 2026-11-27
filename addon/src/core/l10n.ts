@@ -68,7 +68,11 @@ export type L10nKey =
   | "cancel"
   | "skipAnyway"
   | "bannerBuild"
-  | "bannerExpired";
+  | "bannerExpired"
+  | "featureDisabled"
+  | "repositoryReadFailed"
+  | "repositoryLastError"
+  | "questInfo";
 
 const EN: Record<L10nKey, string> = {
   questieMissing: "QuestieDB is required",
@@ -141,6 +145,10 @@ const EN: Record<L10nKey, string> = {
   skipAnyway: "Skip anyway",
   bannerBuild: "Data built for build {build}",
   bannerExpired: "Expired data: {names}",
+  featureDisabled: "{feature} disabled: {error}",
+  repositoryReadFailed: "QuestieDB read failed ({method}): {error}",
+  repositoryLastError: "last QuestieDB error: {error}",
+  questInfo: "[{id}] {name} level {level}, {n} objective(s)",
 };
 
 const FR: Record<L10nKey, string> = {
@@ -214,6 +222,10 @@ const FR: Record<L10nKey, string> = {
   skipAnyway: "Passer quand même",
   bannerBuild: "Données générées pour le build {build}",
   bannerExpired: "Données expirées : {names}",
+  featureDisabled: "{feature} désactivé : {error}",
+  repositoryReadFailed: "lecture QuestieDB échouée ({method}) : {error}",
+  repositoryLastError: "dernière erreur QuestieDB : {error}",
+  questInfo: "[{id}] {name} niveau {level}, {n} objectif(s)",
 };
 
 let french: boolean | null = null;

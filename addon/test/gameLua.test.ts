@@ -77,7 +77,7 @@ it("asks to confirm a skip with follow-ups and forgets it when the target change
     await s.tick();
     await s.cmd("skip");
     expect(await s.printed()).toBe(
-      "MinMaxQuest: [100] Test Quest: 1 follow-up quest(s) would be lost (about 0 XP): type /mmq skip confirm",
+      "MinMaxQuest: [100] Test Quest: 1 follow-up quest(s) would be lost (XP unknown): type /mmq skip confirm",
     );
     await s.cmd("pin 101");
     await s.cmd("skip confirm");
@@ -117,6 +117,12 @@ it("prints help and keeps the quest lookup", async () => {
     expect(await s.printed()).toContain("targets | skip [confirm] | pin <id>");
     await s.cmd("q 100");
     expect(await s.printed()).toBe("MinMaxQuest: [100] Test Quest level 10, 0 objective(s)");
+    await s.run(`LibQuestieDB.Quest.Get = function() error("broken") end`);
+    await s.cmd("q 101");
+    const out = await s.printed();
+    expect(out).toContain("QuestieDB read failed (get)");
+    expect(out).toContain("MinMaxQuest: quest not found");
+    expect(out).toContain("last QuestieDB error: get:");
   } finally {
     s.close();
   }

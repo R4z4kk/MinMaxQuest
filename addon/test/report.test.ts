@@ -31,6 +31,14 @@ describe("guard", () => {
     expect(lines[0]).toContain("bad");
     expect(isDisabled("a")).toBe(true);
   });
+  it("localizes the disabled message", () => {
+    setLocale("frFR");
+    guard("arrow", () => {
+      throw new Error("bad");
+    });
+    setLocale("enUS");
+    expect(lines[0]).toBe("MinMaxQuest: arrow désactivé : Error: bad");
+  });
   it("skips fn when the feature is disabled", () => {
     reportOnce("a", "x");
     let called = false;

@@ -1,3 +1,5 @@
+import { t } from "./l10n";
+
 let sink: (line: string) => void = (line) => print(line);
 const disabled: Record<string, boolean> = {};
 
@@ -25,7 +27,7 @@ export function guard<T>(feature: string, fn: () => T): T | null {
   try {
     return fn();
   } catch (error) {
-    reportOnce(feature, `${feature} disabled: ${String(error)}`);
+    reportOnce(feature, t("featureDisabled").replace("{feature}", feature).replace("{error}", String(error)));
     return null;
   }
 }

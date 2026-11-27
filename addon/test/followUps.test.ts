@@ -85,13 +85,17 @@ describe("followUps", () => {
 });
 
 describe("lostXp", () => {
+  it("is unknown when any quest of the chain has no XP data", () => {
+    expect(lostXp([quest(1), quest(2, { baseXp: null })], 20, 60)).toBeNull();
+  });
+
   it("sums questXp at the current level", () => {
     const a = quest(1, { level: 20, baseXp: 1000 });
     const b = quest(2, { level: 18, baseXp: 500 });
     const xp = questXp(1000, 20, 20, 60) + questXp(500, 18, 20, 60);
     const result = lostXp([a, b], 20, 60);
-    expect(result.xp).toBe(xp);
-    expect(result.levelFraction).toBeCloseTo(xp / 23200, 10);
+    expect(result?.xp).toBe(xp);
+    expect(result?.levelFraction).toBeCloseTo(xp / 23200, 10);
   });
 
   it("is zero at max level", () => {
@@ -100,7 +104,7 @@ describe("lostXp", () => {
 
   it("is zero fraction without a table entry", () => {
     const result = lostXp([quest(1)], 70, 80);
-    expect(result.levelFraction).toBe(0);
+    expect(result?.levelFraction).toBe(0);
   });
 });
 

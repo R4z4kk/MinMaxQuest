@@ -1,5 +1,5 @@
 import { type CharDb } from "../core/storage";
-import { currentLocale } from "../core/l10n";
+import { currentLocale, t } from "../core/l10n";
 import { formatDistance, distance, heading, type WorldPos } from "../core/geometry";
 import { isDisabled, reportOnce } from "../core/report";
 
@@ -115,7 +115,7 @@ export function createArrow(db: CharDb): ArrowApi {
   function tick(): void {
     if (isDisabled("arrow")) return;
     const [ok, error] = pcall(refresh);
-    if (!ok) reportOnce("arrow", `arrow disabled: ${String(error)}`);
+    if (!ok) reportOnce("arrow", t("featureDisabled").replace("{feature}", "arrow").replace("{error}", String(error)));
   }
 
   const driver = CreateFrame("Frame", FRAME_NAME + "Driver", UIParent);

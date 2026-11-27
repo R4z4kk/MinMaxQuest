@@ -62,11 +62,18 @@ export function createCommands(ctx: CommandContext): Commands {
     if (repo == null) return;
     const id = Number(arg);
     const quest = Number.isFinite(id) ? repo.get(id) : null;
-    if (quest == null) {
-      say(t("questNotFound"));
-      return;
+    if (quest == null) say(t("questNotFound"));
+    else {
+      say(
+        t("questInfo")
+          .replace("{id}", String(quest.id))
+          .replace("{name}", quest.name)
+          .replace("{level}", String(quest.level))
+          .replace("{n}", String(quest.objectives.length)),
+      );
     }
-    say(`[${quest.id}] ${quest.name} level ${quest.level}, ${quest.objectives.length} objective(s)`);
+    const error = repo.lastError();
+    if (error != null) say(t("repositoryLastError").replace("{error}", error));
   };
 
   const chainCommand = (arg: string): void => {

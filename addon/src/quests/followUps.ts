@@ -43,9 +43,16 @@ export function followUps(questId: number, get: Getter): QuestInfo[] {
   return result;
 }
 
-export function lostXp(chain: QuestInfo[], charLevel: number, maxLevel: number): { xp: number; levelFraction: number } {
+export function lostXp(
+  chain: QuestInfo[],
+  charLevel: number,
+  maxLevel: number,
+): { xp: number; levelFraction: number } | null {
   let xp = 0;
-  for (const quest of chain) xp += questXp(quest.baseXp, quest.level, charLevel, maxLevel);
+  for (const quest of chain) {
+    if (quest.baseXp == null) return null;
+    xp += questXp(quest.baseXp, quest.level, charLevel, maxLevel);
+  }
   const needed = charLevel >= maxLevel ? null : XP_PER_LEVEL.values[charLevel - 1];
   return { xp, levelFraction: needed != null && needed > 0 ? xp / needed : 0 };
 }

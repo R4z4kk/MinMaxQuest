@@ -1,3 +1,6 @@
+import { t } from "../core/l10n";
+import { reportOnce } from "../core/report";
+
 export interface AreaPoint {
   areaId: number;
   x: number;
@@ -24,7 +27,7 @@ export interface QuestInfo {
   finisherNpcs: number[];
   finisherObjects: number[];
   objectives: QuestObjectiveRef[];
-  baseXp: number;
+  baseXp: number | null;
   hasUnsupportedRequirement: boolean;
   isElite: boolean;
   zoneAreaId: number | null;
@@ -116,6 +119,7 @@ function buildRepository(lib: LibQuestieDBApi): QuestRepository {
     if (failed[method] != null) return;
     failed[method] = true;
     if (firstError == null) firstError = `${method}: ${String(error)}`;
+    reportOnce(`repository:${method}`, t("repositoryReadFailed").replace("{method}", method).replace("{error}", String(error)));
   };
   const safe = <T>(method: string, fallback: T, read: () => T): T => {
     try {
@@ -177,7 +181,7 @@ function buildRepository(lib: LibQuestieDBApi): QuestRepository {
       finisherNpcs: numList(slot(finishedBy, 0)),
       finisherObjects: numList(slot(finishedBy, 1)),
       objectives: objectives.refs,
-      baseXp: xpDb == null ? 0 : (num(slot(xpDb[id], 1)) ?? 0),
+      baseXp: xpDb == null ? null : num(slot(xpDb[id], 1)),
       hasUnsupportedRequirement:
         field(id, "requiredSkill") != null ||
         field(id, "requiredMinRep") != null ||
