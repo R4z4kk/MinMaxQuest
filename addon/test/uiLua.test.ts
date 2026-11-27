@@ -1027,3 +1027,32 @@ it("forces the arrow and the window visible while placing the arrow", async () =
     s.close();
   }
 });
+
+it("resets the arrow outline when the arrow is hidden while hovered", async () => {
+  const s = await ui();
+  try {
+    await s.run(`scripts["${ARROW}.OnEnter"](nil)`);
+    expect(await s.run(`return shownOutline("${ARROW}")`)).toBe(5);
+    await s.run(`scripts["${ARROW}.OnHide"](nil)`);
+    expect(await s.run(`return shownOutline("${ARROW}")`)).toBe(0);
+    await s.run(`scripts["${ARROW}.OnDragStart"](nil)`);
+    await s.run(`scripts["${ARROW}.OnHide"](nil)`);
+    expect(await s.run(`return shownOutline("${ARROW}")`)).toBe(0);
+  } finally {
+    s.close();
+  }
+});
+
+it("does not redraw the open window when unlocking the arrow", async () => {
+  const s = await ui();
+  try {
+    await s.cmd("");
+    await s.cmd("arrow lock");
+    await s.clearCalls();
+    await s.cmd("arrow move");
+    expect((await s.calls()).filter((c) => c.startsWith(`${WINDOW}|SetSize`))).toEqual([]);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});

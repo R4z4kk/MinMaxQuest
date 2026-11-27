@@ -89,7 +89,7 @@ function getArrow(): ArrowApi {
     arrow = {
       ...created,
       setLocked: (locked) => {
-        if (!locked) setAllHidden(false);
+        if (!locked && (getDb().hidden || !ui.isShown())) setAllHidden(false);
         created.setLocked(locked);
         const button = itemButton;
         if (button != null) guard("itemButton", () => button.setLocked(locked));

@@ -190,6 +190,12 @@ export function createArrow(db: CharDb): ArrowApi {
     refresh();
   }
 
+  frame.SetScript("OnHide", () => {
+    hovering = false;
+    dragging = false;
+    paintOutline();
+  });
+
   applyLock(locked);
 
   const driver = CreateFrame("Frame", FRAME_NAME + "Driver", UIParent);
