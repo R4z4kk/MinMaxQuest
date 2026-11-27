@@ -5,6 +5,7 @@ import { reportOnce } from "../core/report";
 import type { CharDb } from "../core/storage";
 import type { QuestInfo } from "../data/questRepository";
 import { questLabel, type PlayerSnapshot } from "../game/engine";
+import { isFriendlyTo } from "../game/positions";
 import { isAvailable } from "../quests/availability";
 import type { Target, TargetKind } from "../targets/completion";
 import type { SpawnCluster } from "../targets/spawns";
@@ -26,8 +27,7 @@ export interface FollowerDeps {
   // Null when the player position is unknown.
   timeTo(snap: PlayerSnapshot): ((p: WorldPos) => number) | null;
   inCombat(): boolean;
-  mapName(uiMapId: number): string | null;
-  taxiNodes: { id: number; name: string; pos: WorldPos }[];
+  taxiNodes: { id: number; name: string; pos: WorldPos; faction: "A" | "H" | "AH" }[];
 }
 
 export interface RouteView extends FollowView {
@@ -50,6 +50,8 @@ export interface RouteFollower {
 }
 
 const QUEST_KIND: Partial<Record<EmittedStep["type"], TargetKind>> = { accept: "accept", complete: "objective", turnin: "turnin" };
+// Done only while the player stands near them, so once passed they are kept as skipped.
+const TRAVEL_STEPS: Partial<Record<EmittedStep["type"], boolean>> = { fly: true, hearth: true, setHearth: true, getFlightPath: true };
 
 export function createRouteFollower(deps: FollowerDeps): RouteFollower {
   const { db } = deps;
@@ -127,7 +129,7 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
       case "grind":
         return t("routeGrind").replace("{n}", String(s.targetLevel));
       case "dungeon":
-        return t("routeDungeon").replace("{name}", deps.mapName(s.uiMapId) ?? `#${s.uiMapId}`);
+        return t("routeDungeon");
     }
   };
 
@@ -287,7 +289,8 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
       // Decoding waits for the end of combat; the previous route stays in use meanwhile.
       if (!deps.inCombat() && !rebuild(r, snap, key)) return null;
     }
-    if (builtKey === "") return [];
+    // Never built yet (first load in combat): completion drives the arrow meanwhile.
+    if (builtKey === "") return null;
     lastSnap = snap;
     const ctx = context(snap);
     const skipped = new Set(db.route.skippedSteps);
@@ -296,6 +299,10 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
     const startIndex = db.route.startIndex;
     const next = advance(steps, startIndex, skipped, new Set(db.skippedQuests), ctx, quest, snap.state);
     cursor = next;
+    const passedFrom = lastCurrent >= 0 ? lastCurrent : startIndex;
+    for (let i = Math.max(0, passedFrom); i < next.current && i < steps.length; i++) {
+      if (TRAVEL_STEPS[steps[i].type] === true && !skipped.has(i) && !db.route.skippedSteps.includes(i)) db.route.skippedSteps.push(i);
+    }
     if (next.current !== lastCurrent) {
       lastCurrent = next.current;
       hearthBoundWhileCurrent = false;
@@ -351,7 +358,9 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
       if (s == null || s.type !== "fly" || s.taxiNodeId == null) return null;
       let from: number | null = null;
       let best = Infinity;
+      const side = deps.faction();
       for (const node of deps.taxiNodes) {
+        if (side != null && !isFriendlyTo(node.faction, side)) continue;
         const d = distance(node.pos, target.pos);
         if (d < best) {
           best = d;

@@ -32,9 +32,9 @@ function install(constants: Record<string, number> = { segmentEndLevel: 10 }, tr
   };
 }
 
-function snapshot(level: number): PlayerSnapshot {
+function snapshot(level: number, x = 0): PlayerSnapshot {
   return {
-    pos: { continent: 0, x: 0, y: 0 },
+    pos: { continent: 0, x, y: 0 },
     state: { level, raceMask: 1, classMask: 1, completed: new Set(), inLog: new Set() },
     log: new Map(),
     greenRange: 5,
@@ -54,8 +54,11 @@ function follower(db: CharDb, combat = { on: false }) {
     place: () => null,
     timeTo: () => () => 1,
     inCombat: () => combat.on,
-    mapName: () => "Zone",
-    taxiNodes: [],
+    taxiNodes: [
+      { id: 18, name: "Booty Bay (Horde)", pos: { continent: 0, x: 1990, y: 0 }, faction: "H" },
+      { id: 19, name: "Booty Bay", pos: { continent: 0, x: 2050, y: 0 }, faction: "A" },
+      { id: 5, name: "Lakeshire", pos: { continent: 0, x: 5000, y: 0 }, faction: "A" },
+    ],
   });
 }
 
@@ -160,4 +163,45 @@ it("is unavailable and silent when no route file is loaded", () => {
   expect(f.targets(snapshot(1))).toBeNull();
   expect(reports).toEqual([]);
   expect(f.routesBuild()).toBeNull();
+});
+
+it("flies from the nearest node of the player's faction", () => {
+  install({ segmentEndLevel: 10 }, [{ ...grind(11, 2000, "fly"), taxiNodeId: 5 }]);
+  const f = follower(loadCharDb(null));
+  const target = f.targets(snapshot(10))?.[0];
+  expect(target?.route?.type).toBe("fly");
+  expect(target == null ? null : f.taxiLeg(target)).toEqual({ from: 19, to: 5 });
+});
+
+it("lets completion drive the arrow when first loaded in combat", () => {
+  install();
+  const combat = { on: true };
+  const f = follower(loadCharDb(null), combat);
+  expect(f.targets(snapshot(1))).toBeNull();
+  combat.on = false;
+  expect(f.targets(snapshot(1))?.[0].route?.index).toBe(0);
+});
+
+it("never falls back to a travel step once it was done", () => {
+  install({ segmentEndLevel: 10 }, [grind(10, 10), { ...grind(11, 20, "fly"), taxiNodeId: 5 }, grind(12, 30)]);
+  const db = loadCharDb(null);
+  const f = follower(db);
+  f.targets(snapshot(10, 0));
+  expect(f.view()?.current).toBe(1);
+  f.targets(snapshot(10, 5000));
+  expect(f.view()?.current).toBe(2);
+  expect(db.route.skippedSteps).toEqual([1]);
+  f.targets(snapshot(10, 6000));
+  expect(f.view()?.current).toBe(2);
+  const reloaded = follower(db);
+  reloaded.targets(snapshot(10, 6000));
+  expect(reloaded.view()?.current).toBe(2);
+});
+
+it("labels a dungeon step without naming the entrance zone", () => {
+  const around = (type: StepType, x: number): EmittedStep => ({ ...grind(11, x, type), questId: 900 });
+  install({ segmentEndLevel: 10 }, [around("accept", 5), grind(11, 10, "dungeon"), around("turnin", 15)]);
+  const f = follower(loadCharDb(null));
+  f.targets(snapshot(11));
+  expect(f.view()?.nextTexts[0]).toBe("Run the dungeon");
 });

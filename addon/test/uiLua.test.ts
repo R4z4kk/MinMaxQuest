@@ -269,3 +269,20 @@ it("drives the arrow from the last of the Quest and Completion tabs", async () =
     s.close();
   }
 });
+
+it("refreshes the targets when a chain is tracked or untracked", async () => {
+  const s = await ui(QUEST_MODE);
+  const reads = async () => (await s.run("return raceCalls")) as number;
+  try {
+    await s.cmd("");
+    await s.click("MinMaxQuestTabaccess");
+    await s.click("MinMaxQuestChain1");
+    const before = await reads();
+    await s.click("MinMaxQuestChain1Track");
+    expect(await reads()).toBe(before + 1);
+    await s.click("MinMaxQuestChain1Track");
+    expect(await reads()).toBe(before + 2);
+  } finally {
+    s.close();
+  }
+});

@@ -46,6 +46,8 @@ export function createAccessTab(deps: AccessDeps): TabView {
     const at = db.trackedChains.indexOf(id);
     if (at < 0) db.trackedChains.push(id);
     else db.trackedChains.splice(at, 1);
+    // The route rebuilds its chain insertions.
+    engine.refreshTargets(true);
     draw();
   };
 

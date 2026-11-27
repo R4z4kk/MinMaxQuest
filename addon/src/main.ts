@@ -122,7 +122,6 @@ function start(): Game | null {
     place: createPlaceFor(repo, () => playerFaction()),
     timeTo: (snap) => routing.timeTo(snap),
     inCombat: () => InCombatLockdown(),
-    mapName: (uiMapId) => C_Map.GetMapInfo(uiMapId)?.name ?? null,
     taxiNodes: TRAVEL.taxiNodes,
   });
   const engine = createEngine(
