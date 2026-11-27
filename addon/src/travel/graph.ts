@@ -7,6 +7,7 @@ export interface TravelContext {
   knownTaxiNodes: Set<number>;
   faction: "A" | "H";
   hearth: { ready: boolean; pos: WorldPos | null };
+  hearthPenaltySec: number;
 }
 
 export interface TravelPlan {
@@ -238,7 +239,7 @@ export function solveFrom(graph: TravelGraph, origin: WorldPos, ctx: TravelConte
       }
     }
     if (current === originSlot && graph.hearthSlot >= 0 && ctx.hearth.ready) {
-      relax(graph, current, graph.hearthSlot, CONSTANTS.hearthCastSec.value + CONSTANTS.hearthPenaltySec.value, HEARTH);
+      relax(graph, current, graph.hearthSlot, CONSTANTS.hearthCastSec.value + ctx.hearthPenaltySec, HEARTH);
     }
   }
 

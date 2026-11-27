@@ -129,3 +129,22 @@ describe("routing", () => {
     expect(setup().routing.firstHop(solvedElsewhere)).toBeNull();
   });
 });
+
+describe("hearth penalty by mode", () => {
+  const home = at(20000);
+  const withHearth = (): PlayerSnapshot => ({ ...snapshot(at(0)), hearth: { ready: true, pos: home } });
+
+  it("uses the quest-mode penalty in quest mode", () => {
+    const { db, routing } = setup();
+    db.activeMode = "quest";
+    expect(routing.timeTo(withHearth())?.(home)).toBeCloseTo(CONSTANTS.hearthCastSec.value + CONSTANTS.hearthPenaltySec.value);
+  });
+
+  it("uses the larger completion penalty in completion mode", () => {
+    const { db, routing } = setup();
+    db.activeMode = "completion";
+    expect(routing.timeTo(withHearth())?.(home)).toBeCloseTo(
+      CONSTANTS.hearthCastSec.value + CONSTANTS.completionHearthPenaltySec.value,
+    );
+  });
+});

@@ -32,6 +32,7 @@ export const CONSTANTS = {
   hearthCooldownSec: dated(3600, `wago.tools SpellCooldowns ${SPELL_BUILD} spell 8690`),
   hearthCastSec: dated(10, `wago.tools SpellCastTimes ${SPELL_BUILD}`),
   hearthPenaltySec: dated(300, "MinMaxQuest design choice: keep the Hearthstone for real zone changes (loading screen, 60 min cooldown)"),
+  completionHearthPenaltySec: dated(900, "MinMaxQuest design choice: Completion finishes nearby quests, the Hearthstone only for a 15 min gain"),
 };
 
 export const XP_PER_LEVEL = {

@@ -114,6 +114,7 @@ export function travelView(s: SimState, world: World, travel: TravelData = TRAVE
     knownTaxiNodes: new Set(s.knownTaxi),
     faction: world.faction,
     hearth: { ready: s.seconds >= s.hearth.readyAt, pos: s.hearth.pos },
+    hearthPenaltySec: CONSTANTS.hearthPenaltySec.value,
   };
   const key = graphKey(ctx, [...s.knownTaxi].sort((a, b) => a - b));
   let byKey = graphs.get(travel);

@@ -43,7 +43,7 @@
 ### Targeting
 - **Automatic by default:** the nearest useful step is chosen for you. That can be picking up a quest, an objective or a turn-in.
 - **Only quests you can take:** level, race, class, faction, prerequisites and exclusive quests are all taken into account.
-- **Travel:** the route goes through flight masters, boats and your hearthstone when that is faster (the hearthstone only when it saves at least about 5 minutes). The arrow then says "Go to the flight master", "Take the boat" or "Use Hearthstone".
+- **Travel:** the route goes through flight masters, boats and your hearthstone when that is faster (the hearthstone only when it saves at least about 5 minutes, or 15 minutes in Completion). The arrow then says "Go to the flight master", "Take the boat" or "Use Hearthstone".
 - **Travel times:** walking or mount speed is assumed from your level: on foot below 40, mount at 40, epic mount at 60.
 
 ### Completion tab

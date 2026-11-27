@@ -26,6 +26,7 @@ function context(partial: Partial<TravelContext> = {}): TravelContext {
     knownTaxiNodes: new Set<number>(),
     faction: "A",
     hearth: { ready: false, pos: null },
+    hearthPenaltySec: CONSTANTS.hearthPenaltySec.value,
     ...partial,
   };
 }

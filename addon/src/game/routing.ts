@@ -73,6 +73,7 @@ export function createRouting(
       knownTaxiNodes: new Set(db.knownTaxiNodes),
       faction: snap.faction,
       hearth: snap.hearth,
+      hearthPenaltySec: (db.activeMode === "completion" ? CONSTANTS.completionHearthPenaltySec : CONSTANTS.hearthPenaltySec).value,
     };
     const key = graphKey(ctx, db.knownTaxiNodes);
     if (graph == null || key !== builtFor) {
