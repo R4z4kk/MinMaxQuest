@@ -1,7 +1,8 @@
 import type { TravelData } from "../../../addon/src/data/generated/travel";
+import type { QuestInfo } from "../../../addon/src/data/questRepository";
 import type { QuestieSnapshot } from "../ingest/snapshot";
 import type { UiMapRect } from "../ingest/zones";
-import type { World } from "../model/world";
+import type { Place, RouteQuest, Task, World } from "../model/world";
 
 export function snapshot(overrides: Partial<QuestieSnapshot> = {}): QuestieSnapshot {
   return {
@@ -54,9 +55,56 @@ export function world(overrides: Partial<World> = {}): World {
     dungeons: [],
     startZones: [],
     taxiZone: new Map(),
+    taxiPlaces: new Map(),
+    areaUiMap: new Map(),
     capitalTaxiNode: 2,
     conversionOffsetYards: 0,
     excluded: new Map(),
     ...overrides,
+  };
+}
+
+export function place(x: number, y = 0, uiMapId = 1429): Place {
+  return { pos: { continent: 0, x, y }, uiMapId, x: 0, y: 0, npcId: null, objectId: null };
+}
+
+export function info(id: number, overrides: Partial<QuestInfo> = {}): QuestInfo {
+  return {
+    id,
+    name: `Quest ${id}`,
+    level: 1,
+    requiredLevel: 1,
+    requiredMaxLevel: null,
+    races: 0,
+    classes: 0,
+    preGroup: [],
+    preSingle: [],
+    exclusiveTo: [],
+    nextInChain: null,
+    children: [],
+    starterNpcs: [1],
+    starterObjects: [],
+    finisherNpcs: [1],
+    finisherObjects: [],
+    objectives: [],
+    baseXp: 100,
+    hasUnsupportedRequirement: false,
+    isElite: false,
+    zoneAreaId: null,
+    ...overrides,
+  };
+}
+
+export function quest(id: number, at: Place, overrides: Partial<QuestInfo> = {}, tasks: Task[] = []): RouteQuest {
+  const objectives = tasks.map((t) => ({ index: t.objectiveIndex, kind: "npc" as const, id: 1, required: t.count }));
+  return {
+    id,
+    info: info(id, { objectives, ...overrides }),
+    accept: at,
+    turnin: at,
+    tasks,
+    dungeonAreaId: null,
+    accessChain: false,
+    returnVisit: false,
   };
 }

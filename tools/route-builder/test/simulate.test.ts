@@ -2,14 +2,13 @@ import { describe, expect, it } from "vitest";
 import { CONSTANTS, XP_PER_LEVEL } from "../../../addon/src/core/constants";
 import { distance } from "../../../addon/src/core/geometry";
 import { questXp } from "../../../addon/src/core/questXp";
-import type { QuestInfo } from "../../../addon/src/data/questRepository";
 import { travelSpeed } from "../../../addon/src/game/routing";
 import { BUILDER, COLLECT_QUANTILE, SCENARIOS } from "../model/constants";
 import { killsForItems } from "../model/drops";
 import { mobXp } from "../model/mobXp";
 import type { Place, RouteQuest, Task } from "../model/world";
 import { initialState, simulate, type RouteStep, type SimOptions, type SimState } from "../sim/simulate";
-import { travel, world } from "./fixtures";
+import { info, place, quest, travel, world } from "./fixtures";
 
 const scenario = SCENARIOS[1];
 const NPC = BUILDER.npcInteractSec.value;
@@ -17,10 +16,6 @@ const STRICT: SimOptions = { maxLevelGap: null, tolerant: false, raceMask: 0 };
 const TOLERANT: SimOptions = { ...STRICT, tolerant: true };
 const RUN = CONSTANTS.runSpeed.value;
 const data = travel();
-
-function place(x: number, y = 0): Place {
-  return { pos: { continent: 0, x, y }, uiMapId: 1429, x: 0, y: 0, npcId: null, objectId: null };
-}
 
 function walk(a: Place, b: Place, speed = RUN): number {
   return (distance(a.pos, b.pos) * CONSTANTS.detourFactor.value) / speed;
@@ -30,47 +25,6 @@ function loopWalk(loop: Place[], speed = RUN): number {
   let total = 0;
   for (let i = 1; i < loop.length; i++) total += walk(loop[i - 1], loop[i], speed);
   return total;
-}
-
-function info(id: number, overrides: Partial<QuestInfo> = {}): QuestInfo {
-  return {
-    id,
-    name: `Quest ${id}`,
-    level: 1,
-    requiredLevel: 1,
-    requiredMaxLevel: null,
-    races: 0,
-    classes: 0,
-    preGroup: [],
-    preSingle: [],
-    exclusiveTo: [],
-    nextInChain: null,
-    children: [],
-    starterNpcs: [1],
-    starterObjects: [],
-    finisherNpcs: [1],
-    finisherObjects: [],
-    objectives: [],
-    baseXp: 100,
-    hasUnsupportedRequirement: false,
-    isElite: false,
-    zoneAreaId: null,
-    ...overrides,
-  };
-}
-
-function quest(id: number, at: Place, overrides: Partial<QuestInfo> = {}, tasks: Task[] = []): RouteQuest {
-  const objectives = tasks.map((t) => ({ index: t.objectiveIndex, kind: "npc" as const, id: 1, required: t.count }));
-  return {
-    id,
-    info: info(id, { objectives, ...overrides }),
-    accept: at,
-    turnin: at,
-    tasks,
-    dungeonAreaId: null,
-    accessChain: false,
-    returnVisit: false,
-  };
 }
 
 function worldOf(quests: RouteQuest[]) {

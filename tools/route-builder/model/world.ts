@@ -49,6 +49,8 @@ export interface World {
   dungeons: Dungeon[];
   startZones: StartZone[];
   taxiZone: Map<number, number>;
+  taxiPlaces: Map<number, Place>;
+  areaUiMap: Map<number, number>;
   capitalTaxiNode: number;
   conversionOffsetYards: number;
   excluded: Map<string, number>;
@@ -108,7 +110,7 @@ function raceUnion(s: QuestieSnapshot, races: number[]): number {
   return mask;
 }
 
-function median(values: number[]): number {
+export function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
@@ -358,13 +360,17 @@ export function buildWorld(
   const nodes = travel.taxiNodes.filter((n) => n.faction === faction || n.faction === "AH");
   if (nodes.length === 0) throw new Error(`world: no taxi node for faction ${faction} in TRAVEL`);
   const taxiZone = new Map<number, number>();
+  const taxiPlaces = new Map<number, Place>();
   const offsets: number[] = [];
   for (const node of nodes) {
     let nearest: Place | null = null;
     for (const fm of flightMasters) if (nearest == null || distance(node.pos, fm.pos) < distance(node.pos, nearest.pos)) nearest = fm;
     const offset = nearest == null ? Infinity : distance(node.pos, nearest.pos);
     offsets.push(offset);
-    if (nearest != null && Number.isFinite(offset)) taxiZone.set(node.id, nearest.uiMapId);
+    if (nearest != null && Number.isFinite(offset)) {
+      taxiZone.set(node.id, nearest.uiMapId);
+      taxiPlaces.set(node.id, nearest);
+    }
   }
   const conversionOffsetYards = median(offsets);
   if (!(conversionOffsetYards <= MAX_CONVERSION_OFFSET_YARDS)) {
@@ -391,5 +397,6 @@ export function buildWorld(
 
   const repoError = repo.lastError();
   if (repoError != null) throw new Error(`world: QuestieDB read failed (${repoError})`);
-  return { faction, raceMask, quests, inns, dungeons, startZones, taxiZone, capitalTaxiNode, conversionOffsetYards, excluded };
+  const areaUiMap = new Map(Object.entries(s.areaIdToUiMapId).map(([areaId, uiMapId]) => [Number(areaId), uiMapId]));
+  return { faction, raceMask, quests, inns, dungeons, startZones, taxiZone, taxiPlaces, areaUiMap, capitalTaxiNode, conversionOffsetYards, excluded };
 }

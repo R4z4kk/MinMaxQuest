@@ -190,6 +190,8 @@ describe("buildWorld", () => {
     expect(w.raceMask).toBe(1 + 4 + 8 + 64 + 4294967296);
     expect(w.inns.map((i) => i.place.npcId)).toEqual([400]);
     expect(w.taxiZone).toEqual(new Map([[2, 1429]]));
+    expect([...w.taxiPlaces].map(([id, p]) => [id, p.npcId, p.uiMapId])).toEqual([[2, 300, 1429]]);
+    expect(w.areaUiMap.get(12)).toBe(1429);
     expect(w.capitalTaxiNode).toBe(2);
     expect(w.conversionOffsetYards).toBeCloseTo(3, 5);
     expect(w.startZones).toEqual([

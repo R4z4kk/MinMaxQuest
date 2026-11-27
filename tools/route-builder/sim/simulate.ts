@@ -5,7 +5,7 @@ import { TRAVEL, type TravelData } from "../../../addon/src/data/generated/trave
 import { graphKey, travelSpeed } from "../../../addon/src/game/routing";
 import { isAvailable, passesMaxLevelOption, type PlayerQuestState } from "../../../addon/src/quests/availability";
 import type { StepType } from "../../../addon/src/route/format";
-import { buildGraph, firstHop, solveFrom, travelTime, type TravelContext, type TravelGraph } from "../../../addon/src/travel/graph";
+import { buildGraph, firstHop, solveFrom, travelTime, type TravelContext, type TravelGraph, type TravelPlan } from "../../../addon/src/travel/graph";
 import { BUILDER, COLLECT_QUANTILE, type Scenario } from "../model/constants";
 import { killsForItems } from "../model/drops";
 import { mobXp } from "../model/mobXp";
@@ -36,12 +36,13 @@ export interface SimState {
 }
 export interface StepOutcome { seconds: number; xp: number; violation: string | null }
 export interface SimResult { state: SimState; outcomes: StepOutcome[]; violations: string[] }
+export interface TravelView { graph: TravelGraph; plan: TravelPlan; ctx: TravelContext }
 
 type NumericField = "questId" | "objectiveIndex" | "taxiNodeId" | "dungeonAreaId" | "grindToLevel" | "grindMobLevel";
 
-const MAX_LEVEL = XP_PER_LEVEL.values.length + 1;
+export const MAX_LEVEL = XP_PER_LEVEL.values.length + 1;
 // Classic quest log cap, https://warcraft.wiki.gg/wiki/Quest_log
-const QUEST_LOG_SIZE = 20;
+export const QUEST_LOG_SIZE = 20;
 // Unverified modelling assumption: a grind walks one loop of 10 spawns 20 yd apart per level gained.
 const GRIND_LOOP_YARDS = 10 * 20;
 const zero = (): StepOutcome => ({ seconds: 0, xp: 0, violation: null });
@@ -82,7 +83,7 @@ function field(step: RouteStep, name: NumericField): number {
   return value;
 }
 
-function posLabel(p: WorldPos): string {
+export function posLabel(p: WorldPos): string {
   return `${p.continent}:${p.x.toFixed(0)},${p.y.toFixed(0)}`;
 }
 
@@ -101,8 +102,7 @@ function gainXp(s: SimState, amount: number): number {
   return amount;
 }
 
-function travelTo(s: SimState, target: Place, world: World, travel: TravelData): void {
-  if (distance(s.pos, target.pos) === 0) return;
+export function travelView(s: SimState, world: World, travel: TravelData = TRAVEL, from: WorldPos = s.pos): TravelView {
   const ctx: TravelContext = {
     speed: travelSpeed(s.level),
     knownTaxiNodes: new Set(s.knownTaxi),
@@ -120,7 +120,12 @@ function travelTo(s: SimState, target: Place, world: World, travel: TravelData):
     graph = buildGraph(travel, ctx);
     byKey.set(key, graph);
   }
-  const plan = solveFrom(graph, s.pos, ctx);
+  return { graph, plan: solveFrom(graph, from, ctx), ctx };
+}
+
+function travelTo(s: SimState, target: Place, world: World, travel: TravelData): void {
+  if (distance(s.pos, target.pos) === 0) return;
+  const { graph, plan, ctx } = travelView(s, world, travel);
   const seconds = travelTime(plan, graph, target.pos, ctx);
   if (!Number.isFinite(seconds)) throw new Error(`place ${posLabel(target.pos)} unreachable from ${posLabel(s.pos)}`);
   if (firstHop(plan, graph, target.pos, ctx)?.kind === "hearth") s.hearth.readyAt = s.seconds + CONSTANTS.hearthCooldownSec.value;
@@ -136,7 +141,7 @@ function loopSeconds(task: Task, level: number): number {
   return walkSeconds(yards, level);
 }
 
-function doTask(s: SimState, task: Task, scenario: Scenario): number {
+export function doTask(s: SimState, task: Task, scenario: Scenario): number {
   const loop = loopSeconds(task, s.level);
   s.seconds += loop;
   if (task.kind === "use") {
@@ -168,12 +173,16 @@ function grind(s: SimState, toLevel: number, mobLevel: number, scenario: Scenari
   return xp;
 }
 
-function questView(s: SimState, opts: SimOptions): PlayerQuestState {
+export function questView(s: SimState, opts: SimOptions): PlayerQuestState {
   return { level: s.level, raceMask: opts.raceMask, classMask: 0, completed: s.completed, inLog: s.inLog };
 }
 
-function objectivesDone(s: SimState, q: RouteQuest): boolean {
-  return q.info.objectives.every((o) => s.done.has(`${q.id}:${o.index}`));
+export function objectiveKey(questId: number, objectiveIndex: number): string {
+  return `${questId}:${objectiveIndex}`;
+}
+
+export function objectivesDone(s: SimState, q: RouteQuest): boolean {
+  return q.info.objectives.every((o) => s.done.has(objectiveKey(q.id, o.index)));
 }
 
 function rejection(s: SimState, type: StepType, q: RouteQuest, opts: SimOptions): string | null {
@@ -211,7 +220,7 @@ function questStep(s: SimState, step: RouteStep, world: World, scenario: Scenari
   let xp = 0;
   if (task != null) {
     xp = doTask(s, task, scenario);
-    s.done.add(`${id}:${task.objectiveIndex}`);
+    s.done.add(objectiveKey(id, task.objectiveIndex));
   } else if (step.type === "accept") {
     s.seconds += BUILDER.npcInteractSec.value;
     s.inLog.add(id);
@@ -255,7 +264,7 @@ export function applyStep(
       const q = world.quests.get(id);
       if (q == null) throw new Error(`questId ${id} in log is not in the world`);
       if (q.dungeonAreaId !== areaId) continue;
-      for (const o of q.info.objectives) s.done.add(`${id}:${o.index}`);
+      for (const o of q.info.objectives) s.done.add(objectiveKey(id, o.index));
     }
   } else if (step.type === "getFlightPath") {
     const node = field(step, "taxiNodeId");
