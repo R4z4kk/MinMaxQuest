@@ -89,6 +89,7 @@ function getArrow(): ArrowApi {
     arrow = {
       ...created,
       setLocked: (locked) => {
+        if (!locked) setAllHidden(false);
         created.setLocked(locked);
         const button = itemButton;
         if (button != null) guard("itemButton", () => button.setLocked(locked));
@@ -162,13 +163,25 @@ function clearArrow(): void {
   guard("arrow", () => getArrow().setTarget(null));
 }
 
-const ui = createUi({ db: () => getDb(), account: () => getAccountDb(), game: () => start(), arrow: () => getArrow() });
+function setAllHidden(hidden: boolean): void {
+  getDb().hidden = hidden;
+  ui.setShown(!hidden);
+  guard("arrow", () => getArrow().setHidden(hidden));
+  const button = itemButton;
+  if (button != null) guard("itemButton", () => button.setHidden(hidden));
+}
+
+function toggleAll(): void {
+  setAllHidden(!getDb().hidden && ui.isShown());
+}
+
+const ui = createUi({ db: () => getDb(), account: () => getAccountDb(), game: () => start(), arrow: () => getArrow(), hideAll: () => setAllHidden(true) });
 
 const commands = createCommands({
   repository: () => getRepository(),
   arrow: () => getArrow(),
   game: () => start(),
-  toggleWindow: () => ui.toggle(),
+  toggleWindow: () => toggleAll(),
 });
 
 function tick(current: Game): void {

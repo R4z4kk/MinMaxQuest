@@ -15,7 +15,8 @@ export interface TabView {
 export interface WindowApi {
   frame: WowFrame;
   setTab(tab: TabId): void;
-  toggle(): boolean;
+  isShown(): boolean;
+  setShown(shown: boolean): void;
 }
 
 const TAB_ORDER: TabId[] = ["quest", "access", "completion"];
@@ -24,6 +25,7 @@ const HEADER_HEIGHT = 26;
 const TAB_HEIGHT = 24;
 export const CONTENT_TOP = HEADER_HEIGHT + TAB_HEIGHT;
 const GEAR_TEXTURE = "Interface\\Buttons\\UI-OptionsButton";
+const EYE_TEXTURE = "Interface\\Icons\\INV_Misc_Eye_01";
 
 interface TabButton {
   id: TabId;
@@ -32,7 +34,7 @@ interface TabButton {
   underline: WowTexture;
 }
 
-export function createWindow(db: CharDb, tabs: Record<TabId, TabView>): WindowApi {
+export function createWindow(db: CharDb, tabs: Record<TabId, TabView>, hideAll: () => void): WindowApi {
   const frame = CreateFrame("Frame", "MinMaxQuestWindow", UIParent);
   frame.SetFrameStrata("MEDIUM");
   frame.SetClampedToScreen(true);
@@ -66,6 +68,23 @@ export function createWindow(db: CharDb, tabs: Record<TabId, TabView>): WindowAp
   gearIcon.SetSize(14, 14);
   gearIcon.SetPoint("CENTER", gear, "CENTER", 0, 0);
   onClick(gear, () => print(`MinMaxQuest: ${t("help")}`));
+
+  const eye = CreateFrame("Button", "MinMaxQuestEye", frame);
+  eye.SetSize(14, 14);
+  eye.SetPoint("TOPRIGHT", gear, "TOPLEFT", -6, 0);
+  const eyeIcon = eye.CreateTexture(null, "ARTWORK");
+  eyeIcon.SetTexture(EYE_TEXTURE);
+  eyeIcon.SetSize(14, 14);
+  eyeIcon.SetPoint("CENTER", eye, "CENTER", 0, 0);
+  onClick(eye, hideAll);
+  eye.SetScript("OnEnter", () => {
+    guard(UI_FEATURE, () => {
+      GameTooltip.SetOwner(eye, "ANCHOR_BOTTOM");
+      GameTooltip.SetText(t("hideAll"));
+      GameTooltip.Show();
+    });
+  });
+  eye.SetScript("OnLeave", () => GameTooltip.Hide());
   hline(frame, -HEADER_HEIGHT);
   hline(frame, -CONTENT_TOP);
 
@@ -123,14 +142,14 @@ export function createWindow(db: CharDb, tabs: Record<TabId, TabView>): WindowAp
   api = {
     frame,
     setTab: (tab) => setTab(tab),
-    toggle() {
-      if (frame.IsShown()) {
+    isShown: () => frame.IsShown(),
+    setShown(shown) {
+      if (!shown) {
         frame.Hide();
-        return false;
+        return;
       }
       frame.Show();
       setTab(db.tab);
-      return true;
     },
   };
   return api;

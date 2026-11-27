@@ -36,14 +36,15 @@ local function fake(name)
       if method == "SetScript" then
         return function(self, event, fn) scripts[name .. "." .. event] = fn end
       end
-      if method == "CreateTexture" then return function() created = created + 1; return fake("texture") end end
-      if method == "CreateFontString" then return function() created = created + 1; return fake("font") end end
+      if method == "CreateTexture" then return function() created = created + 1; local child = fake("texture"); child.__rec.parent = name; return child end end
+      if method == "CreateFontString" then return function() created = created + 1; local child = fake("font"); child.__rec.parent = name; return child end end
       if method == "IsShown" or method == "IsVisible" then return function() return shown end end
       if VALUES[method] ~= nil then return function() return VALUES[method] end end
       return function(self, ...)
         if method == "Show" then shown = true elseif method == "Hide" then shown = false end
         if method == "Show" or method == "Hide" then rec.shown = shown end
         if method == "SetText" then rec.text = (...) or ""
+        elseif method == "SetColorTexture" then rec.colored = true
         elseif method == "SetWidth" then rec.width = (...)
         elseif method == "ClearAllPoints" then rec.points = {}
         elseif method == "SetPoint" then local point, rel, relPoint, x = ...; rec.points[#rec.points + 1] = { point, rel, relPoint, x } end
@@ -53,6 +54,14 @@ local function fake(name)
       end
     end,
   })
+end
+-- Number of shown outline edges and grip glyphs under the named frame.
+function shownOutline(parent)
+  local n = 0
+  for _, r in ipairs(layout) do
+    if r.parent == parent and (r.colored or r.text == "::") and r.shown then n = n + 1 end
+  end
+  return n
 end
 templates = {}
 CreateFrame = function(kind, name, parent, template)

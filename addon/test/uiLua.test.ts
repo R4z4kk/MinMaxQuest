@@ -894,3 +894,136 @@ it("clears the item icon when the item goes away and sets no attribute when the 
     s.close();
   }
 });
+
+const ARROW = "MinMaxQuestArrow";
+const HOLDER = "MinMaxQuestItemHolder";
+const WINDOW = "MinMaxQuestWindow";
+
+it("hides and shows the window, the arrow and the item button together with /mmq", async () => {
+  const s = await ui(ITEM_FAKES);
+  try {
+    expect(await s.visibilityOf(ARROW)).toBe(`${ARROW}|Show`);
+    await s.cmd("");
+    expect(await s.visibility()).toBe(`${WINDOW}|Show`);
+    expect(await s.visibilityOf(ARROW)).toBe(`${ARROW}|Show`);
+    expect(await s.visibilityOf(HOLDER)).toBe(`${HOLDER}|Show`);
+    await s.cmd("");
+    expect(await s.visibility()).toBe(`${WINDOW}|Hide`);
+    expect(await s.visibilityOf(ARROW)).toBe(`${ARROW}|Hide`);
+    expect(await s.visibilityOf(HOLDER)).toBe(`${HOLDER}|Hide`);
+    expect(await s.run("return MinMaxQuestCharDB.hidden")).toBe(true);
+    await s.tick();
+    expect(await s.visibilityOf(ARROW)).toBe(`${ARROW}|Hide`);
+    await s.cmd("");
+    expect(await s.visibility()).toBe(`${WINDOW}|Show`);
+    expect(await s.visibilityOf(ARROW)).toBe(`${ARROW}|Show`);
+    expect(await s.visibilityOf(HOLDER)).toBe(`${HOLDER}|Show`);
+    expect(await s.run("return MinMaxQuestCharDB.hidden")).toBe(false);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("hides everything with the eye button, keeps it hidden after a reload and /mmq brings it back", async () => {
+  const s = await ui(ITEM_FAKES);
+  try {
+    await s.cmd("");
+    expect(await s.calls()).toContain("MinMaxQuestEye|SetSize|14|14");
+    await s.click("MinMaxQuestEye");
+    expect(await s.visibility()).toBe(`${WINDOW}|Hide`);
+    expect(await s.visibilityOf(ARROW)).toBe(`${ARROW}|Hide`);
+    expect(await s.visibilityOf(HOLDER)).toBe(`${HOLDER}|Hide`);
+    expect(await s.run("return MinMaxQuestCharDB.hidden")).toBe(true);
+  } finally {
+    s.close();
+  }
+  const reloaded = await ui(`${ITEM_FAKES}
+MinMaxQuestCharDB = { hidden = true }`);
+  try {
+    const calls = await reloaded.calls();
+    expect(calls).not.toContain(`${ARROW}|Show`);
+    expect(calls).not.toContain(`${HOLDER}|Show`);
+    expect(calls).not.toContain(`${WINDOW}|Show`);
+    await reloaded.cmd("");
+    expect(await reloaded.visibility()).toBe(`${WINDOW}|Show`);
+    expect(await reloaded.visibilityOf(ARROW)).toBe(`${ARROW}|Show`);
+    expect(await reloaded.visibilityOf(HOLDER)).toBe(`${HOLDER}|Show`);
+    expect(await reloaded.run("return MinMaxQuestCharDB.hidden")).toBe(false);
+    expect(await reloaded.printed()).toBe("");
+  } finally {
+    reloaded.close();
+  }
+});
+
+it("defers the item holder visibility to PLAYER_REGEN_ENABLED when hidden in combat", async () => {
+  const s = await ui(ITEM_FAKES);
+  try {
+    await s.cmd("");
+    await s.clearCalls();
+    await s.run("inCombat = true");
+    await s.cmd("");
+    expect(await s.visibility()).toBe(`${WINDOW}|Hide`);
+    expect(await s.visibilityOf(ARROW)).toBe(`${ARROW}|Hide`);
+    expect((await s.calls()).filter((c) => SECURE_CALL.test(c))).toEqual([]);
+    await s.run("inCombat = false");
+    await s.event(`"PLAYER_REGEN_ENABLED"`);
+    expect(await s.visibilityOf(HOLDER)).toBe(`${HOLDER}|Hide`);
+    await s.run("inCombat = true");
+    await s.clearCalls();
+    await s.cmd("");
+    expect((await s.calls()).filter((c) => SECURE_CALL.test(c))).toEqual([]);
+    await s.run("inCombat = false");
+    await s.event(`"PLAYER_REGEN_ENABLED"`);
+    expect(await s.visibilityOf(HOLDER)).toBe(`${HOLDER}|Show`);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("shows the arrow outline and grip only on hover or drag while unlocked", async () => {
+  const s = await ui();
+  const outline = () => s.run(`return shownOutline("${ARROW}")`);
+  const fire = (event: string) => s.run(`scripts["${ARROW}.${event}"](nil)`);
+  try {
+    expect(await outline()).toBe(0);
+    await fire("OnEnter");
+    expect(await outline()).toBe(5);
+    await fire("OnLeave");
+    expect(await outline()).toBe(0);
+    await fire("OnEnter");
+    await fire("OnDragStart");
+    await fire("OnLeave");
+    expect(await outline()).toBe(5);
+    await fire("OnDragStop");
+    expect(await outline()).toBe(0);
+    await fire("OnEnter");
+    await s.cmd("arrow lock");
+    expect(await outline()).toBe(0);
+    expect(await s.run(`return scripts["${ARROW}.OnEnter"] == nil`)).toBe(true);
+    await s.cmd("arrow move");
+    expect(await outline()).toBe(0);
+    await fire("OnEnter");
+    expect(await outline()).toBe(5);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("forces the arrow and the window visible while placing the arrow", async () => {
+  const s = await ui(ITEM_FAKES);
+  try {
+    await s.cmd("");
+    await s.cmd("");
+    expect(await s.run("return MinMaxQuestCharDB.hidden")).toBe(true);
+    await s.cmd("arrow move");
+    expect(await s.run("return MinMaxQuestCharDB.hidden")).toBe(false);
+    expect(await s.visibility()).toBe(`${WINDOW}|Show`);
+    expect(await s.visibilityOf(ARROW)).toBe(`${ARROW}|Show`);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});

@@ -26,6 +26,7 @@
 - A single window with three tabs: **Quest**, **Access** and **Completion**.
 - Each tab resizes the window to fit its content.
 - The window and the last opened tab are remembered across sessions.
+- **Eye button** left of the gear: hides the window, the arrow and the quest item button together. `/mmq` brings them back. The hidden state is saved per character.
 - Black background with a muted gold accent and simple fonts.
 - Available in English and French. The **Language** row in the Quest tab Options (Auto, English, Français) is saved account-wide; Auto follows the game client. A **Reload** button appears when a change needs a UI reload. Quest, NPC and zone names always follow the game client language.
 
@@ -34,7 +35,7 @@
 - **Kill and collect objectives:** it walks a loop through the spawn points around the chosen area (up to 25 within 250 yards), nearest first, and moves on to the next waypoint within 25 yards. The loop repeats until the objective is done, in the Quest and Completion tabs. The map and minimap pins follow the current waypoint. It doesn't send you to a single spot.
 - **Many spawn locations:** it targets the closest group and shows "+N other spots" for the rest.
 - **Objectives:** it follows them in quest log order, honouring QuestieDB ordering hints.
-- **Moving it:** drag it with the left mouse button while it is unlocked (the default on a new character). The position is saved. Tick **Lock arrow** in the Options (or `/mmq arrow lock`) to freeze it; a locked arrow lets clicks through. `/mmq arrow move` unlocks it. An unlocked arrow with no target stays hidden until you untick **Lock arrow** or use `/mmq arrow move`.
+- **Moving it:** drag it with the left mouse button while it is unlocked (the default on a new character). The position is saved. Tick **Lock arrow** in the Options (or `/mmq arrow lock`) to freeze it; a locked arrow lets clicks through. `/mmq arrow move` unlocks it. The dotted frame and the grip only show while the mouse is over an unlocked arrow, or while you drag it. An unlocked arrow with no target stays hidden until you untick **Lock arrow** or use `/mmq arrow move`, which also shows everything again.
 - **Quest item button:** when the arrow's quest has a usable item in your bags (the item the quest giver hands you, then the items the quest requires), a square button with its icon, count, cooldown and tooltip appears to the right of the arrow. Click it to use the item. Works in the Quest and Completion tabs. It is movable on its own: drag it by its thin gold border while the arrow is unlocked, out of combat; its position is saved per character. **Lock arrow** locks it too. A change asked for in combat (new item, lock) is applied when combat ends.
 - **Corpse run:** while dead at your body the arrow hides, silently. Once you release as a ghost it points to your corpse, overriding every other target. If the corpse position is unknown it hides and says so once.
 - **When it hides:** in instances, during flights, and when there is no target.
@@ -117,7 +118,7 @@
 
 | Command | Action |
 |---|---|
-| `/mmq` | Open / close the window |
+| `/mmq` | Show / hide the window, the arrow and the quest item button together |
 | `/mmq help` | List all commands |
 | `/mmq targets` | Print the current targets |
 | `/mmq q <id>` | Show a quest's info |
