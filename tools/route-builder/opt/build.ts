@@ -11,6 +11,7 @@ import {
   applyStep,
   cloneState,
   doTask,
+  loopSpacing,
   MAX_LEVEL,
   objectiveKey,
   objectivesDone,
@@ -79,7 +80,7 @@ function compareText(a: string, b: string): number {
 }
 
 function stepId(s: RouteStep): string {
-  const fields = [s.questId, s.objectiveIndex, s.taxiNodeId, s.dungeonAreaId, s.grindToLevel, s.grindMobLevel];
+  const fields = [s.questId, s.objectiveIndex, s.taxiNodeId, s.dungeonAreaId, s.grindToLevel, s.grindMobLevel, s.grindSpacingYards];
   return `${s.type}:${fields.map((f) => f ?? "").join(":")}@${posLabel(s.place.pos)}`;
 }
 
@@ -342,7 +343,14 @@ function grindChild(c: Context, node: Node): Node | null {
   if (task == null) return null;
   const d = draft(node);
   const mobLevel = near.length > 0 ? task.mobLevel : level;
-  emit(c, d, { type: "grind", place: task.cluster.center, grindToLevel: level + 1, grindMobLevel: mobLevel });
+  const step: RouteStep = {
+    type: "grind",
+    place: task.cluster.center,
+    grindToLevel: level + 1,
+    grindMobLevel: mobLevel,
+    grindSpacingYards: loopSpacing(task.cluster.loop),
+  };
+  emit(c, d, step);
   return finish(c, d);
 }
 
@@ -381,10 +389,14 @@ function children(c: Context, node: Node): Node[] {
       .filter((b) => b.dungeon == null && zoneOpen(c, s, b))
       .map((b) => ({ b, seconds: travelTime(v.plan, v.graph, b.centroid, v.ctx) }))
       .filter((x) => Number.isFinite(x.seconds))
-      .sort((x, y) => x.seconds - y.seconds || compareText(x.b.key, y.b.key))
-      .slice(0, c.req.branching);
+      .sort((x, y) => x.seconds - y.seconds || compareText(x.b.key, y.b.key));
+    let filled = 0;
     for (const { b } of zones) {
-      made.push(tryChild(b, node, () => fillZone(c, node, b, null)));
+      if (filled === c.req.branching) break;
+      const plain = tryChild(b, node, () => fillZone(c, node, b, null));
+      if (plain == null) continue;
+      filled += 1;
+      made.push(plain);
       const inn = b.inn;
       if (inn != null && (s.hearth.pos == null || distance(inn.pos, s.hearth.pos) !== 0)) {
         made.push(tryChild(b, node, () => fillZone(c, node, b, inn)));

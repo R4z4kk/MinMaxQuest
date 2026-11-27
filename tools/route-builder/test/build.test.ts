@@ -155,6 +155,14 @@ describe("buildRoute", () => {
     expect(second.end.seconds).toBe(first.end.seconds);
   });
 
+  it("skips nearer blocks whose quests are not worth it", () => {
+    const dead = [1, 3].map((uiMapId, i) => quest(700 + i, place(i * 10, 0, uiMapId), { baseXp: 1 }, [kill(place(i * 10, 1000, uiMapId))]));
+    const good = [0, 1].map((i) => quest(710 + i, place(1500 + i * 20, 0, 2), { baseXp: 800 }, [kill(place(1500 + i * 20, 30, 2))]));
+    const route = build({ ...request(worldOf([...dead, ...good]), start(), 4), branching: 2 });
+    for (const q of good) expect(route.end.completed.has(q.id)).toBe(true);
+    for (const q of dead) expect(route.end.completed.has(q.id)).toBe(false);
+  });
+
   it("learns the zone flight path and marks the flight", () => {
     const flights = travel({
       taxiNodes: [

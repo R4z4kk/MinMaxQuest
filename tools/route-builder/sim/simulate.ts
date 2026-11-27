@@ -20,6 +20,7 @@ export interface RouteStep {
   dungeonAreaId?: number;
   grindToLevel?: number;
   grindMobLevel?: number;
+  grindSpacingYards?: number;
 }
 export interface SimOptions { maxLevelGap: number | null; tolerant: boolean; raceMask: number }
 export interface SimState {
@@ -38,13 +39,18 @@ export interface StepOutcome { seconds: number; xp: number; violation: string | 
 export interface SimResult { state: SimState; outcomes: StepOutcome[]; violations: string[] }
 export interface TravelView { graph: TravelGraph; plan: TravelPlan; ctx: TravelContext }
 
-type NumericField = "questId" | "objectiveIndex" | "taxiNodeId" | "dungeonAreaId" | "grindToLevel" | "grindMobLevel";
+type NumericField =
+  | "questId"
+  | "objectiveIndex"
+  | "taxiNodeId"
+  | "dungeonAreaId"
+  | "grindToLevel"
+  | "grindMobLevel"
+  | "grindSpacingYards";
 
 export const MAX_LEVEL = XP_PER_LEVEL.values.length + 1;
 // Classic quest log cap, https://warcraft.wiki.gg/wiki/Quest_log
 export const QUEST_LOG_SIZE = 20;
-// Unverified modelling assumption: a grind walks one loop of 10 spawns 20 yd apart per level gained.
-const GRIND_LOOP_YARDS = 10 * 20;
 const zero = (): StepOutcome => ({ seconds: 0, xp: 0, violation: null });
 
 const graphs = new WeakMap<TravelData, Map<string, TravelGraph>>();
@@ -133,42 +139,39 @@ function travelTo(s: SimState, target: Place, world: World, travel: TravelData):
   s.pos = target.pos;
 }
 
-function loopSeconds(task: Task, level: number): number {
-  const loop = task.cluster.loop;
+// Walking per kill or use is the mean spacing of the cluster loop.
+export function loopSpacing(loop: Place[]): number {
+  if (loop.length < 2) return 0;
   let yards = 0;
   for (let i = 1; i < loop.length; i++) yards += distance(loop[i - 1].pos, loop[i].pos);
-  if (!Number.isFinite(yards)) throw new Error(`objective ${task.objectiveIndex} loop spans continents`);
-  return walkSeconds(yards, level);
+  if (!Number.isFinite(yards)) throw new Error(`loop at ${posLabel(loop[0].pos)} spans continents`);
+  return yards / (loop.length - 1);
 }
 
 export function doTask(s: SimState, task: Task, scenario: Scenario): number {
-  const loop = loopSeconds(task, s.level);
-  s.seconds += loop;
+  const spacing = loopSpacing(task.cluster.loop);
   if (task.kind === "use") {
-    s.seconds += task.count * BUILDER.objectUseSec.value;
+    for (let i = 0; i < task.count; i++) s.seconds += BUILDER.objectUseSec.value + walkSeconds(spacing, s.level);
     return 0;
   }
   const kills = task.kind === "kill" ? task.count : killsForItems(task.count, task.dropChance, COLLECT_QUANTILE);
   const perKill = scenario.killSec.value * (task.elite ? scenario.eliteFactor.value : 1) + BUILDER.lootSec.value;
   let xp = 0;
   for (let i = 0; i < kills; i++) {
-    s.seconds += perKill;
+    s.seconds += perKill + walkSeconds(spacing, s.level);
     xp += gainXp(s, mobXp(s.level, task.mobLevel, task.elite));
   }
   return xp;
 }
 
-function grind(s: SimState, toLevel: number, mobLevel: number, scenario: Scenario): number {
-  if (!Number.isInteger(toLevel) || toLevel > MAX_LEVEL) throw new Error(`grindToLevel must be an integer up to ${MAX_LEVEL}, got ${toLevel}`);
+function grind(s: SimState, toLevel: number, mobLevel: number, spacing: number, scenario: Scenario): number {
   const perKill = scenario.killSec.value + BUILDER.lootSec.value;
   let xp = 0;
   while (s.level < toLevel) {
-    const level = s.level;
-    const gain = mobXp(level, mobLevel, false);
-    if (gain <= 0) throw new Error(`grind: mob level ${mobLevel} gives no XP at level ${level}`);
-    s.seconds += perKill;
+    const gain = mobXp(s.level, mobLevel, false);
+    if (gain <= 0) throw new Error(`grind: mob level ${mobLevel} gives no XP at level ${s.level}`);
+    s.seconds += perKill + walkSeconds(spacing, s.level);
     xp += gainXp(s, gain);
-    s.seconds += (s.level - level) * walkSeconds(GRIND_LOOP_YARDS, level);
   }
   return xp;
 }
@@ -253,8 +256,11 @@ export function applyStep(
   if (step.type === "grind") {
     const toLevel = field(step, "grindToLevel");
     const mobLevel = field(step, "grindMobLevel");
+    const spacing = field(step, "grindSpacingYards");
+    if (!Number.isInteger(toLevel) || toLevel > MAX_LEVEL) throw new Error(`grindToLevel must be an integer up to ${MAX_LEVEL}, got ${toLevel}`);
+    if (!(Number.isFinite(spacing) && spacing >= 0)) throw new Error(`grindSpacingYards must be a finite number >= 0, got ${spacing}`);
     travelTo(s, step.place, world, travel);
-    xp = grind(s, toLevel, mobLevel, scenario);
+    xp = grind(s, toLevel, mobLevel, spacing, scenario);
   } else if (step.type === "dungeon") {
     const areaId = field(step, "dungeonAreaId");
     if (!world.dungeons.some((d) => d.areaId === areaId)) throw new Error(`unknown dungeonAreaId ${areaId}`);

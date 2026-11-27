@@ -21,10 +21,10 @@ function walk(a: Place, b: Place, speed = RUN): number {
   return (distance(a.pos, b.pos) * CONSTANTS.detourFactor.value) / speed;
 }
 
-function loopWalk(loop: Place[], speed = RUN): number {
+function spacingWalk(loop: Place[], times: number, speed = RUN): number {
   let total = 0;
   for (let i = 1; i < loop.length; i++) total += walk(loop[i - 1], loop[i], speed);
-  return total;
+  return (times * total) / (loop.length - 1);
 }
 
 function worldOf(quests: RouteQuest[]) {
@@ -57,7 +57,7 @@ describe("simulate", () => {
 
     const perKill = scenario.killSec.value + BUILDER.lootSec.value;
     const expectedSeconds =
-      walk(place(0), q.accept) + NPC + walk(q.accept, loop[0]) + 3 * perKill + loopWalk(loop) + walk(loop[0], q.turnin) + NPC;
+      walk(place(0), q.accept) + NPC + walk(q.accept, loop[0]) + 3 * perKill + spacingWalk(loop, 3) + walk(loop[0], q.turnin) + NPC;
     const expectedXp = 3 * mobXp(1, 5, false) + questXp(100, 3, 1, 60);
     expect(expectedXp).toBeLessThan(XP_PER_LEVEL.values[0]);
     expect(result.violations).toEqual([]);
@@ -97,11 +97,11 @@ describe("simulate", () => {
     const killSec = scenario.killSec.value;
     const loot = BUILDER.lootSec.value;
     const [kill, collect, use, dungeon] = result.outcomes.slice(2, 6);
-    expect(kill.seconds).toBeCloseTo(walk(place(0), loop[0]) + 2 * (killSec * scenario.eliteFactor.value + loot) + loopWalk(loop), 9);
+    expect(kill.seconds).toBeCloseTo(walk(place(0), loop[0]) + 2 * (killSec * scenario.eliteFactor.value + loot) + spacingWalk(loop, 2), 9);
     expect(kill.xp).toBe(2 * mobXp(1, 1, true));
     const kills = killsForItems(3, 0.4, COLLECT_QUANTILE);
-    expect(collect.seconds).toBeCloseTo(kills * (killSec + loot) + loopWalk(loop), 9);
-    expect(use.seconds).toBeCloseTo(4 * BUILDER.objectUseSec.value + loopWalk(loop), 9);
+    expect(collect.seconds).toBeCloseTo(kills * (killSec + loot) + spacingWalk(loop, kills), 9);
+    expect(use.seconds).toBeCloseTo(4 * BUILDER.objectUseSec.value + spacingWalk(loop, 4), 9);
     expect(use.xp).toBe(0);
     expect(dungeon.seconds).toBeCloseTo(walk(loop[0], place(0)) + scenario.dungeonSec.value, 9);
     expect(dungeon.xp).toBe(0);
@@ -187,27 +187,47 @@ describe("simulate", () => {
     expect(result.state.knownTaxi).toEqual(new Set([7]));
   });
 
-  it("grinds to the target level with per-level XP", () => {
-    const result = simulate([{ type: "grind", place: place(0), grindToLevel: 3, grindMobLevel: 2 }], start(), worldOf([]), scenario, STRICT, data);
-    let level = 1;
-    let xp = 0;
+  function grindSeconds(from: number, xpStart: number, to: number, mobLevel: number, spacing: number) {
+    let level = from;
+    let xp = xpStart;
     let gained = 0;
-    let kills = 0;
-    while (level < 3) {
-      const k = mobXp(level, 2, false);
+    let seconds = 0;
+    while (level < to) {
+      const k = mobXp(level, mobLevel, false);
+      seconds += scenario.killSec.value + BUILDER.lootSec.value + (spacing * CONSTANTS.detourFactor.value) / travelSpeed(level);
       xp += k;
       gained += k;
-      kills += 1;
-      while (level < 3 && xp >= XP_PER_LEVEL.values[level - 1]) {
+      while (level < to && xp >= XP_PER_LEVEL.values[level - 1]) {
         xp -= XP_PER_LEVEL.values[level - 1];
         level += 1;
       }
     }
-    const loop = (10 * 20 * CONSTANTS.detourFactor.value) / RUN;
+    return { xp, gained, seconds };
+  }
+
+  it("grinds to the target level with per-level XP and walks the spacing per kill", () => {
+    const step: RouteStep = { type: "grind", place: place(0), grindToLevel: 3, grindMobLevel: 2, grindSpacingYards: 15 };
+    const result = simulate([step], start(), worldOf([]), scenario, STRICT, data);
+    const expected = grindSeconds(1, 0, 3, 2, 15);
     expect(result.state.level).toBe(3);
-    expect(result.state.xp).toBe(xp);
-    expect(result.outcomes[0].xp).toBe(gained);
-    expect(result.outcomes[0].seconds).toBeCloseTo(kills * (scenario.killSec.value + BUILDER.lootSec.value) + 2 * loop, 9);
+    expect(result.state.xp).toBe(expected.xp);
+    expect(result.outcomes[0].xp).toBe(expected.gained);
+    expect(result.outcomes[0].seconds).toBeCloseTo(expected.seconds, 9);
+  });
+
+  it("recomputes grind walking speed when the mount level is reached", () => {
+    const s = start(39);
+    s.xp = XP_PER_LEVEL.values[38] - 100;
+    const step: RouteStep = { type: "grind", place: place(0), grindToLevel: 41, grindMobLevel: 39, grindSpacingYards: 40 };
+    const result = simulate([step], s, worldOf([]), scenario, STRICT, data);
+    expect(travelSpeed(40)).not.toBe(travelSpeed(39));
+    expect(result.outcomes[0].seconds).toBeCloseTo(grindSeconds(39, s.xp, 41, 39, 40).seconds, 9);
+  });
+
+  it("rejects a grind step without spacing", () => {
+    expect(() => simulate([{ type: "grind", place: place(0), grindToLevel: 3, grindMobLevel: 2 }], start(), worldOf([]), scenario, STRICT, data)).toThrow(
+      /step 0 \(grind\).*grindSpacingYards/,
+    );
   });
 
   it("stops XP at level 60", () => {
