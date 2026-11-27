@@ -37,6 +37,7 @@ export interface QuestRepository {
   objectSpawns(objectId: number): AreaPoint[];
   itemSources(itemId: number): { npcs: number[]; objects: number[] };
   uiMapIdForArea(areaId: number): number | null;
+  lastError(): string | null;
 }
 
 export type RepoResult = { ok: true; repo: QuestRepository } | { ok: false; message: string };
@@ -44,6 +45,7 @@ export type RepoResult = { ok: true; repo: QuestRepository } | { ok: false; mess
 const CONTRACT = 4;
 const MIN_ELITE_RANK = 1;
 const MAX_ELITE_RANK = 3;
+const NO_RANK = -1;
 
 function num(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -107,22 +109,42 @@ function readObjectives(
   return { refs, elite };
 }
 
-function safe<T>(fallback: T, read: () => T): T {
-  try {
-    return read();
-  } catch {
-    return fallback;
-  }
-}
-
 function buildRepository(lib: LibQuestieDBApi): QuestRepository {
-  const xpDb = lib.Support.Get("QuestXP").db;
-  const areaToUiMap = lib.Support.Get("ZoneDB").private.areaIdToUiMapId;
+  let firstError: string | null = null;
+  const failed: Record<string, true> = {};
+  const record = (method: string, error: unknown): void => {
+    if (failed[method] != null) return;
+    failed[method] = true;
+    if (firstError == null) firstError = `${method}: ${String(error)}`;
+  };
+  const safe = <T>(method: string, fallback: T, read: () => T): T => {
+    try {
+      return read();
+    } catch (error) {
+      record(method, error);
+      return fallback;
+    }
+  };
+
+  const xpDb = safe<QuestieDBIdMap<QuestieDBPair> | null>("QuestXP", null, () => lib.Support.Get("QuestXP").db ?? null);
+  const areaToUiMap = safe<QuestieDBIdMap<number> | null>(
+    "ZoneDB",
+    null,
+    () => lib.Support.Get("ZoneDB").private.areaIdToUiMapId ?? null,
+  );
+  const quests: Record<number, QuestInfo> = {};
+  const missing: Record<number, true> = {};
+  const ranks: Record<number, number> = {};
+  let ids: number[] | null = null;
   const field = (id: number, name: string): unknown => lib.Quest.Get(id, name);
 
   const isEliteNpc = (npcId: number): boolean => {
-    const rank = num(lib.Npc.Get(npcId, "rank"));
-    return rank != null && rank >= MIN_ELITE_RANK && rank <= MAX_ELITE_RANK;
+    let rank = ranks[npcId];
+    if (rank == null) {
+      rank = num(lib.Npc.Get(npcId, "rank")) ?? NO_RANK;
+      ranks[npcId] = rank;
+    }
+    return rank >= MIN_ELITE_RANK && rank <= MAX_ELITE_RANK;
   };
 
   const readQuest = (id: number): QuestInfo | null => {
@@ -155,7 +177,7 @@ function buildRepository(lib: LibQuestieDBApi): QuestRepository {
       finisherNpcs: numList(slot(finishedBy, 0)),
       finisherObjects: numList(slot(finishedBy, 1)),
       objectives: objectives.refs,
-      baseXp: num(slot(xpDb[id], 1)) ?? 0,
+      baseXp: xpDb == null ? 0 : (num(slot(xpDb[id], 1)) ?? 0),
       hasUnsupportedRequirement:
         field(id, "requiredSkill") != null ||
         field(id, "requiredMinRep") != null ||
@@ -167,16 +189,30 @@ function buildRepository(lib: LibQuestieDBApi): QuestRepository {
   };
 
   return {
-    get: (id) => safe<QuestInfo | null>(null, () => readQuest(id)),
-    allIds: () => safe<number[]>([], () => numList(lib.Quest.GetAllIds())),
-    npcSpawns: (npcId) => safe<AreaPoint[]>([], () => readSpawns(lib.Npc.Get(npcId, "spawns"))),
-    objectSpawns: (objectId) => safe<AreaPoint[]>([], () => readSpawns(lib.Object.Get(objectId, "spawns"))),
+    get: (id) => {
+      const cached = quests[id];
+      if (cached != null) return cached;
+      if (missing[id] != null) return null;
+      const quest = safe<QuestInfo | null>("get", null, () => readQuest(id));
+      if (quest == null) missing[id] = true;
+      else quests[id] = quest;
+      return quest;
+    },
+    allIds: () => {
+      if (ids == null) ids = safe<number[]>("allIds", [], () => numList(lib.Quest.GetAllIds()));
+      return ids;
+    },
+    npcSpawns: (npcId) => safe<AreaPoint[]>("npcSpawns", [], () => readSpawns(lib.Npc.Get(npcId, "spawns"))),
+    objectSpawns: (objectId) =>
+      safe<AreaPoint[]>("objectSpawns", [], () => readSpawns(lib.Object.Get(objectId, "spawns"))),
     itemSources: (itemId) =>
-      safe<{ npcs: number[]; objects: number[] }>({ npcs: [], objects: [] }, () => ({
+      safe<{ npcs: number[]; objects: number[] }>("itemSources", { npcs: [], objects: [] }, () => ({
         npcs: numList(lib.Item.Get(itemId, "npcDrops")),
         objects: numList(lib.Item.Get(itemId, "objectDrops")),
       })),
-    uiMapIdForArea: (areaId) => safe<number | null>(null, () => num(areaToUiMap[areaId])),
+    uiMapIdForArea: (areaId) =>
+      areaToUiMap == null ? null : safe<number | null>("uiMapIdForArea", null, () => num(areaToUiMap[areaId])),
+    lastError: () => firstError,
   };
 }
 
@@ -186,7 +222,7 @@ export function createQuestRepository(lib: LibQuestieDBApi | null): RepoResult {
     const [ok, message] = lib.RequireContract(CONTRACT);
     if (!ok) return { ok: false, message: message ?? `QuestieDB contract ${CONTRACT} is not supported` };
     return { ok: true, repo: buildRepository(lib) };
-  } catch {
-    return { ok: false, message: "QuestieDB could not be read" };
+  } catch (error) {
+    return { ok: false, message: `QuestieDB could not be read: ${String(error)}` };
   }
 }

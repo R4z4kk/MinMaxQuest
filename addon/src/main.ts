@@ -3,6 +3,7 @@ import { createQuestRepository, type RepoResult } from "./data/questRepository";
 _G.MinMaxQuest = { version: "0.1.0" };
 
 let repoResult: RepoResult | null = null;
+let errorPrinted = false;
 
 function getRepository(): RepoResult {
   if (repoResult == null) repoResult = createQuestRepository(_G.LibQuestieDB as LibQuestieDBApi | null);
@@ -13,6 +14,8 @@ _G.SLASH_MMQ1 = "/mmq";
 SlashCmdList["MMQ"] = (message: string) => {
   const result = getRepository();
   if (!result.ok) {
+    if (errorPrinted) return;
+    errorPrinted = true;
     print(`MinMaxQuest: ${result.message}`);
     return;
   }

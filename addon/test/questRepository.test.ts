@@ -92,4 +92,64 @@ describe("createQuestRepository", () => {
       { areaId: 13, x: 30, y: 40 },
     ]);
   });
+
+  function repoFor(lib: LibQuestieDBApi) {
+    const result = createQuestRepository(lib);
+    if (!result.ok) throw new Error(result.message);
+    return result.repo;
+  }
+
+  it("falls back to the base NPC when the kill-credit list is empty", () => {
+    const repo = repoFor(fakeLib({ 1: { name: "A", questLevel: 1, objectives: [null, null, null, null, [[[], 500, "x", 3]]] } }));
+    expect(repo.get(1)?.objectives).toEqual([{ kind: "npc", id: 500, required: 3, index: 1 }]);
+  });
+
+  it("derives isElite from creature rank 1 but not from ranks 0 and 4", () => {
+    const rows = (npc: number): Record<number, Row> => ({
+      1: { name: "A", questLevel: 1, objectives: [[[npc, "x", 1]]] },
+    });
+    expect(repoFor(fakeLib(rows(10), { 10: 1 })).get(1)?.isElite).toBe(true);
+    expect(repoFor(fakeLib(rows(10), { 10: 0 })).get(1)?.isElite).toBe(false);
+    expect(repoFor(fakeLib(rows(10), { 10: 4 })).get(1)?.isElite).toBe(false);
+  });
+
+  it("normalizes zero and negative sentinels to null", () => {
+    const repo = repoFor(
+      fakeLib({ 1: { name: "A", questLevel: 1, requiredMaxLevel: 0, nextQuestInChain: 0, zoneOrSort: -22 } }),
+    );
+    expect(repo.get(1)).toMatchObject({ requiredMaxLevel: null, nextInChain: null, zoneAreaId: null });
+  });
+
+  it("keeps quests readable when support data is missing", () => {
+    const lib = fakeLib({ 1: { name: "A", questLevel: 1 } });
+    lib.Support.Get = (() => null) as unknown as LibQuestieDBApi["Support"]["Get"];
+    const repo = repoFor(lib);
+    expect(repo.get(1)?.baseXp).toBe(0);
+    expect(repo.uiMapIdForArea(12)).toBeNull();
+    expect(repo.lastError()).toContain("QuestXP");
+  });
+
+  it("caches quests, including misses", () => {
+    let reads = 0;
+    const lib = fakeLib({ 1: { name: "A", questLevel: 1 } });
+    const get = lib.Quest.Get;
+    lib.Quest.Get = (id, field) => {
+      reads += 1;
+      return get(id, field);
+    };
+    const repo = repoFor(lib);
+    expect(repo.get(1)).toBe(repo.get(1));
+    expect(repo.get(9)).toBeNull();
+    const before = reads;
+    repo.get(1);
+    repo.get(9);
+    expect(reads).toBe(before);
+  });
+
+  it("records the first error per method", () => {
+    const repo = repoFor(fakeLib({ 2: { __throw: true } }));
+    expect(repo.lastError()).toBeNull();
+    repo.get(2);
+    expect(repo.lastError()).toContain("get");
+  });
 });
