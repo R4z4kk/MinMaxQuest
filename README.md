@@ -56,12 +56,12 @@
 - **Grey** and **Elite** filters. Quests you can't take yet are never shown.
 
 ### Access tab
-- Lists every unlockable for your faction: 70 entries in four collapsible groups (**Dungeons**, **Raids**, **Keys**, **Misc**), each header showing done / total.
+- Lists every unlockable for your faction (70 entries in total, 39 for each faction) in four collapsible groups (**Dungeons**, **Raids**, **Keys**, **Misc**), each header showing done / total.
 - Each entry shows its level range and progress. Click it to expand its steps: done steps are struck through and greyed, the current one is marked ».
 - **Steps:** quests (names from the game client), items, "Reach level N", Kill / Talk to / Use with the NPC or object name, reputation and profession steps.
 - **Progress:** quests turned in or in your log, items in your bags with their count, level and reputation earned. A step that can't be checked counts as done once a later step is.
 - **Track in route:** tick it to insert the entry's quests into your route at the cheapest spot, without duplicates.
-- The list scrolls with the mouse wheel. Names follow MinMaxQuest's language (English, French).
+- The list scrolls with the mouse wheel. Entry names follow MinMaxQuest's language (English, French); quest, NPC, object and item names follow the game client.
 - Data comes from the [Attune](https://warcraftratings.com) addon, cross-checked and completed with QuestieDB (see Credits).
 
 ### Quest tab
