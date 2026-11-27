@@ -161,6 +161,10 @@ function context(req: BuildRequest, travel: TravelData): Context {
   const killSpots = new Set<string>();
   for (const id of [...world.quests.keys()].sort((a, b) => a - b)) {
     const q = world.quests.get(id);
+    if (q != null && q.accessChain && q.returnVisit) {
+      const dungeon = world.dungeons.find((d) => d.areaId === q.dungeonAreaId);
+      throw new Error(`buildRoute: access-chain quest ${q.id} needs a second visit to dungeon ${q.dungeonAreaId} (${dungeon?.name ?? "not in the world"}), unsupported`);
+    }
     if (q == null || !eligible(q, variant, uiMaps)) continue;
     if (q.dungeonAreaId != null) {
       group(dungeons, q.dungeonAreaId, q);

@@ -110,7 +110,15 @@ describe("buildRoute", () => {
       expect(accepted(route, [301, 302, 303]).length).toBeLessThanOrEqual(2);
     });
 
-    it("skips dungeons without the variant but keeps access chains", () => {
+    it("throws naming the quest and dungeon when an access chain needs a second dungeon visit", () => {
+      const w = dungeonWorld(true);
+      const second = w.quests.get(303);
+      if (second == null) throw new Error("test: quest 303 missing");
+      second.returnVisit = true;
+      expect(() => buildRoute(request(w, start(3), 6), data)).toThrow("access-chain quest 303 needs a second visit to dungeon 99 (Test)");
+    });
+
+        it("skips dungeons without the variant but keeps access chains", () => {
       const route = build(request(dungeonWorld(true), start(3), 6, { ...BASE, dungeons: false }));
       expect(dungeonSteps(route)).toHaveLength(0);
       expect(accepted(route, [301, 302, 303])).toEqual([303]);
