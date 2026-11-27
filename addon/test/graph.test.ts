@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CONSTANTS } from "../src/core/constants";
 import type { WorldPos } from "../src/core/geometry";
 import type { TravelData } from "../src/data/generated/travel";
-import { buildGraph, firstHop, solveFrom, travelTime, type TravelContext } from "../src/travel/graph";
+import { buildGraph, firstHop, solveFrom, taxiDestination, travelTime, type TravelContext } from "../src/travel/graph";
 
 const SPEED = 7;
 const WALK = CONSTANTS.detourFactor.value / SPEED;
@@ -181,5 +181,45 @@ describe("travel graph", () => {
     const ctx = context({ knownTaxiNodes: new Set([1, 2, 3, 4, 5]) });
     const { time } = evaluate(travel, ctx, pos(0, 0), pos(20000, 0));
     expect(time).toBeCloseTo(600 + 3000 * WALK);
+  });
+});
+
+describe("taxiDestination", () => {
+  const CHAIN = data({
+    taxiNodes: [
+      { id: 1, name: "A", pos: pos(100, 0), faction: "AH" },
+      { id: 2, name: "B", pos: pos(5000, 0), faction: "AH" },
+      { id: 3, name: "C", pos: pos(10000, 0), faction: "AH" },
+      { id: 4, name: "D", pos: pos(20000, 0), faction: "AH" },
+    ],
+    taxiEdges: [
+      { from: 1, to: 2, seconds: 60 },
+      { from: 2, to: 3, seconds: 60 },
+      { from: 3, to: 4, seconds: 60 },
+    ],
+  });
+
+  function destination(travel: TravelData, known: number[], target: WorldPos): number | null {
+    const ctx = context({ knownTaxiNodes: new Set(known) });
+    const graph = buildGraph(travel, ctx);
+    const plan = solveFrom(graph, pos(0, 0), ctx);
+    return taxiDestination(plan, graph, target, ctx);
+  }
+
+  it("returns the arrival node of a single flight", () => {
+    expect(destination(TAXI, [1, 2], pos(10050, 0))).toBe(2);
+  });
+
+  it("returns the last node of a multi-hop flight", () => {
+    expect(destination(CHAIN, [1, 2, 3, 4], pos(20050, 0))).toBe(4);
+  });
+
+  it("stops where the path walks between flights", () => {
+    expect(destination(CHAIN, [1, 2, 4], pos(20050, 0))).toBe(2);
+  });
+
+  it("is null when the path walks", () => {
+    expect(destination(TAXI, [1], pos(300, 400))).toBeNull();
+    expect(destination(TAXI, [1, 2], pos(50, 0))).toBeNull();
   });
 });

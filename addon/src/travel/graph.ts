@@ -16,6 +16,11 @@ export interface TravelPlan {
   nodePos: Map<number, WorldPos>;
 }
 
+export interface TaxiLeg {
+  from: number;
+  to: number;
+}
+
 export interface TravelHop {
   kind: "walk" | "taxi" | "boat" | "hearth";
   pos: WorldPos;
@@ -338,4 +343,28 @@ export function firstHop(plan: TravelPlan, graph: TravelGraph, target: WorldPos,
   if (departureKind === TAXI) return { kind: "taxi", pos: departurePos, taxiNodeId: departure };
   if (departureKind === BOAT) return { kind: "boat", pos: departurePos, taxiNodeId: null };
   return { kind: "hearth", pos: departurePos, taxiNodeId: null };
+}
+
+// Arrival node of the first contiguous flight of the best path, or null when that path does not start by flying.
+export function taxiDestination(plan: TravelPlan, graph: TravelGraph, target: WorldPos, ctx: TravelContext): number | null {
+  const approach = bestApproach(plan, graph, target, ctx);
+  if (approach === UNREACHABLE || approach === DIRECT) return null;
+
+  const nodes: number[] = [];
+  const kinds: number[] = [];
+  let current = approach;
+  while (current !== ORIGIN_ID) {
+    const parent = plan.via.get(current);
+    const kind = plan.viaKind.get(current);
+    if (parent == null || kind == null) return null;
+    nodes.push(current);
+    kinds.push(kind);
+    current = parent;
+  }
+
+  let index = nodes.length - 1;
+  while (index >= 0 && kinds[index] === WALK) index -= 1;
+  if (index < 0 || kinds[index] !== TAXI) return null;
+  while (index > 0 && kinds[index - 1] === TAXI) index -= 1;
+  return nodes[index];
 }

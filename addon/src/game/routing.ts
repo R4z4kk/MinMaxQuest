@@ -7,7 +7,9 @@ import {
   buildGraph,
   firstHop,
   solveFrom,
+  taxiDestination,
   travelTime,
+  type TaxiLeg,
   type TravelContext,
   type TravelGraph,
   type TravelHop,
@@ -18,6 +20,7 @@ import type { PlayerSnapshot } from "./engine";
 export interface Routing {
   completion(snap: PlayerSnapshot): Target[];
   firstHop(target: Target): TravelHop | null;
+  taxiLeg(target: Target): TaxiLeg | null;
   quests(): QuestInfo[];
 }
 
@@ -89,6 +92,14 @@ export function createRouting(
     firstHop(target) {
       if (solved == null) return null;
       return firstHop(solved.plan, solved.graph, target.pos, solved.ctx);
+    },
+    taxiLeg(target) {
+      if (solved == null) return null;
+      const { plan, graph: solvedGraph, ctx } = solved;
+      const hop = firstHop(plan, solvedGraph, target.pos, ctx);
+      if (hop == null || hop.kind !== "taxi" || hop.taxiNodeId == null) return null;
+      const to = taxiDestination(plan, solvedGraph, target.pos, ctx);
+      return to == null ? null : { from: hop.taxiNodeId, to };
     },
   };
 }

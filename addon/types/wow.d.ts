@@ -8,7 +8,10 @@ declare function CreateFrame(kind: "Frame" | "Button", name: string | null, pare
 declare function GetBuildInfo(): LuaMultiReturn<[string, string, string, number]>;
 declare function date(format: string): string;
 declare const UISpecialFrames: string[];
-declare const Enum: { UIMapType: { Continent: number } };
+declare const Enum: {
+  UIMapType: { Continent: number };
+  FlightPathState: { Current: number; Reachable: number; Unreachable: number } | null;
+};
 declare function GetTime(): number;
 declare function UnitLevel(unit: string): number;
 declare function UnitRace(unit: string): LuaMultiReturn<[string, string, number]>;
@@ -125,3 +128,18 @@ declare const GameTooltip: {
   Show(): void;
   Hide(): void;
 };
+
+interface WowTaxiNode {
+  nodeID: number;
+  slotIndex: number;
+  state: number;
+  name: string;
+}
+
+declare const C_TaxiMap: { GetAllTaxiNodes: ((this: void, uiMapId: number) => WowTaxiNode[] | null) | null } | null;
+declare const GetTaxiMapID: ((this: void) => number | null) | null;
+declare function NumTaxiNodes(): number;
+declare function TaxiNodeName(index: number): string | null;
+declare function TaxiNodeGetType(index: number): string | null;
+declare function TakeTaxiNode(index: number): void;
+declare function IsShiftKeyDown(): boolean;

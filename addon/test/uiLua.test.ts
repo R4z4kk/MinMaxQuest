@@ -167,10 +167,11 @@ it("stores the Quest tab options and opens Completion from the empty state", asy
     await s.cmd("");
     await s.click("MinMaxQuestRouteElites");
     await s.click("MinMaxQuestRouteDungeons");
+    await s.click("MinMaxQuestAutoFly");
     await s.click("MinMaxQuestGap2");
-    expect(await s.run("local d = MinMaxQuestCharDB; return { d.routeElites, d.routeDungeons, d.minLevelGap }")).toEqual([
-      true, true, 2,
-    ]);
+    expect(
+      await s.run("local d = MinMaxQuestCharDB; return { d.routeElites, d.routeDungeons, d.autoFly, d.minLevelGap }"),
+    ).toEqual([true, true, false, 2]);
     await s.click("MinMaxQuestGap0");
     expect(await s.run("return MinMaxQuestCharDB.minLevelGap == nil")).toBe(true);
     await s.click("MinMaxQuestOpenCompletion");

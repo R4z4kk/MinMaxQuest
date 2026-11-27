@@ -16,11 +16,13 @@ export function createQuestTab(deps: QuestDeps): TabView {
   const { db } = deps;
   let elites: Checkbox | null = null;
   let dungeons: Checkbox | null = null;
+  let autoFly: Checkbox | null = null;
   const gapButtons: Button[] = [];
 
   const draw = (): void => {
     elites?.set(db.routeElites);
     dungeons?.set(db.routeDungeons);
+    autoFly?.set(db.autoFly);
     gapButtons.forEach((gapButton, i) => gapButton.setPrimary(GAPS[i] === (db.minLevelGap ?? 0)));
   };
 
@@ -48,8 +50,13 @@ export function createQuestTab(deps: QuestDeps): TabView {
         draw();
       });
       dungeons.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -120);
+      autoFly = checkbox(parent, "MinMaxQuestAutoFly", t("autoFly"), () => {
+        db.autoFly = !db.autoFly;
+        draw();
+      });
+      autoFly.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -138);
       const gapLabel = text(parent, SIZE.small, COLOR.sub);
-      gapLabel.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -142);
+      gapLabel.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -160);
       gapLabel.SetText(t("maxQuestLevel"));
       let previous: WowFrame | null = null;
       for (const gap of GAPS) {
@@ -58,7 +65,7 @@ export function createQuestTab(deps: QuestDeps): TabView {
           deps.refreshTargets();
           draw();
         });
-        if (previous == null) gapButton.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -158);
+        if (previous == null) gapButton.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -176);
         else gapButton.frame.SetPoint("LEFT", previous, "RIGHT", 4, 0);
         previous = gapButton.frame;
         gapButtons.push(gapButton);

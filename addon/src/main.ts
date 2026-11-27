@@ -9,6 +9,7 @@ import { createPlayerState, HEARTHSTONE_SPELL_ID, type PlayerStateReader } from 
 import { createPositions, mapToWorld } from "./game/positions";
 import { createRouting } from "./game/routing";
 import { installPinButtons } from "./questlog/pinButtons";
+import { installAutoFly } from "./taxi/autoFly";
 import { createUi } from "./ui/ui";
 
 _G.MinMaxQuest = { version: "0.1.0" };
@@ -124,6 +125,16 @@ function start(): Game | null {
     ),
   );
   if (refreshPins != null) engine.onChange(() => refreshPins());
+  guard("autoFly", () =>
+    installAutoFly({
+      db: charDb,
+      refresh: () => engine.refreshTargets(true),
+      currentLeg: () => {
+        const target = engine.current();
+        return target == null ? null : routing.taxiLeg(target);
+      },
+    }),
+  );
   C_Timer.NewTicker(TICK_SEC, () => guard("engine", () => tick(started)));
   return started;
 }

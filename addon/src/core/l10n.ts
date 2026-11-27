@@ -53,6 +53,8 @@ export type L10nKey =
   | "options"
   | "includeElites"
   | "includeDungeons"
+  | "autoFly"
+  | "taxiNotKnown"
   | "maxQuestLevel"
   | "off"
   | "skipTitle"
@@ -121,6 +123,8 @@ const EN: Record<L10nKey, string> = {
   options: "Options",
   includeElites: "Include elites",
   includeDungeons: "Include dungeons",
+  autoFly: "Auto-fly at flight masters",
+  taxiNotKnown: "flight destination not available from this flight master",
   maxQuestLevel: "Max quest level (below yours)",
   off: "Off",
   skipTitle: "Skip this step?",
@@ -190,6 +194,8 @@ const FR: Record<L10nKey, string> = {
   options: "Options",
   includeElites: "Inclure les élites",
   includeDungeons: "Inclure les donjons",
+  autoFly: "Vol automatique aux maîtres de vol",
+  taxiNotKnown: "destination de vol indisponible depuis ce maître de vol",
   maxQuestLevel: "Niveau max des quêtes (sous le tien)",
   off: "Non",
   skipTitle: "Passer cette étape ?",
