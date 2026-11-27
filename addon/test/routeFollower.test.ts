@@ -20,6 +20,8 @@ const quest: QuestInfo = {
   objectives: [], baseXp: null, hasUnsupportedRequirement: false, isElite: false, zoneAreaId: null,
 };
 
+const locked: QuestInfo = { ...quest, id: 901, name: "Later on", requiredLevel: 15 };
+
 function install(constants: Record<string, number> = { segmentEndLevel: 10 }, trunk: EmittedStep[] = TRUNK): void {
   (globalThis as Record<string, unknown>).MinMaxQuestRoutes = {
     Alliance: {
@@ -49,7 +51,7 @@ function follower(db: CharDb, combat = { on: false }) {
   return createRouteFollower({
     db,
     faction: () => "A",
-    quest: (id) => (id === 900 ? quest : null),
+    quest: (id) => (id === 900 ? quest : id === 901 ? locked : null),
     toWorld: (_m, x, y): WorldPos => ({ continent: 0, x, y }),
     place: () => null,
     timeTo: () => () => 1,
@@ -223,4 +225,12 @@ it("exposes the displayed step identity, objective progress and next distance", 
   expect(view?.currentIndex).toBe(view?.current);
   expect(view?.currentProgress).toEqual({ have: 6, need: 10 });
   expect(view?.nextDistance).toBe(20);
+});
+
+it("aims past a level-locked accept to the next doable step", () => {
+  install({ segmentEndLevel: 10 }, [{ ...grind(10, 30, "accept"), questId: 901 }, grind(11, 50)]);
+  const f = follower(loadCharDb(null));
+  const list = f.targets(snapshot(10));
+  expect(f.view()).toMatchObject({ current: 0, target: 1 });
+  expect(list?.map((t) => t.route?.index)).toEqual([1, 0]);
 });

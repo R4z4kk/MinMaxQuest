@@ -95,6 +95,22 @@ describe("target", () => {
   it("goes to the earliest of tied candidates", () => {
     expect(run([at(300), at(30), at(30)]).target).toBe(1);
   });
+
+  it("stays on a current step exactly 120 s away", () => {
+    expect(run([at(120), at(10)]).target).toBe(0);
+  });
+
+  it("switches for a gain of exactly 60 s", () => {
+    expect(run([at(200), at(140)]).target).toBe(1);
+  });
+
+  it("aims at the nearest doable step when the near current one cannot be done yet", () => {
+    expect(run([at(30), at(50), at(40), at(45)], { realizable: (i) => i !== 0 }).target).toBe(2);
+  });
+
+  it("keeps a current step that cannot be done yet when nothing in the window can", () => {
+    expect(run([at(30), at(50)], { realizable: () => false }).target).toBe(0);
+  });
 });
 
 describe("next", () => {

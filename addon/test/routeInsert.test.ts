@@ -100,7 +100,7 @@ describe("chainBlock", () => {
     const r = chainBlock([1, 2], get, place);
     expect(r.unplaceable).toBe(0);
     expect(r.block.steps.map((s) => s.type + (s.objectiveIndex ?? ""))).toEqual(["accept", "complete1", "complete2", "turnin", "accept", "turnin"]);
-    expect(r.block.minLevel).toBe(20);
+    expect(r.block.minLevel).toBe(25);
   });
 
   it("emits no complete step for non-placeable objectives", () => {

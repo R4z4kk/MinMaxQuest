@@ -35,15 +35,17 @@ export function follow(
     return pos == null ? null : timeTo(pos);
   };
 
+  // Design 3.5/3.6: a step not doable yet stays current while the arrow aims at the nearest doable one.
   let target = current;
   const currentTime = timeOf(current);
-  if (currentTime != null && currentTime >= OFF_ROUTE_MIN_SECONDS) {
-    let best = currentTime - OFF_ROUTE_GAIN_SECONDS;
+  const blocked = !realizable(current);
+  if (blocked || (currentTime != null && currentTime > OFF_ROUTE_MIN_SECONDS)) {
+    let best = blocked || currentTime == null ? Infinity : currentTime - OFF_ROUTE_GAIN_SECONDS;
     let found = false;
     for (let i = current + 1; i < steps.length && i <= current + OFF_ROUTE_WINDOW; i++) {
       if (hidden(i) || !realizable(i)) continue;
       const t = timeOf(i);
-      if (t == null || t > best || (found && t === best) || !todo(i)) continue;
+      if (t == null || Number.isNaN(t) || t > best || (found && t === best) || !todo(i)) continue;
       best = t;
       target = i;
       found = true;

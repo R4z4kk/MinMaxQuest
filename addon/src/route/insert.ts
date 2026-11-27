@@ -55,7 +55,7 @@ export function chainBlock(
       unplaceable++;
       continue;
     }
-    if (steps.length === 0) minLevel = q.requiredLevel;
+    if (q.requiredLevel > minLevel) minLevel = q.requiredLevel;
     for (const step of own) steps.push(step);
   }
   return { block: { steps, minLevel }, unplaceable };
