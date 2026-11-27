@@ -4,7 +4,11 @@ declare function GetLocale(): string;
 declare const UIParent: WowFrame;
 declare function UnitPosition(unit: string): LuaMultiReturn<[number, number, number, number] | []>;
 declare function GetPlayerFacing(): number | null;
-declare function CreateFrame(kind: "Frame", name: string, parent: WowFrame): WowFrame;
+declare function CreateFrame(kind: "Frame" | "Button", name: string | null, parent: WowFrame): WowFrame;
+declare function GetBuildInfo(): LuaMultiReturn<[string, string, string, number]>;
+declare function date(format: string): string;
+declare const UISpecialFrames: string[];
+declare const Enum: { UIMapType: { Continent: number } };
 declare function GetTime(): number;
 declare function UnitLevel(unit: string): number;
 declare function UnitRace(unit: string): LuaMultiReturn<[string, string, number]>;
@@ -34,8 +38,17 @@ interface WowQuestObjective {
   finished: boolean;
 }
 
+interface WowMapInfo {
+  name: string;
+  mapType: number;
+  parentMapID: number;
+}
+
 declare namespace C_Map {
   function GetWorldPosFromMapPos(uiMapId: number, pos: WowVector2D): LuaMultiReturn<[number | null, WowVector2D | null]>;
+  function GetAreaInfo(areaId: number): string | null;
+  function GetBestMapForUnit(unit: string): number | null;
+  function GetMapInfo(uiMapId: number): WowMapInfo | null;
 }
 
 declare namespace C_QuestLog {
@@ -53,9 +66,14 @@ declare namespace C_Timer {
 
 interface WowRegion {
   SetSize(width: number, height: number): void;
+  SetWidth(width: number): void;
+  SetHeight(height: number): void;
   SetPoint(point: string, relativeTo?: WowRegion, relativePoint?: string, x?: number, y?: number): void;
+  ClearAllPoints(): void;
   Show(): void;
   Hide(): void;
+  IsShown(): boolean;
+  IsVisible(): boolean;
 }
 
 interface WowTexture extends WowRegion {
@@ -68,6 +86,9 @@ interface WowFontString extends WowRegion {
   SetFont(path: string, size: number, flags: string): void;
   SetTextColor(r: number, g: number, b: number): void;
   SetText(text: string): void;
+  SetJustifyH(justify: "LEFT" | "CENTER" | "RIGHT"): void;
+  SetWordWrap(wrap: boolean): void;
+  GetStringWidth(): number;
 }
 
 interface WowFrame extends WowRegion {
@@ -80,7 +101,12 @@ interface WowFrame extends WowRegion {
   GetLeft(): number | null;
   GetTop(): number | null;
   SetScript(event: "OnUpdate", handler: ((frame: WowFrame, elapsed: number) => void) | null): void;
-  SetScript(event: "OnDragStart" | "OnDragStop", handler: ((frame: WowFrame) => void) | null): void;
+  SetScript(event: "OnDragStart" | "OnDragStop" | "OnClick", handler: ((frame: WowFrame) => void) | null): void;
+  SetScript(event: "OnMouseWheel", handler: ((frame: WowFrame, delta: number) => void) | null): void;
+  SetFrameStrata(strata: "MEDIUM" | "HIGH" | "DIALOG"): void;
+  SetFrameLevel(level: number): void;
+  GetFrameLevel(): number;
+  EnableMouseWheel(enabled: boolean): void;
   SetScript(event: "OnEvent", handler: (frame: WowFrame, event: string, ...args: unknown[]) => void): void;
   RegisterEvent(event: string): void;
   RegisterUnitEvent(event: string, unit: string): void;

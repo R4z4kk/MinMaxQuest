@@ -126,19 +126,29 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
   return targets;
 }
 
+type Masks = Pick<PlayerQuestState, "raceMask" | "classMask">;
+
+export function zoneTotals(quests: QuestInfo[], completed: Set<number>, player: Masks): Map<number, ZoneProgress> {
+  const totals = new Map<number, ZoneProgress>();
+  for (const q of quests) {
+    if (q.zoneAreaId == null) continue;
+    if (!maskAllows(q.races, player.raceMask) || !maskAllows(q.classes, player.classMask)) continue;
+    let zone = totals.get(q.zoneAreaId);
+    if (zone == null) {
+      zone = { done: 0, total: 0 };
+      totals.set(q.zoneAreaId, zone);
+    }
+    zone.total++;
+    if (completed.has(q.id)) zone.done++;
+  }
+  return totals;
+}
+
 export function zoneProgress(
   quests: QuestInfo[],
   completed: Set<number>,
   zoneAreaId: number,
-  player: Pick<PlayerQuestState, "raceMask" | "classMask">,
+  player: Masks,
 ): ZoneProgress {
-  let done = 0;
-  let total = 0;
-  for (const q of quests) {
-    if (q.zoneAreaId !== zoneAreaId) continue;
-    if (!maskAllows(q.races, player.raceMask) || !maskAllows(q.classes, player.classMask)) continue;
-    total++;
-    if (completed.has(q.id)) done++;
-  }
-  return { done, total };
+  return zoneTotals(quests, completed, player).get(zoneAreaId) ?? { done: 0, total: 0 };
 }

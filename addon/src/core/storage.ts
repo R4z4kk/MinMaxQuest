@@ -14,6 +14,8 @@ export interface CharDb {
     showElite: boolean;
   };
   minLevelGap: number | null;
+  routeElites: boolean;
+  routeDungeons: boolean;
   autoFly: boolean;
   nativeWaypoint: boolean;
   pinnedQuestId: number | null;
@@ -34,6 +36,8 @@ export const CHAR_DEFAULTS: CharDb = {
   arrow: null,
   completion: { mode: "proximity", zoneAreaId: null, showTrivial: true, showElite: true },
   minLevelGap: null,
+  routeElites: false,
+  routeDungeons: false,
   autoFly: true,
   nativeWaypoint: true,
   pinnedQuestId: null,

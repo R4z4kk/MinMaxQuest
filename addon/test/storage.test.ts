@@ -55,6 +55,11 @@ describe("loadCharDb", () => {
     expect(db.hearthPos).toBeNull();
   });
   it("keeps explicit null", () => expect(loadCharDb({ window: null }).window).toBeNull());
+  it("keeps route options and defaults them to false", () => {
+    expect([CHAR_DEFAULTS.routeElites, CHAR_DEFAULTS.routeDungeons]).toEqual([false, false]);
+    const db = loadCharDb({ routeElites: true, routeDungeons: "x" });
+    expect([db.routeElites, db.routeDungeons]).toEqual([true, false]);
+  });
   it("has empty taxiNames by default", () => expect(loadCharDb(null).taxiNames).toEqual({}));
   it("rejects an unknown tab or mode", () => {
     expect(loadCharDb({ tab: "nope" }).tab).toBe("quest");

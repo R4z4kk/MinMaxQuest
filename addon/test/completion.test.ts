@@ -5,6 +5,7 @@ import type { PlayerQuestState } from "../src/quests/availability";
 import {
   selectTargets,
   zoneProgress,
+  zoneTotals,
   type CompletionInput,
   type CompletionOptions,
   type TargetKind,
@@ -192,5 +193,22 @@ describe("zoneProgress", () => {
     ];
     const p = player({ raceMask: 1, classMask: 1 });
     expect(zoneProgress(quests, new Set([1, 5]), 10, p)).toEqual({ done: 1, total: 2 });
+  });
+});
+
+describe("zoneTotals", () => {
+  it("counts every zone in one pass with the zoneProgress rules", () => {
+    const quests = [
+      quest({ id: 1, zoneAreaId: 10 }),
+      quest({ id: 2, zoneAreaId: 10 }),
+      quest({ id: 3, zoneAreaId: 10, races: 2 }),
+      quest({ id: 5, zoneAreaId: 20 }),
+      quest({ id: 6, zoneAreaId: null }),
+    ];
+    const totals = zoneTotals(quests, new Set([1, 5]), player());
+    expect([...totals.entries()]).toEqual([
+      [10, { done: 1, total: 2 }],
+      [20, { done: 1, total: 1 }],
+    ]);
   });
 });

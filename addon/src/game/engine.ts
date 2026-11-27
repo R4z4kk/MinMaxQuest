@@ -50,13 +50,21 @@ export interface Engine {
   skip(questId: number, confirmed: boolean): SkipResult;
   onChange(cb: Listener): void;
   zoneProgress(zoneAreaId: number): ZoneProgress | null;
+  snapshot(): PlayerSnapshot | null;
+}
+
+export function targetAction(target: Target): string {
+  if (target.kind === "accept") return t("targetAccept");
+  if (target.kind === "turnin") return t("targetTurnin");
+  return `${t("targetObjective")} ${target.objectiveIndex ?? ""}`;
+}
+
+export function questLabel(questId: number, quest: QuestInfo | null): string {
+  return quest == null ? `#${questId}` : quest.name;
 }
 
 export function describeTarget(target: Target, quest: QuestInfo | null): string {
-  const name = quest == null ? `#${target.questId}` : quest.name;
-  if (target.kind === "accept") return `${name} · ${t("targetAccept")}`;
-  if (target.kind === "turnin") return `${name} · ${t("targetTurnin")}`;
-  return `${name} · ${t("targetObjective")} ${target.objectiveIndex ?? ""}`;
+  return `${questLabel(target.questId, quest)} · ${targetAction(target)}`;
 }
 
 function sameKey(a: Target | null, b: Target | null): boolean {
@@ -198,5 +206,6 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
       if (snapshot == null) return null;
       return zoneProgress(deps.allQuests(), snapshot.state.completed, zoneAreaId, snapshot.state);
     },
+    snapshot: () => snapshot,
   };
 }

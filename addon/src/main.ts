@@ -2,12 +2,13 @@ import { createArrow, playerPosition, type ArrowApi, type ArrowTarget } from "./
 import { t } from "./core/l10n";
 import { guard, reportOnce } from "./core/report";
 import { loadCharDb, type CharDb } from "./core/storage";
-import { createQuestRepository, type QuestRepository, type RepoResult } from "./data/questRepository";
+import { createQuestRepository, type QuestInfo, type QuestRepository, type RepoResult } from "./data/questRepository";
 import { createCommands } from "./game/commands";
 import { createEngine, type Engine } from "./game/engine";
 import { createPlayerState, HEARTHSTONE_SPELL_ID, type PlayerStateReader } from "./game/playerState";
 import { createPositions, mapToWorld } from "./game/positions";
 import { createRouting } from "./game/routing";
+import { createUi } from "./ui/ui";
 
 _G.MinMaxQuest = { version: "0.1.0" };
 
@@ -25,6 +26,7 @@ interface Game {
   engine: Engine;
   player: PlayerStateReader;
   repo: QuestRepository;
+  quests(): QuestInfo[];
 }
 
 let db: CharDb | null = null;
@@ -69,10 +71,13 @@ function syncArrow(): void {
   guard("arrow", () => getArrow().setTarget(next));
 }
 
+const ui = createUi({ db: () => getDb(), game: () => start() });
+
 const commands = createCommands({
   repository: () => getRepository(),
   arrow: () => getArrow(),
   game: () => start(),
+  toggleWindow: () => ui.toggle(),
 });
 
 function tick(current: Game): void {
@@ -109,7 +114,7 @@ function start(): Game | null {
     },
     charDb,
   );
-  const started: Game = { engine, player, repo };
+  const started: Game = { engine, player, repo, quests: () => routing.quests() };
   game = started;
   C_Timer.NewTicker(TICK_SEC, () => guard("engine", () => tick(started)));
   return started;

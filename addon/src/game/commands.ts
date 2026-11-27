@@ -20,6 +20,7 @@ export interface CommandContext {
   repository(): QuestRepository | null;
   arrow(): ArrowApi;
   game(): CommandGame | null;
+  toggleWindow(): void;
 }
 
 export interface Commands {
@@ -143,7 +144,8 @@ export function createCommands(ctx: CommandContext): Commands {
       const space = text.indexOf(" ");
       const command = space < 0 ? text : text.slice(0, space);
       const arg = space < 0 ? "" : text.slice(space + 1).trim();
-      if (command === "arrow") guard("arrow", () => arrowCommand(arg));
+      if (command === "") ctx.toggleWindow();
+      else if (command === "arrow") guard("arrow", () => arrowCommand(arg));
       else if (command === "q") guard("repository", () => questCommand(arg));
       else if (command === "chain") guard("repository", () => chainCommand(arg));
       else if (command === "targets") withGame(targetsCommand);

@@ -255,3 +255,12 @@ describe("zoneProgress", () => {
     expect(engine.zoneProgress(12)).toEqual({ done: 1, total: 2 });
   });
 });
+
+describe("snapshot", () => {
+  it("is null before the first read and returns the last snapshot after", () => {
+    const { engine, world } = setup([]);
+    expect(engine.snapshot()).toBeNull();
+    engine.refreshTargets(true);
+    expect(engine.snapshot()).toBe(world.snap);
+  });
+});

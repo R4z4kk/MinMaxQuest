@@ -19,7 +19,46 @@ export type L10nKey =
   | "skipped"
   | "pinned"
   | "unpinned"
-  | "buildOverride";
+  | "buildOverride"
+  | "nearestTarget"
+  | "nextTarget"
+  | "remaining"
+  | "moreRows"
+  | "skip"
+  | "zonePicker"
+  | "modeProximity"
+  | "modeZone"
+  | "questsCount"
+  | "percent"
+  | "showFilters"
+  | "filterGrey"
+  | "filterElite"
+  | "eliteTag"
+  | "totalProgress"
+  | "pinnedTag"
+  | "unknownZone"
+  | "stepsCount"
+  | "trackInRoute"
+  | "activeMode"
+  | "trackedOne"
+  | "trackedMany"
+  | "routesMissing"
+  | "openCompletion"
+  | "options"
+  | "includeElites"
+  | "includeDungeons"
+  | "maxQuestLevel"
+  | "off"
+  | "skipTitle"
+  | "skipWarning"
+  | "skipFollowUps"
+  | "followUpLine"
+  | "skipLost"
+  | "skipLostUnknown"
+  | "cancel"
+  | "skipAnyway"
+  | "bannerBuild"
+  | "bannerExpired";
 
 const EN: Record<L10nKey, string> = {
   questieMissing: "QuestieDB is required",
@@ -29,7 +68,7 @@ const EN: Record<L10nKey, string> = {
   tabCompletion: "Completion",
   positionUnavailable: "position unavailable",
   arrowUsage: "usage: /mmq arrow move|lock|test",
-  help: "commands: /mmq q <id> | chain <questId> | targets | skip [confirm] | pin <id> | unpin | arrow move|lock|test | debug build <n>",
+  help: "commands: /mmq (window) | help | q <id> | chain <questId> | targets | skip [confirm] | pin <id> | unpin | arrow move|lock|test | debug build <n>",
   targetAccept: "pick up",
   targetObjective: "objective",
   targetTurnin: "turn in",
@@ -43,6 +82,45 @@ const EN: Record<L10nKey, string> = {
   pinned: "pinned",
   unpinned: "unpinned",
   buildOverride: "build override",
+  nearestTarget: "Nearest target",
+  nextTarget: "Next",
+  remaining: "Remaining · {n}",
+  moreRows: "+{n} more…",
+  skip: "Skip",
+  zonePicker: "Zone",
+  modeProximity: "Proximity",
+  modeZone: "Zone",
+  questsCount: "{done} / {total} quests",
+  percent: "{p}%",
+  showFilters: "Show:",
+  filterGrey: "Grey",
+  filterElite: "Elite",
+  eliteTag: "Elite",
+  totalProgress: "Total · {count}",
+  pinnedTag: "Pinned",
+  unknownZone: "Unknown zone",
+  stepsCount: "{done}/{total} steps",
+  trackInRoute: "Track in route",
+  activeMode: "Active mode: Quest",
+  trackedOne: "{n} chain tracked",
+  trackedMany: "{n} chains tracked",
+  routesMissing: "Routes not installed — use Completion meanwhile",
+  openCompletion: "Open Completion",
+  options: "Options",
+  includeElites: "Include elites",
+  includeDungeons: "Include dungeons",
+  maxQuestLevel: "Max quest level (below yours)",
+  off: "Off",
+  skipTitle: "Skip this step?",
+  skipWarning: "“{quest}” opens a quest chain",
+  skipFollowUps: "Skipping it also removes its {n} follow-up(s):",
+  followUpLine: "• {name} (level {level})",
+  skipLost: "You lose about {xp} XP ({f} levels).",
+  skipLostUnknown: "Lost XP unknown.",
+  cancel: "Cancel",
+  skipAnyway: "Skip anyway",
+  bannerBuild: "Data built for build {build}",
+  bannerExpired: "Expired data: {names}",
 };
 
 const FR: Record<L10nKey, string> = {
@@ -53,7 +131,7 @@ const FR: Record<L10nKey, string> = {
   tabCompletion: "Complétion",
   positionUnavailable: "position indisponible",
   arrowUsage: "usage : /mmq arrow move|lock|test",
-  help: "commandes : /mmq q <id> | chain <questId> | targets | skip [confirm] | pin <id> | unpin | arrow move|lock|test | debug build <n>",
+  help: "commandes : /mmq (fenêtre) | help | q <id> | chain <questId> | targets | skip [confirm] | pin <id> | unpin | arrow move|lock|test | debug build <n>",
   targetAccept: "prendre",
   targetObjective: "objectif",
   targetTurnin: "rendre",
@@ -67,6 +145,45 @@ const FR: Record<L10nKey, string> = {
   pinned: "épinglée",
   unpinned: "désépinglée",
   buildOverride: "build forcé",
+  nearestTarget: "Cible la plus proche",
+  nextTarget: "Ensuite",
+  remaining: "Restant · {n}",
+  moreRows: "+ {n} autres…",
+  skip: "Passer",
+  zonePicker: "Zone",
+  modeProximity: "Proximité",
+  modeZone: "Zone",
+  questsCount: "{done} / {total} quêtes",
+  percent: "{p} %",
+  showFilters: "Afficher :",
+  filterGrey: "Grises",
+  filterElite: "Élites",
+  eliteTag: "Élite",
+  totalProgress: "Total · {count}",
+  pinnedTag: "Épinglée",
+  unknownZone: "Zone inconnue",
+  stepsCount: "{done}/{total} étapes",
+  trackInRoute: "Suivre dans la route",
+  activeMode: "Mode actif : Quête",
+  trackedOne: "{n} chaîne suivie",
+  trackedMany: "{n} chaînes suivies",
+  routesMissing: "Routes non installées — utilise Complétion en attendant",
+  openCompletion: "Ouvrir Complétion",
+  options: "Options",
+  includeElites: "Inclure les élites",
+  includeDungeons: "Inclure les donjons",
+  maxQuestLevel: "Niveau max des quêtes (sous le tien)",
+  off: "Non",
+  skipTitle: "Passer cette étape ?",
+  skipWarning: "« {quest} » ouvre une chaîne de quêtes",
+  skipFollowUps: "La passer retire aussi ses {n} suite(s) :",
+  followUpLine: "• {name} (niv {level})",
+  skipLost: "Tu perds environ {xp} XP, soit {f} niveau.",
+  skipLostUnknown: "XP perdue inconnue.",
+  cancel: "Annuler",
+  skipAnyway: "Passer quand même",
+  bannerBuild: "Données générées pour le build {build}",
+  bannerExpired: "Données expirées : {names}",
 };
 
 let french: boolean | null = null;
