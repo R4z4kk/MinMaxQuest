@@ -87,14 +87,14 @@ function statusAt(steps: EmittedStep[], i: number, ctx: ProgressContext, dropped
   return laterTurninDone ? "done" : "todo";
 }
 
-// Only reasons that never go away; anything else isAvailable rejects (level, prerequisites to do) is "not yet".
+// Only reasons that never go away (the level never decreases); anything else isAvailable rejects is "not yet".
 function impossibleForGood(id: number, quest: QuestLookup, p: PlayerQuestState, dropped: Dropped): boolean {
   const q = quest(id);
   if (q == null) return true;
   if (p.completed.has(id) || p.inLog.has(id) || isAvailable(q, p)) return false;
   const taken = (other: number): boolean => p.completed.has(other) || p.inLog.has(other);
   const lost = (pre: number): boolean => !p.completed.has(pre) && dropped(pre);
-  return !maskAllows(q.races, p.raceMask) || !maskAllows(q.classes, p.classMask) || q.exclusiveTo.some((other) => taken(other))
+  return (q.requiredMaxLevel != null && p.level > q.requiredMaxLevel) || !maskAllows(q.races, p.raceMask) || !maskAllows(q.classes, p.classMask) || q.exclusiveTo.some((other) => taken(other))
     || q.preGroup.some((pre) => lost(pre)) || (q.preSingle.length > 0 && q.preSingle.every((pre) => lost(pre)));
 }
 

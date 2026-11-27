@@ -193,6 +193,17 @@ describe("advance", () => {
     expect(advance(steps, 0, none, new Set([1]), c, quests, player(c))).toEqual({ current: 5, removed: new Set([0, 1, 2, 3, 4]) });
   });
 
+  it("removes a quest above its max level, keeps it at the max level", () => {
+    const quests = lookup(info(1, { requiredMaxLevel: 5 }), info(2));
+    const steps = [q("accept", 1), q("turnin", 1, { unlocks: [2] }), q("accept", 2)];
+    const over = context({ level: 6 });
+    expect(stepStatus(steps, 0, over, quests, player(over))).toBe("impossible");
+    expect(advance(steps, 0, none, none, over, quests, player(over))).toEqual({ current: 3, removed: new Set([0, 1, 2]) });
+    const at5 = context({ level: 5 });
+    expect(stepStatus(steps, 0, at5, quests, player(at5))).toBe("todo");
+    expect(advance(steps, 0, none, none, at5, quests, player(at5))).toEqual({ current: 0, removed: new Set() });
+  });
+
   it("keeps a level-locked accept as current", () => {
     const steps = [q("accept", 1), q("accept", 2)];
     const c = context();
