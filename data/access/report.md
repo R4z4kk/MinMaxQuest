@@ -1,0 +1,219 @@
+# Access import report
+
+Generated on 2026-11-27 by `npm run gen:access` from Attune 16001-46 and QuestieDB v1.1.6.
+Review this report with the diff of `addon/src/data/generated/access.ts` before merging.
+
+## Totals
+
+| Group | A | H | AH | Entries | Steps |
+|---|---|---|---|---|---|
+| dungeon | 27 | 27 | 0 | 54 | 1377 |
+| raid | 1 | 1 | 3 | 5 | 88 |
+| key | 2 | 2 | 3 | 7 | 66 |
+| misc | 1 | 1 | 2 | 4 | 128 |
+| all | 31 | 31 | 8 | 70 | 1659 |
+
+Completions: 0 dungeon entries and 76 dungeon quests added from QuestieDB.
+
+## Attune quest ids absent from QuestieDB
+
+Kept in the data: QuestieDB may lag behind.
+
+None.
+
+## Attune item ids absent from the QuestieDB snapshot
+
+The snapshot only holds items that QuestieDB quests reference, so an item listed here may still exist in the game.
+
+- 351 Zul'Farrak (H), step 420: 9321
+- 340 Dire Maul (A), step 230: 18501
+- 341 Dire Maul (H), step 230: 18501
+- 365 Upper Blackrock Spire (A), step 650: 12241
+- 366 Upper Blackrock Spire (H), step 650: 12241
+- 159 Tome of Dalaran (AH), step 30: 276561
+- 159 Tome of Dalaran (AH), step 50: 275989
+- 154 Dalaran Sewer Key (A), step 40: 277507
+- 155 Dalaran Sewer Key (H), step 470: 277507
+- 125 Scarlet Key (AH), step 30: 7146
+- 100 Scepter of the Shifting Sands (AH), step 280: 21139
+- 100 Scepter of the Shifting Sands (AH), step 550: 21103
+- 100 Scepter of the Shifting Sands (AH), step 552: 21104
+- 100 Scepter of the Shifting Sands (AH), step 554: 21105
+- 100 Scepter of the Shifting Sands (AH), step 556: 21106
+- 100 Scepter of the Shifting Sands (AH), step 558: 21107
+- 100 Scepter of the Shifting Sands (AH), step 562: 21108
+- 100 Scepter of the Shifting Sands (AH), step 564: 21109
+- 100 Scepter of the Shifting Sands (AH), step 568: 21110
+
+## Faction conflicts
+
+- 166 The Hall of Thanes (H), step 120: quest 96403 Important Heirlooms is A
+- 166 The Hall of Thanes (H), step 140: quest 96403 Important Heirlooms is A
+- 351 Zul'Farrak (H), step 725: quest 2769 The Brassbolts Brothers is A
+- 356 Alcaz Prison (H), step 1490: quest 96377 State Secrets is A
+- 356 Alcaz Prison (H), step 1480: quest 95262 The Secret Prison is A
+
+## One-faction quests in entries for both factions
+
+None.
+
+## Party dungeons missing from Attune (added)
+
+Their frFR name is the enUS name from QuestieDB: to translate.
+
+None.
+
+## Party dungeons without QuestieDB quests (not added)
+
+- 206 Utgarde Keep
+- 2366 The Black Morass
+- 2367 Old Hillsbrad Foothills
+- 15475 Demon Fall Canyon
+- 15828 The Burning of Andorhal
+- 16074 Karazhan Crypts
+
+## Attune dungeons matched to no QuestieDB party dungeon
+
+None of their quests has a party dungeon as `zoneOrSort`; no quest was added to them.
+
+- 275 The Drowned City (A)
+- 276 The Drowned City (H)
+- 295 Krol'dok Stronghold (A)
+- 296 Krol'dok Stronghold (H)
+- 355 Alcaz Prison (A)
+- 356 Alcaz Prison (H)
+- 405 Blackmaw Hold (A)
+- 406 Blackmaw Hold (H)
+- 415 The Shapers Terrace (A)
+- 417 The Shapers Terrace (H)
+
+## Dungeon quests added from QuestieDB
+
+- 200 Blackfathom Deeps (A): quest 78916 The Heart of the Void
+- 210 Blackfathom Deeps (H): quest 1198 In Search of Thaelrid
+- 210 Blackfathom Deeps (H): quest 78917 The Heart of the Void
+- 230 Gnomeregan (A): quest 2952 The Sparklematic 5200!
+- 230 Gnomeregan (A): quest 2953 More Sparklematic Action
+- 230 Gnomeregan (A): quest 4601 The Sparklematic 5200!
+- 230 Gnomeregan (A): quest 4602 The Sparklematic 5200!
+- 230 Gnomeregan (A): quest 4603 More Sparklematic Action
+- 230 Gnomeregan (A): quest 4604 More Sparklematic Action
+- 230 Gnomeregan (A): quest 4605 The Sparklematic 5200!
+- 230 Gnomeregan (A): quest 4606 The Sparklematic 5200!
+- 230 Gnomeregan (A): quest 80324 The Mad King
+- 240 Gnomeregan (H): quest 2952 The Sparklematic 5200!
+- 240 Gnomeregan (H): quest 2953 More Sparklematic Action
+- 240 Gnomeregan (H): quest 4601 The Sparklematic 5200!
+- 240 Gnomeregan (H): quest 4602 The Sparklematic 5200!
+- 240 Gnomeregan (H): quest 4603 More Sparklematic Action
+- 240 Gnomeregan (H): quest 4604 More Sparklematic Action
+- 240 Gnomeregan (H): quest 4605 The Sparklematic 5200!
+- 240 Gnomeregan (H): quest 4606 The Sparklematic 5200!
+- 240 Gnomeregan (H): quest 80325 The Mad King
+- 320 Uldaman (A): quest 704 Agmond's Fate
+- 320 Uldaman (A): quest 3375 Replacement Phial
+- 330 Uldaman (H): quest 2338 Translating the Journal
+- 345 Lower Blackrock Spire (A): quest 4765 Delivery to Ridgewell
+- 345 Lower Blackrock Spire (A): quest 4907 Tinkee Steamboil
+- 345 Lower Blackrock Spire (A): quest 8966 The Left Piece of Lord Valthalak's Amulet
+- 345 Lower Blackrock Spire (A): quest 8989 The Right Piece of Lord Valthalak's Amulet
+- 345 Lower Blackrock Spire (A): quest 8995 Mea Culpa, Lord Valthalak
+- 346 Lower Blackrock Spire (H): quest 4907 Tinkee Steamboil
+- 346 Lower Blackrock Spire (H): quest 8966 The Left Piece of Lord Valthalak's Amulet
+- 346 Lower Blackrock Spire (H): quest 8989 The Right Piece of Lord Valthalak's Amulet
+- 346 Lower Blackrock Spire (H): quest 8995 Mea Culpa, Lord Valthalak
+- 346 Lower Blackrock Spire (H): quest 98325 Blood and Thunder
+- 390 Blackrock Depths (A): quest 4324 Yuka Screwspigot
+- 390 Blackrock Depths (A): quest 82062 Ever After
+- 400 Blackrock Depths (H): quest 4121 Precarious Predicament
+- 400 Blackrock Depths (H): quest 4122 Grark Lorkrub
+- 400 Blackrock Depths (H): quest 4133 Vivian Lagrave
+- 400 Blackrock Depths (H): quest 4324 Yuka Screwspigot
+- 400 Blackrock Depths (H): quest 82062 Ever After
+- 360 Stratholme (A): quest 5122 The Medallion of Faith
+- 360 Stratholme (A): quest 8945 Dead Man's Plea
+- 360 Stratholme (A): quest 8968 The Left Piece of Lord Valthalak's Amulet
+- 360 Stratholme (A): quest 8991 The Right Piece of Lord Valthalak's Amulet
+- 361 Stratholme (H): quest 5122 The Medallion of Faith
+- 361 Stratholme (H): quest 8945 Dead Man's Plea
+- 361 Stratholme (H): quest 8968 The Left Piece of Lord Valthalak's Amulet
+- 361 Stratholme (H): quest 8991 The Right Piece of Lord Valthalak's Amulet
+- 410 Scholomance (A): quest 8969 The Left Piece of Lord Valthalak's Amulet
+- 410 Scholomance (A): quest 8992 The Right Piece of Lord Valthalak's Amulet
+- 420 Scholomance (H): quest 8969 The Left Piece of Lord Valthalak's Amulet
+- 420 Scholomance (H): quest 8992 The Right Piece of Lord Valthalak's Amulet
+- 340 Dire Maul (A): quest 7462 The Treasure of the Shen'dralar
+- 340 Dire Maul (A): quest 7483 Libram of Rapidity
+- 340 Dire Maul (A): quest 7484 Libram of Focus
+- 340 Dire Maul (A): quest 7485 Libram of Protection
+- 340 Dire Maul (A): quest 7877 The Treasure of the Shen'dralar
+- 340 Dire Maul (A): quest 8948 Anthion's Old Friend
+- 340 Dire Maul (A): quest 8949 Falrin's Vendetta
+- 340 Dire Maul (A): quest 8950 The Instigator's Enchantment
+- 340 Dire Maul (A): quest 8967 The Left Piece of Lord Valthalak's Amulet
+- 340 Dire Maul (A): quest 8990 The Right Piece of Lord Valthalak's Amulet
+- 340 Dire Maul (A): quest 84555 Nostro's Compendium
+- 341 Dire Maul (H): quest 7483 Libram of Rapidity
+- 341 Dire Maul (H): quest 7484 Libram of Focus
+- 341 Dire Maul (H): quest 7485 Libram of Protection
+- 341 Dire Maul (H): quest 7877 The Treasure of the Shen'dralar
+- 341 Dire Maul (H): quest 8948 Anthion's Old Friend
+- 341 Dire Maul (H): quest 8949 Falrin's Vendetta
+- 341 Dire Maul (H): quest 8950 The Instigator's Enchantment
+- 341 Dire Maul (H): quest 8967 The Left Piece of Lord Valthalak's Amulet
+- 341 Dire Maul (H): quest 8990 The Right Piece of Lord Valthalak's Amulet
+- 341 Dire Maul (H): quest 84555 Nostro's Compendium
+- 195 Excavation Site: Wetlands (A): quest 98824 Prehistoric Prism
+- 196 Excavation Site: Wetlands (H): quest 98823 Earthen Echo
+
+## Class dungeon quests not added
+
+- 2557 Dire Maul: quest 7498 Garona: A Study on Stealth and Treachery
+- 2557 Dire Maul: quest 7499 Codex of Defense
+- 2557 Dire Maul: quest 7500 The Arcanist's Cookbook
+- 2557 Dire Maul: quest 7501 The Light and How To Swing It
+- 2557 Dire Maul: quest 7502 Harnessing Shadows
+- 2557 Dire Maul: quest 7503 The Greatest Race of Hunters
+- 2557 Dire Maul: quest 7504 Holy Bologna: What the Light Won't Tell You
+- 2557 Dire Maul: quest 7505 Frost Shock and You
+- 2557 Dire Maul: quest 7506 The Emerald Dream...
+- 2557 Dire Maul: quest 7507 Nostro's Compendium
+- 2557 Dire Maul: quest 7508 The Forging of Quel'Serrar
+
+## Addon access chains
+
+- dalaran-sewers: found in Attune 225 City of Dalaran (A), 154 Dalaran Sewer Key (A)
+
+## Attune data notes
+
+Skipped entries (group not imported; `Attune_Data.noattunes`, the raids without attunement, is not read either):
+
+- 500 Initiate (CHARACTER)
+- 510 Intermediate (CHARACTER)
+- 520 Veteran (CHARACTER)
+
+Dropped links to another Attune entry (FOLLOWS remapped across them, like spacers):
+
+- 390/1320 Attune 20
+- 390/120 Attune 120
+- 400/1620 Attune 20
+- 400/220 Attune 120
+
+Dropped FOLLOWS references:
+
+- 276/240 -> 23.0 (malformed)
+- 320/780 -> 158 (no such step)
+- 320/1470 -> 1480 (no such step)
+- 400/1506 -> 1505 (no such step)
+
+Steps whose FOLLOWS is an OR in Attune (kept as a plain list):
+
+- 60/90
+
+Steps without a numeric ref in Attune (ref 0):
+
+- 159/40 Interact ambermill
+
+Names without a frFR translation in Attune (enUS used, as AceLocale does):
+
+None.
