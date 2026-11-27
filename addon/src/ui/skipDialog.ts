@@ -73,7 +73,7 @@ function build(): Dialog {
 }
 
 export function confirmSkip(
-  quest: QuestInfo,
+  quest: { name: string },
   followUps: QuestInfo[],
   lost: { xp: number; levelFraction: number } | null,
   onConfirm: () => void,

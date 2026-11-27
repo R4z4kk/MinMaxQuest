@@ -1,8 +1,11 @@
 import { distance, formatDistance, formatDuration, type WorldPos } from "../core/geometry";
 import { currentLocale, t } from "../core/l10n";
 import type { QuestInfo } from "../data/questRepository";
-import { questLabel, targetAction } from "../game/engine";
+import type { CharDb } from "../core/storage";
+import { questLabel, sameKey, targetAction } from "../game/engine";
 import type { Target, ZoneProgress } from "../targets/completion";
+import type { ZoneIndex } from "./maps";
+import { COLOR, colorCode } from "./theme";
 
 export interface TargetView {
   questId: number;
@@ -26,7 +29,15 @@ export interface CompletionView {
   more: number;
 }
 
+export interface RowLine {
+  level: string;
+  name: string;
+  time: string;
+  tone: "normal" | "grey" | "more";
+}
+
 type QuestGetter = (id: number) => QuestInfo | null;
+type Mode = CharDb["completion"]["mode"];
 
 export function formatCount(n: number): string {
   const digits = String(Math.round(Math.abs(n)));
@@ -39,8 +50,12 @@ export function formatCount(n: number): string {
   return n < 0 ? `-${out}` : out;
 }
 
+function roundTenth(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
 function formatDecimal(value: number): string {
-  const text = String(Math.round(value * 10) / 10);
+  const text = String(roundTenth(value));
   return currentLocale() === "frFR" ? text.replace(".", ",") : text;
 }
 
@@ -58,7 +73,10 @@ export function countText(p: ZoneProgress): string {
 
 export function lostText(lost: { xp: number; levelFraction: number } | null): string {
   if (lost == null) return t("skipLostUnknown");
-  return t("skipLost").replace("{xp}", formatCount(lost.xp)).replace("{f}", formatDecimal(lost.levelFraction));
+  return t("skipLost")
+    .replace("{xp}", formatCount(lost.xp))
+    .replace("{f}", formatDecimal(lost.levelFraction))
+    .replace("{levels}", t(roundTenth(lost.levelFraction) >= 2 ? "levelMany" : "levelOne"));
 }
 
 export function sumProgress(totals: Map<number, ZoneProgress>, keep: (areaId: number) => boolean): ZoneProgress {
@@ -78,8 +96,49 @@ export function bannerText(expired: string[], clientBuild: string | null, dataBu
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
-function sameTarget(a: Target, b: Target): boolean {
-  return a.questId === b.questId && a.kind === b.kind && a.objectiveIndex === b.objectiveIndex;
+export function headerZone(mode: Mode, stored: number | null, current: number | null): number | null {
+  return mode === "zone" ? stored : current;
+}
+
+export function zoneLabel(index: ZoneIndex | null, areaId: number | null): string {
+  return (areaId == null || index == null ? null : index.name(areaId)) ?? t("unknownZone");
+}
+
+export function footerTexts(
+  totals: Map<number, ZoneProgress>,
+  zoneId: number | null,
+  index: ZoneIndex | null,
+): { continent: string; total: string } {
+  const total = t("totalProgress").replace("{count}", countText(sumProgress(totals, () => true)));
+  const continent = zoneId == null || index == null ? null : index.continentOf(zoneId);
+  if (continent == null || index == null) return { continent: "", total };
+  const sum = sumProgress(totals, (id) => index.continentOf(id)?.id === continent.id);
+  return { continent: `${continent.name} · ${countText(sum)}`, total };
+}
+
+export function remainingLabel(mode: Mode, n: number): string {
+  return t(mode === "zone" ? "remainingInZone" : "remainingNearby").replace("{n}", String(n));
+}
+
+export function modeText(mode: Mode): string {
+  const tone = (on: boolean): string => colorCode(on ? COLOR.text : COLOR.sub);
+  return `${tone(mode === "proximity")}${t("modeProximity")}|r | ${tone(mode === "zone")}${t("modeZone")}|r`;
+}
+
+export function rowLines(view: CompletionView, slots: number): RowLine[] {
+  const lines: RowLine[] = [];
+  for (let i = 0; i < slots; i++) {
+    const row = view.rows[i];
+    if (row != null) {
+      const tag = row.elite ? `  ${colorCode(COLOR.sub)}${t("eliteTag")}|r` : "";
+      lines.push({ level: row.level, name: row.name + tag, time: row.time, tone: row.grey ? "grey" : "normal" });
+    } else if (i === view.rows.length && view.more > 0) {
+      lines.push({ level: "", name: t("moreRows").replace("{n}", String(view.more)), time: "", tone: "more" });
+    } else {
+      lines.push({ level: "", name: "", time: "", tone: "normal" });
+    }
+  }
+  return lines;
 }
 
 function targetView(target: Target, getQuest: QuestGetter, player: WorldPos | null): TargetView {
@@ -100,7 +159,7 @@ export function completionView(
   const listed = new Set<number>();
   let remaining = 0;
   for (const target of targets) {
-    if (current != null && sameTarget(target, current)) continue;
+    if (current != null && sameKey(target, current)) continue;
     if (next == null) {
       next = target;
       continue;

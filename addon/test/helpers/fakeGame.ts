@@ -6,6 +6,7 @@ math.atan2 = math.atan2 or math.atan
 printed = {}
 print = function(line) table.insert(printed, line) end
 calls = {}
+created = 0
 scripts = {}
 local VALUES = { GetStringWidth = 40, GetLeft = 100, GetTop = 700, GetFrameLevel = 1 }
 local function fake(name)
@@ -16,8 +17,8 @@ local function fake(name)
       if method == "SetScript" then
         return function(self, event, fn) scripts[name .. "." .. event] = fn end
       end
-      if method == "CreateTexture" then return function() return fake("texture") end end
-      if method == "CreateFontString" then return function() return fake("font") end end
+      if method == "CreateTexture" then return function() created = created + 1; return fake("texture") end end
+      if method == "CreateFontString" then return function() created = created + 1; return fake("font") end end
       if method == "IsShown" or method == "IsVisible" then return function() return shown end end
       if VALUES[method] ~= nil then return function() return VALUES[method] end end
       return function(self, ...)
@@ -29,7 +30,7 @@ local function fake(name)
     end,
   })
 end
-CreateFrame = function(kind, name) return fake(name) end
+CreateFrame = function(kind, name) created = created + 1; return fake(name) end
 UIParent = {}
 GetLocale = function() return "enUS" end
 MinMaxQuestCharDB = {}

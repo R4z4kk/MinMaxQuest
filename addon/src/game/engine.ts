@@ -67,7 +67,7 @@ export function describeTarget(target: Target, quest: QuestInfo | null): string 
   return `${questLabel(target.questId, quest)} · ${targetAction(target)}`;
 }
 
-function sameKey(a: Target | null, b: Target | null): boolean {
+export function sameKey(a: Target | null, b: Target | null): boolean {
   if (a == null || b == null) return a === b;
   return a.questId === b.questId && a.kind === b.kind && a.objectiveIndex === b.objectiveIndex;
 }

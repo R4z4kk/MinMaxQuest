@@ -22,9 +22,10 @@ async function ui(setup = "") {
   const click = (name: string) => s.run(`scripts["${name}.OnClick"](nil, "LeftButton")`);
   const texts = async () => (await s.calls()).filter((c) => c.startsWith("font|SetText|")).map((c) => c.slice(13));
   const last = async (prefix: string) => (await s.calls()).filter((c) => c.startsWith(prefix)).pop();
-  const visibility = async () =>
-    (await s.calls()).filter((c) => c === "MinMaxQuestWindow|Show" || c === "MinMaxQuestWindow|Hide").pop();
-  return { ...s, click, texts, last, visibility };
+  const visibilityOf = async (name: string) =>
+    (await s.calls()).filter((c) => c === `${name}|Show` || c === `${name}|Hide`).pop();
+  const visibility = () => visibilityOf("MinMaxQuestWindow");
+  return { ...s, click, texts, last, visibility, visibilityOf };
 }
 
 it("toggles the window with /mmq and opens the Quest tab by default", async () => {
@@ -38,7 +39,7 @@ it("toggles the window with /mmq and opens the Quest tab by default", async () =
     expect(texts.slice(texts.indexOf("MINMAXQUEST"), texts.indexOf("MINMAXQUEST") + 4)).toEqual([
       "MINMAXQUEST", "Quest", "Access", "Completion",
     ]);
-    expect(texts).toContain("Routes not installed — use Completion meanwhile");
+    expect(texts).toContain("Routes not installed - use Completion meanwhile");
     await s.cmd("");
     expect(await s.visibility()).toBe("MinMaxQuestWindow|Hide");
     expect(await s.printed()).toBe("");
@@ -80,7 +81,7 @@ it("opens the skip dialog for a quest with follow-ups and skips on confirm", asy
     await s.click("MinMaxQuestCompletionSkip");
     const texts = await s.texts();
     expect(texts).toContain("Skip this step?");
-    expect(texts).toContain("• Second (level 10)");
+    expect(texts).toContain("· Second (level 10)");
     expect(await s.run("return #MinMaxQuestCharDB.skippedQuests")).toBe(0);
     expect(await s.run("return UISpecialFrames[1]")).toBe("MinMaxQuestSkipDialog");
     await s.click("MinMaxQuestSkipDialogConfirm");
@@ -175,6 +176,69 @@ it("stores the Quest tab options and opens Completion from the empty state", asy
     await s.click("MinMaxQuestOpenCompletion");
     expect(await s.run("return MinMaxQuestCharDB.tab")).toBe("completion");
     expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("creates no frame, texture or font string when the engine redraws an open tab", async () => {
+  const s = await ui();
+  const created = async () => (await s.run("return created")) as number;
+  try {
+    await s.cmd("");
+    await s.click("MinMaxQuestTabcompletion");
+    const before = await created();
+    for (const x of [1500, 1800]) {
+      await s.run(`player = { ${x}, 2000 }; now = now + 3`);
+      await s.tick();
+    }
+    expect((await s.texts()).some((line) => line.startsWith("pick up · ") && line.endsWith(" · 790 m"))).toBe(true);
+    expect(await created()).toBe(before);
+    await s.click("MinMaxQuestTabaccess");
+    const access = await created();
+    await s.run("player = { 1000, 2000 }; now = now + 3");
+    await s.tick();
+    await s.tick();
+    expect(await created()).toBe(access);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("shows expired constants in the banner", async () => {
+  const s = await ui(`date = function() return "2099-01-01" end`);
+  try {
+    await s.cmd("");
+    const banner = (await s.texts()).find((line) => line.startsWith("Expired data: "));
+    expect(banner).toContain("runSpeed");
+    expect(banner).toContain("XP_PER_LEVEL");
+    expect(banner?.startsWith("Data built")).toBe(false);
+  } finally {
+    s.close();
+  }
+});
+
+it("opens the zone picker when Zone mode has no zone to use", async () => {
+  const s = await ui("C_Map.GetBestMapForUnit = function() return nil end");
+  try {
+    await s.cmd("");
+    await s.click("MinMaxQuestTabcompletion");
+    await s.clearCalls();
+    await s.click("MinMaxQuestCompletionMode");
+    expect(await s.run("return MinMaxQuestCharDB.completion.mode")).toBe("proximity");
+    expect(await s.visibilityOf("MinMaxQuestZonePicker")).toBe("MinMaxQuestZonePicker|Show");
+  } finally {
+    s.close();
+  }
+});
+
+it("uppercases accented French labels", async () => {
+  const s = await ui(`GetLocale = function() return "frFR" end`);
+  try {
+    await s.cmd("");
+    await s.click("MinMaxQuestTabcompletion");
+    expect(await s.texts()).toContain("RESTANT À PROXIMITÉ · 0");
   } finally {
     s.close();
   }

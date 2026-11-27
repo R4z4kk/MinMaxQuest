@@ -22,7 +22,10 @@ export type L10nKey =
   | "buildOverride"
   | "nearestTarget"
   | "nextTarget"
-  | "remaining"
+  | "remainingNearby"
+  | "remainingInZone"
+  | "levelOne"
+  | "levelMany"
   | "moreRows"
   | "skip"
   | "zonePicker"
@@ -84,8 +87,11 @@ const EN: Record<L10nKey, string> = {
   buildOverride: "build override",
   nearestTarget: "Nearest target",
   nextTarget: "Next",
-  remaining: "Remaining · {n}",
-  moreRows: "+{n} more…",
+  remainingNearby: "Remaining nearby · {n}",
+  remainingInZone: "Remaining in zone · {n}",
+  levelOne: "level",
+  levelMany: "levels",
+  moreRows: "+{n} more...",
   skip: "Skip",
   zonePicker: "Zone",
   modeProximity: "Proximity",
@@ -104,7 +110,7 @@ const EN: Record<L10nKey, string> = {
   activeMode: "Active mode: Quest",
   trackedOne: "{n} chain tracked",
   trackedMany: "{n} chains tracked",
-  routesMissing: "Routes not installed — use Completion meanwhile",
+  routesMissing: "Routes not installed - use Completion meanwhile",
   openCompletion: "Open Completion",
   options: "Options",
   includeElites: "Include elites",
@@ -112,10 +118,10 @@ const EN: Record<L10nKey, string> = {
   maxQuestLevel: "Max quest level (below yours)",
   off: "Off",
   skipTitle: "Skip this step?",
-  skipWarning: "“{quest}” opens a quest chain",
+  skipWarning: "\"{quest}\" opens a quest chain",
   skipFollowUps: "Skipping it also removes its {n} follow-up(s):",
-  followUpLine: "• {name} (level {level})",
-  skipLost: "You lose about {xp} XP ({f} levels).",
+  followUpLine: "· {name} (level {level})",
+  skipLost: "You lose about {xp} XP ({f} {levels}).",
   skipLostUnknown: "Lost XP unknown.",
   cancel: "Cancel",
   skipAnyway: "Skip anyway",
@@ -147,8 +153,11 @@ const FR: Record<L10nKey, string> = {
   buildOverride: "build forcé",
   nearestTarget: "Cible la plus proche",
   nextTarget: "Ensuite",
-  remaining: "Restant · {n}",
-  moreRows: "+ {n} autres…",
+  remainingNearby: "Restant à proximité · {n}",
+  remainingInZone: "Restant dans la zone · {n}",
+  levelOne: "niveau",
+  levelMany: "niveaux",
+  moreRows: "+ {n} autres...",
   skip: "Passer",
   zonePicker: "Zone",
   modeProximity: "Proximité",
@@ -167,7 +176,7 @@ const FR: Record<L10nKey, string> = {
   activeMode: "Mode actif : Quête",
   trackedOne: "{n} chaîne suivie",
   trackedMany: "{n} chaînes suivies",
-  routesMissing: "Routes non installées — utilise Complétion en attendant",
+  routesMissing: "Routes non installées - utilise Complétion en attendant",
   openCompletion: "Ouvrir Complétion",
   options: "Options",
   includeElites: "Inclure les élites",
@@ -177,8 +186,8 @@ const FR: Record<L10nKey, string> = {
   skipTitle: "Passer cette étape ?",
   skipWarning: "« {quest} » ouvre une chaîne de quêtes",
   skipFollowUps: "La passer retire aussi ses {n} suite(s) :",
-  followUpLine: "• {name} (niv {level})",
-  skipLost: "Tu perds environ {xp} XP, soit {f} niveau.",
+  followUpLine: "· {name} (niv {level})",
+  skipLost: "Tu perds environ {xp} XP, soit {f} {levels}.",
   skipLostUnknown: "XP perdue inconnue.",
   cancel: "Annuler",
   skipAnyway: "Passer quand même",

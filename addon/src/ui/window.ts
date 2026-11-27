@@ -1,6 +1,7 @@
 import { t, type L10nKey } from "../core/l10n";
+import { guard } from "../core/report";
 import type { CharDb } from "../core/storage";
-import { COLOR, fill, hline, onClick, paint, panel, PAD, SIZE, text } from "./theme";
+import { COLOR, fill, hline, onClick, paint, panel, PAD, SIZE, text, UI_FEATURE } from "./theme";
 
 export type TabId = CharDb["tab"];
 
@@ -41,12 +42,16 @@ export function createWindow(db: CharDb, tabs: Record<TabId, TabView>): WindowAp
   frame.SetMovable(true);
   frame.EnableMouse(true);
   frame.RegisterForDrag("LeftButton");
-  frame.SetScript("OnDragStart", (f) => f.StartMoving());
+  frame.SetScript("OnDragStart", (f) => {
+    guard(UI_FEATURE, () => f.StartMoving());
+  });
   frame.SetScript("OnDragStop", (f) => {
-    f.StopMovingOrSizing();
-    const left = f.GetLeft();
-    const top = f.GetTop();
-    if (left != null && top != null) db.window = { x: left, y: top };
+    guard(UI_FEATURE, () => {
+      f.StopMovingOrSizing();
+      const left = f.GetLeft();
+      const top = f.GetTop();
+      if (left != null && top != null) db.window = { x: left, y: top };
+    });
   });
 
   const title = text(frame, SIZE.small, COLOR.accent);

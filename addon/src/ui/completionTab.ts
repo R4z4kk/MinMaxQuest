@@ -3,16 +3,18 @@ import { t } from "../core/l10n";
 import { guard } from "../core/report";
 import type { CharDb } from "../core/storage";
 import type { QuestInfo, QuestRepository } from "../data/questRepository";
-import type { Engine } from "../game/engine";
+import { questLabel, type Engine } from "../game/engine";
 import { zoneTotals, type ZoneProgress } from "../targets/completion";
 import { createZoneIndex, zoneEntries, type MapDeps, type ZoneIndex } from "./maps";
 import { confirmSkip } from "./skipDialog";
 import {
-  bar, button, checkbox, COLOR, GLYPH, hline, label, paint, PAD, setLabel, SIZE, text, type Bar, type Button,
-  type Checkbox, UI_FEATURE,
+  bar, button, checkbox, COLOR, GLYPH, hline, label, paint, PAD, setLabel, SIZE, text, UI_FEATURE,
 } from "./theme";
 import type { TabView } from "./window";
-import { completionView, countText, percentText, progressText, sumProgress } from "./viewModel";
+import {
+  completionView, footerTexts, headerZone, modeText, percentText, progressText, remainingLabel, rowLines, zoneLabel,
+  type RowLine,
+} from "./viewModel";
 import { createZonePicker } from "./zonePicker";
 
 export interface CompletionDeps {
@@ -28,6 +30,7 @@ const HEIGHT = 480;
 const MAX_ROWS = 10;
 const ROW_HEIGHT = 15;
 const INNER = WIDTH - 2 * PAD;
+const EMPTY: ZoneProgress = { done: 0, total: 0 };
 
 interface Row {
   level: WowFontString;
@@ -35,38 +38,29 @@ interface Row {
   time: WowFontString;
 }
 
-interface Widgets {
-  zoneName: WowFontString;
-  zoneCount: WowFontString;
-  zonePercent: WowFontString;
-  zoneBar: Bar;
-  mode: Button;
-  pinned: Button;
-  nearestName: WowFontString;
-  nearestLine: WowFontString;
-  skip: Button;
-  nextName: WowFontString;
-  nextLine: WowFontString;
-  remaining: WowFontString;
-  rows: Row[];
-  grey: Checkbox;
-  elite: Checkbox;
-  continent: WowFontString;
-  total: WowFontString;
-}
-
 function at(fontString: WowFontString, parent: WowFrame, y: number, right = false): WowFontString {
   fontString.SetPoint(right ? "TOPRIGHT" : "TOPLEFT", parent, right ? "TOPRIGHT" : "TOPLEFT", right ? -PAD : PAD, y);
   return fontString;
 }
 
+function paintRow(row: Row, line: RowLine): void {
+  row.level.SetText(line.level);
+  row.name.SetText(line.name);
+  row.time.SetText(line.time);
+  const grey = line.tone === "grey";
+  paint(row.name, grey ? COLOR.grey : line.tone === "more" ? COLOR.sub : COLOR.rowText);
+  paint(row.level, grey ? COLOR.grey : COLOR.sub);
+  paint(row.time, grey ? COLOR.grey : COLOR.sub);
+}
+
 export function createCompletionTab(deps: CompletionDeps): TabView {
   const { db, engine, repo } = deps;
   let root: WowFrame | null = null;
-  let ui: Widgets | null = null;
+  let ui: ReturnType<typeof build> | null = null;
   let index: ZoneIndex | null = null;
   let totals = new Map<number, ZoneProgress>();
   let totalsKey = "";
+  let notified = false;
 
   const loadTotals = (): void => {
     const snap = engine.snapshot();
@@ -85,9 +79,11 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
     return uiMap == null || index == null ? null : index.zoneOfMap(uiMap);
   };
 
+  // A forced refresh that changes the list already redraws through onChange.
   const applyOptions = (): void => {
+    notified = false;
     engine.refreshTargets(true);
-    draw();
+    if (!notified) draw();
   };
 
   const onSkip = (): void => {
@@ -95,9 +91,8 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
     if (current == null) return;
     const id = current.questId;
     const result = engine.skip(id, false);
-    const quest = repo.get(id);
-    if (result.needsConfirm && quest != null) {
-      confirmSkip(quest, result.followUps, result.lost, () => {
+    if (result.needsConfirm) {
+      confirmSkip({ name: questLabel(id, repo.get(id)) }, result.followUps, result.lost, () => {
         engine.skip(id, true);
         draw();
       });
@@ -105,20 +100,30 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
     draw();
   };
 
-  const build = (parent: WowFrame): Widgets => {
+  const build = (parent: WowFrame) => {
     const picker = createZonePicker(parent);
-    const zoneButton = button(parent, "MinMaxQuestCompletionZone", `${t("zonePicker")} ${GLYPH.dropdown}`, () => {
+    let anchor: WowFrame = parent;
+    const openPicker = (): void => {
       if (index == null) return;
-      picker.toggle(zoneButton.frame, zoneEntries(totals, index), (areaId) => {
+      picker.toggle(anchor, zoneEntries(totals, index), (areaId) => {
         db.completion.zoneAreaId = areaId;
         db.completion.mode = "zone";
         applyOptions();
       });
-    });
+    };
+    const zoneButton = button(parent, "MinMaxQuestCompletionZone", "", openPicker);
     zoneButton.frame.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, -7);
+    anchor = zoneButton.frame;
     const mode = button(parent, "MinMaxQuestCompletionMode", "", () => {
       const toZone = db.completion.mode !== "zone";
-      if (toZone && db.completion.zoneAreaId == null) db.completion.zoneAreaId = currentZone();
+      if (toZone && db.completion.zoneAreaId == null) {
+        const here = currentZone();
+        if (here == null) {
+          openPicker();
+          return;
+        }
+        db.completion.zoneAreaId = here;
+      }
       db.completion.mode = toZone ? "zone" : "proximity";
       applyOptions();
     });
@@ -162,12 +167,13 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
     const elite = checkbox(parent, "MinMaxQuestFilterElite", t("filterElite"), toggle("showElite"));
     elite.frame.SetPoint("LEFT", grey.frame, "RIGHT", 10, 0);
     hline(parent, filterY - 14);
-    const w: Widgets = {
+    const w = {
       zoneName: at(text(parent, SIZE.body, COLOR.text), parent, -9),
       zoneCount: at(text(parent, SIZE.small, COLOR.sub), parent, -27),
       zonePercent: at(text(parent, SIZE.small, COLOR.sub, "RIGHT"), parent, -27, true),
       zoneBar: bar(parent, INNER, PAD, -42),
       mode,
+      zoneButton,
       pinned,
       nearestName: at(text(parent, SIZE.body, COLOR.text), parent, -76),
       nearestLine: at(text(parent, SIZE.small, COLOR.sub), parent, -92),
@@ -181,23 +187,9 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
       continent: at(text(parent, SIZE.small, COLOR.sub), parent, filterY - 22),
       total: at(text(parent, SIZE.small, COLOR.accent, "RIGHT"), parent, filterY - 22, true),
     };
+    w.zoneName.SetWidth(INNER - 180);
     w.nearestName.SetWidth(INNER - 60);
     return w;
-  };
-
-  const drawRows = (w: Widgets, view: ReturnType<typeof completionView>): void => {
-    w.rows.forEach((row, i) => {
-      const data = view.rows[i];
-      const more = data == null && i === view.rows.length && view.more > 0;
-      row.level.SetText(data == null ? "" : data.level);
-      row.time.SetText(data == null ? "" : data.time);
-      const tag = data != null && data.elite ? `  |cff8b8b8b${t("eliteTag")}|r` : "";
-      row.name.SetText(data != null ? data.name + tag : more ? t("moreRows").replace("{n}", String(view.more)) : "");
-      const grey = data != null && data.grey;
-      paint(row.name, grey ? COLOR.grey : more ? COLOR.sub : COLOR.rowText);
-      paint(row.level, grey ? COLOR.grey : COLOR.sub);
-      paint(row.time, grey ? COLOR.grey : COLOR.sub);
-    });
   };
 
   const draw = (): void => {
@@ -205,14 +197,14 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
     if (w == null) return;
     loadTotals();
     const options = db.completion;
-    const zoneId = options.mode === "zone" ? options.zoneAreaId : currentZone();
-    const zone = (zoneId == null ? null : totals.get(zoneId)) ?? { done: 0, total: 0 };
-    const zoneName = zoneId == null || index == null ? null : index.name(zoneId);
-    w.zoneName.SetText(zoneName ?? t("unknownZone"));
+    const zoneId = headerZone(options.mode, options.zoneAreaId, currentZone());
+    const zone = (zoneId == null ? null : totals.get(zoneId)) ?? EMPTY;
+    w.zoneName.SetText(zoneLabel(index, zoneId));
     w.zoneCount.SetText(progressText(zone));
     w.zonePercent.SetText(percentText(zone));
     w.zoneBar.setFraction(zone.total > 0 ? zone.done / zone.total : 0);
-    w.mode.setText(t(options.mode === "zone" ? "modeZone" : "modeProximity"));
+    w.mode.setText(modeText(options.mode));
+    w.zoneButton.setText(`${zoneLabel(index, options.zoneAreaId ?? zoneId)} ${GLYPH.dropdown}`);
     if (db.pinnedQuestId != null) w.pinned.frame.Show();
     else w.pinned.frame.Hide();
 
@@ -223,25 +215,22 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
     else w.skip.frame.Show();
     w.nextName.SetText(view.next == null ? "" : view.next.name);
     w.nextLine.SetText(view.next == null ? "" : view.next.line);
-    setLabel(w.remaining, t("remaining").replace("{n}", String(view.remaining)));
-    drawRows(w, view);
+    setLabel(w.remaining, remainingLabel(options.mode, view.remaining));
+    rowLines(view, w.rows.length).forEach((line, i) => paintRow(w.rows[i], line));
     w.grey.set(options.showTrivial);
     w.elite.set(options.showElite);
-
-    const continent = zoneId == null || index == null ? null : index.continentOf(zoneId);
-    const zones = index;
-    w.continent.SetText(
-      continent == null || zones == null
-        ? ""
-        : `${continent.name} · ${countText(sumProgress(totals, (id) => zones.continentOf(id)?.id === continent.id))}`,
-    );
-    w.total.SetText(t("totalProgress").replace("{count}", countText(sumProgress(totals, () => true))));
+    const footer = footerTexts(totals, zoneId, index);
+    w.continent.SetText(footer.continent);
+    w.total.SetText(footer.total);
   };
 
   const refresh = (): void => {
     if (root != null && root.IsVisible()) draw();
   };
-  engine.onChange(() => guard(UI_FEATURE, refresh));
+  engine.onChange(() => {
+    notified = true;
+    guard(UI_FEATURE, refresh);
+  });
 
   return {
     width: WIDTH,

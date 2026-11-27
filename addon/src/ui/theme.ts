@@ -37,6 +37,17 @@ const BUTTON_HEIGHT = 16;
 const BUTTON_PADDING = 12;
 const BAR_HEIGHT = 3;
 
+const HEX = "0123456789abcdef";
+
+function hexByte(value: number): string {
+  const byte = Math.min(255, Math.max(0, Math.round(value * 255)));
+  return HEX.charAt(Math.floor(byte / 16)) + HEX.charAt(byte % 16);
+}
+
+export function colorCode(c: Color): string {
+  return `|cff${hexByte(c[0])}${hexByte(c[1])}${hexByte(c[2])}`;
+}
+
 export function fill(texture: WowTexture, c: Color): void {
   texture.SetColorTexture(c[0], c[1], c[2], c[3]);
 }
@@ -95,8 +106,20 @@ export function label(parent: WowFrame, x: number, y: number): WowFontString {
   return fontString;
 }
 
+// Lua string.upper leaves UTF-8 accented letters untouched.
+const ACCENTS: [string, string][] = [
+  ["à", "À"], ["â", "Â"], ["ç", "Ç"], ["é", "É"], ["è", "È"], ["ê", "Ê"], ["ë", "Ë"], ["î", "Î"], ["ï", "Ï"],
+  ["ô", "Ô"], ["ù", "Ù"], ["û", "Û"],
+];
+
+export function upper(value: string): string {
+  let out = value.toUpperCase();
+  for (const [lower, capital] of ACCENTS) out = out.split(lower).join(capital);
+  return out;
+}
+
 export function setLabel(fontString: WowFontString, value: string): void {
-  fontString.SetText(value.toUpperCase());
+  fontString.SetText(upper(value));
 }
 
 export function onClick(frame: WowFrame, handler: () => void): void {

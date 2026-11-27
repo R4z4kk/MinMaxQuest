@@ -1,4 +1,5 @@
-import { COLOR, onClick, panel, PAD, SIZE, text } from "./theme";
+import { guard } from "../core/report";
+import { COLOR, onClick, panel, PAD, SIZE, text, UI_FEATURE } from "./theme";
 
 export interface ZoneEntry {
   areaId: number;
@@ -38,9 +39,11 @@ export function createZonePicker(parent: WowFrame): ZonePicker {
     created.EnableMouseWheel(true);
     panel(created);
     created.SetScript("OnMouseWheel", (_, delta) => {
-      const last = Math.max(0, entries.length - VISIBLE_ROWS);
-      offset = Math.min(last, Math.max(0, offset - delta * WHEEL_STEP));
-      draw();
+      guard(UI_FEATURE, () => {
+        const last = Math.max(0, entries.length - VISIBLE_ROWS);
+        offset = Math.min(last, Math.max(0, offset - delta * WHEEL_STEP));
+        draw();
+      });
     });
     for (let i = 0; i < VISIBLE_ROWS; i++) {
       // TSTL shares one loop variable across iterations in Lua: closures need their own copy.

@@ -3,14 +3,22 @@ import type { WorldPos } from "../src/core/geometry";
 import { setLocale } from "../src/core/l10n";
 import type { QuestInfo } from "../src/data/questRepository";
 import type { Target } from "../src/targets/completion";
+import type { ZoneIndex } from "../src/ui/maps";
+import { colorCode, COLOR } from "../src/ui/theme";
 import {
   bannerText,
   completionView,
+  footerTexts,
   formatCount,
+  headerZone,
   lostText,
+  modeText,
   percentText,
   progressText,
+  remainingLabel,
+  rowLines,
   sumProgress,
+  zoneLabel,
 } from "../src/ui/viewModel";
 
 const at = (x: number): WorldPos => ({ continent: 0, x, y: 0 });
@@ -47,10 +55,14 @@ describe("formatting", () => {
 
   it("describes the lost XP or says it is unknown", () => {
     setLocale("enUS");
-    expect(lostText({ xp: 4250.4, levelFraction: 0.42 })).toBe("You lose about 4,250 XP (0.4 levels).");
+    expect(lostText({ xp: 4250.4, levelFraction: 0.42 })).toBe("You lose about 4,250 XP (0.4 level).");
+    expect(lostText({ xp: 30000, levelFraction: 2.04 })).toBe("You lose about 30,000 XP (2 levels).");
+    expect(lostText({ xp: 30000, levelFraction: 1.96 })).toBe("You lose about 30,000 XP (2 levels).");
+    expect(lostText({ xp: 30000, levelFraction: 1.94 })).toBe("You lose about 30,000 XP (1.9 level).");
     expect(lostText(null)).toBe("Lost XP unknown.");
     setLocale("frFR");
     expect(lostText({ xp: 4250, levelFraction: 0.42 })).toBe("Tu perds environ 4 250 XP, soit 0,4 niveau.");
+    expect(lostText({ xp: 30000, levelFraction: 2.5 })).toBe("Tu perds environ 30 000 XP, soit 2,5 niveaux.");
   });
 
   it("sums the kept zones", () => {
@@ -122,5 +134,80 @@ describe("completionView", () => {
     expect(completionView([], null, getQuest, at(0), 10)).toEqual({
       nearest: null, next: null, rows: [], remaining: 0, more: 0,
     });
+  });
+});
+
+describe("completion header and footer", () => {
+  const index: ZoneIndex = {
+    name: (id) => ({ 12: "Elwynn", 14: "Durotar", 40: "Westfall" })[id] ?? null,
+    continentOf: (id) => (id === 14 ? { id: 1414, name: "Kalimdor" } : id === 99 ? null : { id: 1415, name: "Eastern Kingdoms" }),
+    zoneOfMap: () => null,
+  };
+  const totals = new Map([
+    [12, { done: 1, total: 2 }],
+    [40, { done: 1204, total: 1300 }],
+    [14, { done: 0, total: 5 }],
+  ]);
+
+  it("picks the stored zone in zone mode and the current zone otherwise", () => {
+    expect(headerZone("zone", 14, 12)).toBe(14);
+    expect(headerZone("proximity", 14, 12)).toBe(12);
+    expect(headerZone("zone", null, 12)).toBeNull();
+  });
+
+  it("names a zone or says it is unknown", () => {
+    setLocale("enUS");
+    expect([zoneLabel(index, 12), zoneLabel(index, 77), zoneLabel(null, 12), zoneLabel(index, null)]).toEqual([
+      "Elwynn", "Unknown zone", "Unknown zone", "Unknown zone",
+    ]);
+  });
+
+  it("sums the zone's continent and everything", () => {
+    setLocale("enUS");
+    expect(footerTexts(totals, 12, index)).toEqual({ continent: "Eastern Kingdoms · 1,205 / 1,302", total: "Total · 1,205 / 1,307" });
+    expect(footerTexts(totals, null, index).continent).toBe("");
+    expect(footerTexts(totals, 99, index).continent).toBe("");
+    expect(footerTexts(totals, 12, null)).toEqual({ continent: "", total: "Total · 1,205 / 1,307" });
+  });
+
+  it("labels the remaining list and the mode toggle per mode", () => {
+    setLocale("enUS");
+    expect(remainingLabel("proximity", 3)).toBe("Remaining nearby · 3");
+    expect(remainingLabel("zone", 3)).toBe("Remaining in zone · 3");
+    const on = colorCode(COLOR.text);
+    const off = colorCode(COLOR.sub);
+    expect(modeText("proximity")).toBe(`${on}Proximity|r | ${off}Zone|r`);
+    expect(modeText("zone")).toBe(`${off}Proximity|r | ${on}Zone|r`);
+    setLocale("frFR");
+    expect(remainingLabel("zone", 2)).toBe("Restant dans la zone · 2");
+  });
+});
+
+describe("rowLines", () => {
+  it("adds the elite tag, the grey tone, the more row and blank slots", () => {
+    setLocale("enUS");
+    const view = {
+      nearest: null,
+      next: null,
+      rows: [
+        { level: "10", name: "Big", time: "~1 min", grey: false, elite: true },
+        { level: "4", name: "Old", time: "~2 min", grey: true, elite: false },
+      ],
+      remaining: 5,
+      more: 3,
+    };
+    expect(rowLines(view, 4)).toEqual([
+      { level: "10", name: `Big  ${colorCode(COLOR.sub)}Elite|r`, time: "~1 min", tone: "normal" },
+      { level: "4", name: "Old", time: "~2 min", tone: "grey" },
+      { level: "", name: "+3 more...", time: "", tone: "more" },
+      { level: "", name: "", time: "", tone: "normal" },
+    ]);
+  });
+});
+
+describe("colorCode", () => {
+  it("encodes a theme colour as a WoW colour escape", () => {
+    expect(colorCode(COLOR.sub)).toBe("|cff8b8b8b");
+    expect(colorCode(COLOR.accent)).toBe("|cffc9a75a");
   });
 });
