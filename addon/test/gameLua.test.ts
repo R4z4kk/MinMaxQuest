@@ -245,3 +245,36 @@ it("numbers objectives like the quest log, ObjectiveFirst hints included", async
     s.close();
   }
 });
+
+const ONLY_ELWYNN = `
+local worldPos = C_Map.GetWorldPosFromMapPos
+C_Map.GetWorldPosFromMapPos = function(map, v) if map == 1429 then return worldPos(map, v) end end
+`;
+
+it("decodes the QuestieDB zone map strings with the override on top", async () => {
+  const s = await loggedIn(`${ONLY_ELWYNN}
+zonePrivate.areaIdToUiMapId = "return { [12] = 9999 }"
+zonePrivate.areaIdToUiMapIdOverride = "return { [12] = 1429 }"`);
+  try {
+    await s.cmd("targets");
+    expect(await s.printed()).toBe(
+      "MinMaxQuest: [100] Test Quest · pick up · <1 min\nMinMaxQuest: [101] Second · pick up · <1 min",
+    );
+  } finally {
+    s.close();
+  }
+});
+
+it("reports a zone map string that does not compile", async () => {
+  const s = await loggedIn(`${ONLY_ELWYNN}
+zonePrivate.areaIdToUiMapId = "return {"`);
+  try {
+    await s.cmd("targets");
+    const printed = await s.printed();
+    expect(printed).toContain("QuestieDB read failed (ZoneDB)");
+    expect(printed).toContain("ZoneDB.private.areaIdToUiMapId does not compile");
+    expect(printed).not.toContain("<1 min");
+  } finally {
+    s.close();
+  }
+});
