@@ -127,7 +127,8 @@ export function remainingLabel(mode: Mode, n: number): string {
 }
 
 export function logHeader(n: number): string {
-  return t(n === 1 ? "questsInLogOne" : "questsInLogMany").replace("{n}", String(n));
+  const singular = n === 1 || (n === 0 && currentLocale() === "frFR");
+  return t(singular ? "questsInLogOne" : "questsInLogMany").replace("{n}", String(n));
 }
 
 export function modeText(mode: Mode): string {

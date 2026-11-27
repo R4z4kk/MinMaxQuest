@@ -188,9 +188,12 @@ describe("completion header and footer", () => {
     expect(modeText("zone")).toBe("Zone");
     expect(remainingLabel("log", 3)).toBe("Remaining in log · 3");
     expect(modeText("log")).toBe("Log");
+    expect(logHeader(0)).toBe("0 quests in log");
     expect(logHeader(1)).toBe("1 quest in log");
     expect(logHeader(4)).toBe("4 quests in log");
     setLocale("frFR");
+    expect(logHeader(0)).toBe("0 quête dans le journal");
+    expect(logHeader(1)).toBe("1 quête dans le journal");
     expect(logHeader(4)).toBe("4 quêtes dans le journal");
     expect(modeText("log")).toBe("Journal");
     expect(remainingLabel("zone", 2)).toBe("Restant dans la zone · 2");

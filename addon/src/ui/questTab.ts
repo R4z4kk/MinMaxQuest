@@ -78,7 +78,7 @@ export function createQuestTab(deps: QuestDeps): TabView {
   let optionsToggle: Button | null = null;
   let dungeonsToggle: Button | null = null;
   let dungeonsHeight = HEIGHT;
-  const stored: (() => boolean)[] = [() => db.routeElites, () => db.routeDungeons, () => db.autoFly, () => db.nativeWaypoint, () => db.arrow?.locked ?? false];
+  const stored: (() => boolean)[] = [() => db.routeElites, () => db.routeDungeons, () => db.autoFly, () => db.nativeWaypoint, () => deps.arrow().isLocked()];
 
   const toggleDungeon = (areaId: number): void => {
     const at = db.dungeonReturns.indexOf(areaId);

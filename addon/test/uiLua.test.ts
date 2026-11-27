@@ -254,6 +254,20 @@ it("locks the arrow from the Options checkbox and from the slash commands", asyn
   }
 });
 
+it("draws the Lock arrow checkbox from the arrow itself", async () => {
+  const s = await ui();
+  try {
+    await s.cmd("arrow lock");
+    await s.run("MinMaxQuestCharDB.arrow.locked = false");
+    await s.clearCalls();
+    await s.cmd("");
+    const marks = (await s.calls()).filter((c) => /^texture\|(Show|Hide)$/.test(c));
+    expect(marks.pop()).toBe("texture|Show");
+  } finally {
+    s.close();
+  }
+});
+
 it("creates no frame, texture or font string when the engine redraws an open tab", async () => {
   const s = await ui();
   const created = async () => (await s.run("return created")) as number;
@@ -748,6 +762,42 @@ it("places the item holder at its saved position", async () => {
 MinMaxQuestCharDB = { itemButton = { x = 300, y = 400 } }`);
   try {
     expect((await s.calls()).filter((c) => c.startsWith("MinMaxQuestItemHolder|SetPoint|")).pop()).toMatch(/\|TOPLEFT\|.*\|BOTTOMLEFT\|300\|400$/);
+  } finally {
+    s.close();
+  }
+});
+
+it("stops dragging the item holder when combat starts and leaves it alone afterwards", async () => {
+  const s = await ui(ITEM_FAKES);
+  try {
+    await s.cmd("arrow move");
+    await s.run(`scripts["MinMaxQuestItemHolder.OnDragStart"](nil)`);
+    await s.clearCalls();
+    await s.run("inCombat = true");
+    await s.event(`"PLAYER_REGEN_DISABLED"`);
+    expect(await s.run("return MinMaxQuestCharDB.itemButton.x .. ',' .. MinMaxQuestCharDB.itemButton.y")).toBe("100,700");
+    expect((await s.calls()).filter((c) => c === "MinMaxQuestItemHolder|StopMovingOrSizing")).toHaveLength(1);
+    await s.clearCalls();
+    await s.run(`scripts["MinMaxQuestItemHolder.OnDragStop"](nil)`);
+    await s.event(`"PLAYER_REGEN_DISABLED"`);
+    expect((await s.calls()).filter((c) => /^MinMaxQuestItemHolder\|/.test(c))).toEqual([]);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("clears the item icon when the item goes away and sets no attribute when the icon lookup fails", async () => {
+  const s = await ui(ITEM_FAKES);
+  try {
+    await s.clearCalls();
+    await s.run("bags[900] = 0; bags[901] = 0");
+    await s.event(`"BAG_UPDATE_DELAYED"`);
+    expect(await s.calls()).toContain("texture|SetTexture|nil");
+    await s.run("bags[901] = 1; C_Item.GetItemIconByID = nil");
+    await s.clearCalls();
+    await s.event(`"BAG_UPDATE_DELAYED"`);
+    expect((await s.calls()).filter((c) => c.startsWith("MinMaxQuestItemButton|SetAttribute|item|"))).toEqual([]);
   } finally {
     s.close();
   }
