@@ -16,7 +16,7 @@ function masksIntersect(a: number, b: number): boolean {
   return false;
 }
 
-function maskAllows(required: number, player: number): boolean {
+export function maskAllows(required: number, player: number): boolean {
   return required === 0 || masksIntersect(required, player);
 }
 
