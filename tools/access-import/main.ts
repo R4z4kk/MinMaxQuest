@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { ACCESS_CHAINS } from "../../addon/src/access/chains";
+import { ACCESS_CHAINS } from "./legacyChains";
 import { expiredRecords } from "../../addon/src/core/constants";
 import { loadInstanceTypes } from "../route-builder/ingest/instances";
 import { cachedSnapshot } from "../route-builder/ingest/questie";

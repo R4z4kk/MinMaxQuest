@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { ACCESS_CHAINS } from "../../../addon/src/access/chains";
+import { ACCESS_CHAINS } from "../legacyChains";
 import { loadInstanceTypes } from "../../route-builder/ingest/instances";
 import { readCachedSnapshot, snapshotPath } from "../../route-builder/ingest/questie";
 import { ATTUNE } from "../../route-builder/sources";

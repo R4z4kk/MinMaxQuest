@@ -1,9 +1,10 @@
-import { ACCESS_CHAINS } from "../access/chains";
+import { entriesFor } from "../access/chains";
 import { t } from "../core/l10n";
 import { guard } from "../core/report";
 import type { CharDb } from "../core/storage";
 import type { QuestRepository } from "../data/questRepository";
 import type { Engine } from "../game/engine";
+import { itemCount, repEarned } from "../game/playerState";
 import { accessView, trackedText, type ChainView } from "./accessModel";
 import {
   bar, checkbox, COLOR, fill, GLYPH, hline, onClick, paint, PAD, SIZE, text, UI_FEATURE, type Bar, type Checkbox,
@@ -131,10 +132,14 @@ export function createAccessTab(deps: AccessDeps): TabView {
     footerMode?.SetText(t("activeMode").replace("{mode}", t(db.activeMode === "quest" ? "tabQuest" : "tabCompletion")));
     const snap = engine.snapshot();
     if (parent == null || snap == null) return;
-    const views = accessView(ACCESS_CHAINS, {
+    const views = accessView(entriesFor(snap.faction), {
       faction: snap.faction,
+      level: snap.state.level,
+      raceMask: snap.state.raceMask,
       completed: snap.state.completed,
       inLog: snap.state.inLog,
+      itemCount,
+      repEarned,
       getQuest: (id) => repo.get(id),
       zoneName: (areaId) => deps.areaName(areaId),
       expanded: db.expandedChain,

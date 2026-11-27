@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+import { entriesFor } from "../src/access/chains";
 import { loggedIn, QUEST_MODE } from "./helpers/fakeGame";
 
 const UI_FAKES = `
@@ -63,7 +64,7 @@ it("switches the three tabs, resizing the window and saving the tab", async () =
     expect(texts).toContain("Eastern Kingdoms · 0 / 2");
     await s.click("MinMaxQuestTabaccess");
     expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|320|420");
-    expect(await s.texts()).toContain("Dalaran Sewers");
+    expect(await s.texts()).toContain("Dalaran Sewer Key");
     await s.click("MinMaxQuestTabquest");
     expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|270|262");
     expect(await s.run("return MinMaxQuestCharDB.tab")).toBe("quest");
@@ -152,9 +153,10 @@ it("expands a chain and tracks it from the Access tab", async () => {
     await s.cmd("");
     await s.click("MinMaxQuestTabaccess");
     await s.click("MinMaxQuestChain1");
-    expect(await s.run("return MinMaxQuestCharDB.expandedChain")).toBe("dalaran-sewers");
+    const first = entriesFor("A")[0].id;
+    expect(await s.run("return MinMaxQuestCharDB.expandedChain")).toBe(first);
     await s.click("MinMaxQuestChain1Track");
-    expect(await s.run("return MinMaxQuestCharDB.trackedChains[1]")).toBe("dalaran-sewers");
+    expect(await s.run("return MinMaxQuestCharDB.trackedChains[1]")).toBe(first);
     expect(await s.texts()).toContain("1 chain tracked");
     await s.click("MinMaxQuestChain1");
     expect(await s.run("return MinMaxQuestCharDB.expandedChain == nil")).toBe(true);

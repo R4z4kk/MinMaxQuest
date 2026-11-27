@@ -1,6 +1,7 @@
-import { resolveSteps, type AccessChainDef } from "../access/chains";
-import { chainProgress } from "../access/progress";
+import { forFaction } from "../access/chains";
+import { entryProgress, type AccessContext as ProgressContext } from "../access/progress";
 import { currentLocale, t } from "../core/l10n";
+import type { AccessEntry } from "../data/generated/access";
 import type { QuestInfo } from "../data/questRepository";
 import { questLabel } from "../game/engine";
 
@@ -20,32 +21,37 @@ export interface ChainView {
   steps: StepView[];
 }
 
-export interface AccessContext {
+export interface AccessContext extends Omit<ProgressContext, "knownQuest"> {
   faction: "A" | "H";
-  completed: Set<number>;
-  inLog: Set<number>;
   getQuest(id: number): QuestInfo | null;
   zoneName(areaId: number): string | null;
   expanded: string | null;
   tracked: string[];
 }
 
-export function accessView(defs: AccessChainDef[], ctx: AccessContext): ChainView[] {
-  return defs.map((def) => {
-    const progress = chainProgress(resolveSteps(def, ctx.faction, (id) => ctx.getQuest(id)), ctx.completed, ctx.inLog);
-    const steps = progress.steps.map(({ questId, state }): StepView => {
-      const quest = ctx.getQuest(questId);
-      const name = questLabel(questId, quest);
+function stepText(kind: string, ref: number, quest: QuestInfo | null): string {
+  if (kind === "pickUp" || kind === "turnIn" || kind === "quest") return questLabel(ref, quest);
+  return `${kind} ${ref}`;
+}
+
+export function accessView(entries: AccessEntry[], ctx: AccessContext): ChainView[] {
+  const visible = entries.filter((entry) => forFaction(entry, ctx.faction));
+  return visible.map((entry) => {
+    const progress = entryProgress(entry, { ...ctx, knownQuest: (id) => ctx.getQuest(id) != null });
+    const expanded = ctx.expanded === entry.id;
+    const steps = (expanded ? progress.steps : []).map(({ step, state }): StepView => {
+      const quest = ctx.getQuest(step.ref);
+      const name = stepText(step.kind, step.ref, quest);
       const zone = state === "current" && quest?.zoneAreaId != null ? ctx.zoneName(quest.zoneAreaId) : null;
       return { text: zone == null ? name : `${name} · ${zone}`, state };
     });
     return {
-      id: def.id,
-      name: def.name[currentLocale()],
-      range: `${def.levelRange[0]}-${def.levelRange[1]}`,
+      id: entry.id,
+      name: entry.name[currentLocale()],
+      range: entry.levels == null ? "" : `${entry.levels[0]}-${entry.levels[1]}`,
       fraction: progress.total > 0 ? progress.done / progress.total : 0,
-      expanded: ctx.expanded === def.id,
-      tracked: ctx.tracked.includes(def.id),
+      expanded,
+      tracked: ctx.tracked.includes(entry.id),
       count: t("stepsCount").replace("{done}", String(progress.done)).replace("{total}", String(progress.total)),
       steps,
     };

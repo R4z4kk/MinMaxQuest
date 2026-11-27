@@ -1,4 +1,4 @@
-import type { AccessChainDef } from "../../addon/src/access/chains";
+import type { AccessChainDef } from "./legacyChains";
 import { maskAllows } from "../../addon/src/quests/availability";
 import { INSTANCE_PARTY } from "../route-builder/ingest/instances";
 import { hasFlag, type QuestieSnapshot } from "../route-builder/ingest/snapshot";

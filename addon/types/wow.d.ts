@@ -40,6 +40,13 @@ declare const C_Item: {
   GetItemSpell: WowItemSpell | null;
   GetItemIconByID: ((this: void, itemId: number) => number | null) | null;
 } | null;
+interface WowFactionData {
+  currentStanding: number;
+}
+declare const C_Reputation: { GetFactionDataByID: ((this: void, factionId: number) => WowFactionData | null) | null } | null;
+declare const GetFactionInfoByID:
+  | ((this: void, factionId: number) => LuaMultiReturn<[string | null, string | null, number | null, number | null, number | null, number | null]>)
+  | null;
 type WowItemSpell = (this: void, itemId: number) => LuaMultiReturn<[string | null, number | null]>;
 declare const GetItemSpell: WowItemSpell | null;
 type WowItemCount = (this: void, itemId: number) => number;

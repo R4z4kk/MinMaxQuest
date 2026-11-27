@@ -85,6 +85,10 @@ C_Item = {
   GetItemSpell = function(id) if itemSpells[id] then return itemSpells[id], 1 end end,
   GetItemIconByID = function(id) return 1000 + id end,
 }
+-- Earned reputation by faction id; unknown factions return nothing.
+reps = {}
+C_Reputation = { GetFactionDataByID = function(id) if reps[id] then return { name = "F" .. id, currentStanding = reps[id] } end end }
+GetFactionInfoByID = function() end
 player = { 1000, 2000 }
 UnitPosition = function() return player[1], player[2], 0, 0 end
 GetPlayerFacing = function() return 0 end

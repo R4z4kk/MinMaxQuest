@@ -1,30 +1,38 @@
 import { afterEach, describe, expect, it } from "vitest";
-import type { AccessChainDef } from "../src/access/chains";
 import { setLocale } from "../src/core/l10n";
+import type { AccessEntry } from "../src/data/generated/access";
 import type { QuestInfo } from "../src/data/questRepository";
 import { accessView, trackedText } from "../src/ui/accessModel";
 
-const DEF: AccessChainDef = {
-  id: "sewers",
-  name: { frFR: "Égouts", enUS: "Sewers" },
-  kind: "key",
-  levelRange: [28, 33],
-  start: { A: [1], H: [7] },
+const ENTRY: AccessEntry = {
+  id: "sewers", group: "key", faction: "A", levels: [28, 33],
+  name: { enUS: "Sewers", frFR: "Égouts" },
+  steps: [
+    { id: 10, kind: "pickUp", ref: 1, follows: [], origin: "attune" },
+    { id: 20, kind: "quest", ref: 2, follows: [10], origin: "attune" },
+    { id: 30, kind: "quest", ref: 3, follows: [20], origin: "attune" },
+  ],
 };
+const HORDE: AccessEntry = { ...ENTRY, id: "horde", faction: "H" };
+const NO_LEVELS: AccessEntry = { ...ENTRY, id: "free", levels: null };
 
 const QUESTS: Record<number, Partial<QuestInfo>> = {
-  1: { name: "Message", nextInChain: 2, zoneAreaId: 5 },
-  2: { name: "Key", nextInChain: 3, zoneAreaId: 5 },
-  3: { name: "Tome", nextInChain: null, zoneAreaId: null },
+  1: { name: "Message", zoneAreaId: 5 },
+  2: { name: "Key", zoneAreaId: 5 },
+  3: { name: "Tome", zoneAreaId: null },
 };
 const getQuest = (id: number): QuestInfo | null =>
   QUESTS[id] == null ? null : ({ id, ...QUESTS[id] } as QuestInfo);
 
 const base = {
   faction: "A" as const,
+  level: 30,
+  raceMask: 1,
   completed: new Set([1]),
   inLog: new Set([2]),
   getQuest,
+  itemCount: () => 0,
+  repEarned: () => null,
   zoneName: (areaId: number) => (areaId === 5 ? "Alterac" : null),
   expanded: null as string | null,
   tracked: [] as string[],
@@ -33,9 +41,9 @@ const base = {
 afterEach(() => setLocale("enUS"));
 
 describe("accessView", () => {
-  it("builds the chain row with steps, zone of the current step and progress", () => {
+  it("builds the row with steps, zone of the current step and progress", () => {
     setLocale("enUS");
-    const [row] = accessView([DEF], { ...base, expanded: "sewers", tracked: ["sewers"] });
+    const [row] = accessView([ENTRY], { ...base, expanded: "sewers", tracked: ["sewers"] });
     expect(row).toEqual({
       id: "sewers",
       name: "Sewers",
@@ -52,12 +60,13 @@ describe("accessView", () => {
     });
   });
 
-  it("uses the localized name, the faction start and handles an unknown chain", () => {
+  it("uses the localized name, filters by faction and leaves the range empty without levels", () => {
     setLocale("frFR");
-    const [row] = accessView([DEF], { ...base, faction: "H" });
-    expect(row.name).toBe("Égouts");
-    expect([row.expanded, row.tracked, row.fraction, row.steps]).toEqual([false, false, 0, []]);
-    expect(row.count).toBe("0/0 étapes");
+    const rows = accessView([ENTRY, HORDE, NO_LEVELS], base);
+    expect(rows.map((r) => r.id)).toEqual(["sewers", "free"]);
+    expect(rows[0].name).toBe("Égouts");
+    expect(rows[1].range).toBe("");
+    expect(rows[0].steps).toEqual([]);
   });
 
   it("counts tracked chains", () => {

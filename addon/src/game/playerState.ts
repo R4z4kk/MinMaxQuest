@@ -100,6 +100,15 @@ export function itemCount(itemId: number): number {
   return count(itemId);
 }
 
+// Same source as Attune: C_Reputation when present, else the classic call. Null for an unknown faction.
+export function repEarned(factionId: number): number | null {
+  const byId = C_Reputation?.GetFactionDataByID;
+  if (byId != null) return byId(factionId)?.currentStanding ?? null;
+  if (GetFactionInfoByID == null) throw new Error("no faction API");
+  const [name, , , , , earned] = GetFactionInfoByID(factionId);
+  return name == null ? null : earned;
+}
+
 // Same order as Questie QuestieCompat.GetItemCooldown.
 export function itemCooldown(itemId: number): LuaMultiReturn<[number, number, number | boolean]> {
   const getter = C_Container?.GetItemCooldown ?? C_Item?.GetItemCooldown ?? GetItemCooldown;

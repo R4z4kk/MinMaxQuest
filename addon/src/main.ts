@@ -4,6 +4,7 @@ import { createItemButton, itemUsable, type ItemButtonApi } from "./arrow/itemBu
 import { questItemFor, type ItemDeps } from "./arrow/questItem";
 import { applyLanguage, t } from "./core/l10n";
 import { guard, isDisabled, reportOnce } from "./core/report";
+import { pruneAccessState } from "./access/chains";
 import { loadAccountDb, loadCharDb, type AccountDb, type CharDb } from "./core/storage";
 import { TRAVEL } from "./data/generated/travel";
 import { createQuestRepository, type QuestInfo, type QuestRepository, type RepoResult } from "./data/questRepository";
@@ -60,6 +61,7 @@ function getDb(): CharDb {
   getAccountDb();
   if (db == null) {
     db = loadCharDb(_G.MinMaxQuestCharDB);
+    pruneAccessState(db, playerFaction());
     _G.MinMaxQuestCharDB = db;
   }
   return db;

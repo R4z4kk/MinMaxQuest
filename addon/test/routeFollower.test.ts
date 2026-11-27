@@ -6,7 +6,7 @@ import { loadCharDb, type CharDb } from "../src/core/storage";
 import type { QuestInfo } from "../src/data/questRepository";
 import type { PlayerSnapshot } from "../src/game/engine";
 import { encodeSteps, type EmittedStep, type StepType } from "../src/route/format";
-import { createRouteFollower } from "../src/route/follower";
+import { createRouteFollower, type FollowerDeps } from "../src/route/follower";
 
 const grind = (targetLevel: number, x: number, type: StepType = "grind"): EmittedStep => ({
   type, uiMapId: 1, x, y: 0, targetLevel, targetXpIntoLevel: 0, estCostSeconds: 10, estXpGain: 0,
@@ -47,7 +47,7 @@ function snapshot(level: number, x = 0): PlayerSnapshot {
   };
 }
 
-function follower(db: CharDb, combat = { on: false }) {
+function follower(db: CharDb, combat = { on: false }, over: Partial<FollowerDeps> = {}) {
   return createRouteFollower({
     db,
     faction: () => "A",
@@ -62,6 +62,7 @@ function follower(db: CharDb, combat = { on: false }) {
       { id: 19, name: "Booty Bay", pos: { continent: 0, x: 2050, y: 0 }, faction: "A" },
       { id: 5, name: "Lakeshire", pos: { continent: 0, x: 5000, y: 0 }, faction: "A" },
     ],
+    ...over,
   });
 }
 
@@ -123,6 +124,33 @@ it("keeps a skipped step on the same step when a dungeon return is inserted befo
   expect(f.view()?.total).toBe(5);
   expect(db.route.skippedSteps).toEqual([4]);
   expect(f.view()).toMatchObject({ current: 2, next: [3], currentText: "Back to the dungeon · pick up" });
+});
+
+const keyQuest = (id: number): QuestInfo | null =>
+  id === 92432 || id === 92458 ? { ...quest, id, requiredLevel: 8, objectives: [] } : null;
+const placeAt = { uiMapId: 1, x: 15, y: 0 };
+
+it("inserts the quests of a tracked entry and skips another faction's entry", () => {
+  install();
+  const db = loadCharDb(null);
+  const f = follower(db, { on: false }, { quest: keyQuest, place: () => placeAt });
+  f.targets(snapshot(11));
+  expect(f.view()?.total).toBe(4);
+  db.trackedChains = ["155"];
+  f.targets(snapshot(11));
+  expect(f.view()?.total).toBe(4);
+  db.trackedChains = ["154"];
+  f.targets(snapshot(11));
+  expect(f.view()?.total).toBe(8);
+  expect(reports).toEqual([]);
+});
+
+it("reports a tracked id that is not an access entry", () => {
+  install();
+  const db = loadCharDb(null);
+  db.trackedChains = ["nope"];
+  follower(db).targets(snapshot(11));
+  expect(reports).toEqual(["MinMaxQuest: tracked chain nope is unknown"]);
 });
 
 it("waits for the end of combat to change the variant", () => {

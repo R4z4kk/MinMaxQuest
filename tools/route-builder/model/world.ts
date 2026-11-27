@@ -1,4 +1,4 @@
-import { ACCESS_CHAINS, resolveSteps } from "../../../addon/src/access/chains";
+import { ACCESS_CHAINS, resolveSteps } from "../../access-import/legacyChains";
 import { distance, type WorldPos } from "../../../addon/src/core/geometry";
 import {
   createQuestRepository,

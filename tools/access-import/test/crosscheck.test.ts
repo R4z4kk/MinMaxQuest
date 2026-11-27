@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACCESS_CHAINS } from "../../../addon/src/access/chains";
+import { ACCESS_CHAINS } from "../legacyChains";
 import { parseAttune } from "../attune";
 import { crossCheck, sortEntries } from "../crosscheck";
 import type { AccessEntry } from "../types";
