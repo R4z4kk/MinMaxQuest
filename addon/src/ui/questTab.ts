@@ -8,7 +8,7 @@ import type { RouteFollower, RouteView } from "../route/follower";
 import { skipStepOrQuest } from "./completionTab";
 import { bar, button, checkbox, COLOR, GLYPH, hline, label, PAD, setLabel, SIZE, text, UI_FEATURE, type Button, type Bar, type Checkbox } from "./theme";
 import { formatCount } from "./viewModel";
-import type { TabView } from "./window";
+import { CONTENT_TOP, type TabView } from "./window";
 
 export interface QuestDeps {
   db: CharDb;
@@ -19,6 +19,7 @@ export interface QuestDeps {
   refreshTargets(): void;
   refreshPins(): void;
   openCompletion(): void;
+  resize(height: number): void;
 }
 
 // 0 stands for "off" (null): a nil inside a Lua array would end iteration.
@@ -26,10 +27,12 @@ const GAPS = [0, 1, 2, 3];
 const WIDTH = 270;
 const HEIGHT = 262;
 const NEXT_SLOTS = 3;
-const DUNGEON_ROWS = 5;
-const DUNGEON_COLUMN = 125;
+const DUNGEON_COLUMNS = 2;
+const DUNGEON_COLUMN = (WIDTH - 2 * PAD) / DUNGEON_COLUMNS;
 const SECTION_Y = -154;
 const LINE = 16;
+const CHECK_HEIGHT = 14;
+const FOOTER_ROOM = 26;
 const SECONDS_PER_HOUR = 3600;
 
 type Section = "options" | "dungeons";
@@ -60,6 +63,7 @@ export function createQuestTab(deps: QuestDeps): TabView {
   let viewed: RouteView | null = null;
   let optionsToggle: Button | null = null;
   let dungeonsToggle: Button | null = null;
+  let dungeonsHeight = HEIGHT;
   const stored: (() => boolean)[] = [() => db.routeElites, () => db.routeDungeons, () => db.autoFly, () => db.nativeWaypoint];
 
   const toggleDungeon = (areaId: number): void => {
@@ -135,13 +139,15 @@ export function createQuestTab(deps: QuestDeps): TabView {
   const section = (parent: WowFrame, which: Section, name: string, x: number): Button => {
     const toggle = button(parent, name, "", () => {
       open = which;
+      view.height = open === "dungeons" ? dungeonsHeight : HEIGHT;
+      deps.resize(view.height);
       draw();
     });
     toggle.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", x, -132);
     return toggle;
   };
 
-  return {
+  const view: TabView = {
     width: WIDTH,
     height: HEIGHT,
     render(parent) {
@@ -240,13 +246,16 @@ export function createQuestTab(deps: QuestDeps): TabView {
         optionWidgets.push(gapButton.frame);
       }
 
-      follower.returnDungeons().forEach((areaId, i) => {
+      const dungeons = follower.returnDungeons();
+      dungeons.forEach((areaId, i) => {
         const box = checkbox(parent, `MinMaxQuestDungeon${areaId}`, deps.areaName(areaId) ?? `#${areaId}`, () => toggleDungeon(areaId));
-        const column = Math.floor(i / DUNGEON_ROWS);
-        box.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD + column * DUNGEON_COLUMN, SECTION_Y - (i % DUNGEON_ROWS) * LINE);
+        box.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD + (i % DUNGEON_COLUMNS) * DUNGEON_COLUMN, SECTION_Y - Math.floor(i / DUNGEON_COLUMNS) * LINE);
         dungeonBoxes.set(areaId, box);
       });
+      const rows = Math.ceil(dungeons.length / DUNGEON_COLUMNS);
+      dungeonsHeight = Math.max(HEIGHT, CONTENT_TOP - SECTION_Y + (rows - 1) * LINE + CHECK_HEIGHT + FOOTER_ROOM);
     },
     refresh: () => refresh(),
   };
+  return view;
 }

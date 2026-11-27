@@ -417,3 +417,34 @@ it("skips the displayed step, not the arrow target, from the Quest tab", async (
     s.close();
   }
 });
+
+it("fits eleven dungeons in the window and grows it only while the list is open", async () => {
+  const s = await routeTab(`
+    local text = MinMaxQuestRoutes.Alliance.returnBlocks[721]
+    local blocks = {}
+    for i = 1, 11 do blocks[5000 + i] = text end
+    MinMaxQuestRoutes.Alliance.returnBlocks = blocks
+  `);
+  try {
+    await s.click("MinMaxQuestSectionDungeons");
+    const height = Number((await s.last("MinMaxQuestWindow|SetHeight|"))?.split("|")[2]);
+    const calls = await s.calls();
+    for (let i = 1; i <= 11; i++) {
+      const name = `MinMaxQuestDungeon${5000 + i}`;
+      const point = calls.filter((c) => c.startsWith(`${name}|SetPoint|`)).pop()?.split("|") ?? [];
+      const size = calls.filter((c) => c.startsWith(`${name}|SetSize|`)).pop()?.split("|") ?? [];
+      const [x, y, width, boxHeight] = [Number(point[5]), Number(point[6]), Number(size[2]), Number(size[3])];
+      expect(x + width).toBeLessThanOrEqual(270);
+      expect(50 - y + boxHeight).toBeLessThanOrEqual(height);
+    }
+    expect(height).toBeGreaterThan(262);
+    await s.click("MinMaxQuestSectionOptions");
+    expect(await s.last("MinMaxQuestWindow|SetHeight|")).toBe("MinMaxQuestWindow|SetHeight|262");
+    await s.click("MinMaxQuestSectionDungeons");
+    await s.click("MinMaxQuestTabcompletion");
+    await s.click("MinMaxQuestTabquest");
+    expect(await s.last("MinMaxQuestWindow|SetSize|")).toBe(`MinMaxQuestWindow|SetSize|270|${height}`);
+  } finally {
+    s.close();
+  }
+});
