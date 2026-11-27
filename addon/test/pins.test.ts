@@ -286,3 +286,17 @@ it("falls back to the player's map when the world position has no map of its own
     s.close();
   }
 });
+
+it("moves the objective pin to the current waypoint as the player advances", async () => {
+  const s = await pins(OBJECTIVE_QUEST);
+  try {
+    await s.cmd("pin 101");
+    const placed = (await s.list("log")).filter((l) => l.startsWith("world|1|"));
+    expect(placed).toEqual(["world|1|0|2010|1010|3", "world|1|0|2090|1090|3"]);
+    await s.run("log = {}");
+    await s.refresh("player = { 1090, 2090 }");
+    expect((await s.list("log")).filter((l) => l.startsWith("world|1|"))).toEqual(["world|1|0|2010|1010|3"]);
+  } finally {
+    s.close();
+  }
+});

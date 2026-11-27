@@ -7,8 +7,8 @@ import type { QuestInfo } from "../data/questRepository";
 import { questLabel, type PlayerSnapshot } from "../game/engine";
 import { isFriendlyTo } from "../game/positions";
 import { isAvailable } from "../quests/availability";
-import type { Target, TargetKind } from "../targets/completion";
-import type { SpawnCluster } from "../targets/spawns";
+import type { CompletionInput, Target, TargetKind } from "../targets/completion";
+import { objectiveClusters, pickCluster, type SpawnCluster } from "../targets/spawns";
 import type { TaxiLeg } from "../travel/graph";
 import { follow, type FollowView } from "./follow";
 import type { EmittedStep } from "./format";
@@ -24,6 +24,7 @@ export interface FollowerDeps {
   quest(id: number): QuestInfo | null;
   toWorld(uiMapId: number, x: number, y: number): WorldPos | null;
   place: PlaceFor;
+  positionsFor: CompletionInput["positionsFor"];
   // Null when the player position is unknown.
   timeTo(snap: PlayerSnapshot): ((p: WorldPos) => number) | null;
   inCombat(): boolean;
@@ -252,14 +253,17 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
     taxiPos: (id) => taxiNode(id)?.pos ?? null,
   });
 
-  const loopCluster = (s: EmittedStep, center: WorldPos): SpawnCluster | null => {
-    if (s.loop == null) return null;
-    const points: WorldPos[] = [];
-    for (const [x, y] of s.loop) {
-      const p = deps.toWorld(s.uiMapId, x, y);
-      if (p != null) points.push(p);
+  const clusterCache = new Map<string, SpawnCluster[]>();
+
+  const objectiveCluster = (s: EmittedStep, quest: QuestInfo | null, pos: WorldPos): SpawnCluster | null => {
+    if (quest == null || s.objectiveIndex == null) return null;
+    const key = `${quest.id}:${s.objectiveIndex}`;
+    let clusters = clusterCache.get(key);
+    if (clusters == null) {
+      clusters = objectiveClusters(deps.positionsFor(quest, "objective", s.objectiveIndex));
+      clusterCache.set(key, clusters);
     }
-    return points.length > 0 ? { center, points } : null;
+    return pickCluster(clusters, (p) => distance(p, pos));
   };
 
   const toTarget = (i: number, timeTo: (p: WorldPos) => number): Target | null => {
@@ -278,7 +282,7 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
       kind,
       objectiveIndex: kind === "objective" ? (s.objectiveIndex ?? null) : null,
       pos,
-      cluster: kind === "objective" ? loopCluster(s, pos) : null,
+      cluster: kind === "objective" ? objectiveCluster(s, quest, pos) : null,
       otherSpots: 0,
       seconds: Number.isNaN(seconds) ? Infinity : seconds,
       questLevel: quest?.level ?? s.targetLevel,

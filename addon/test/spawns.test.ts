@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { WorldPos } from "../src/core/geometry";
-import { CLUSTER_RADIUS_YARDS, clusterSpawns, killLoop, nextLoopIndex, pickCluster } from "../src/targets/spawns";
+import { CLUSTER_RADIUS_YARDS, WAYPOINT_MAX, WAYPOINT_RADIUS_YARDS, clusterSpawns, killLoop, nextLoopIndex, pickCluster, waypointLoop } from "../src/targets/spawns";
 
 const at = (x: number, y: number, continent = 0): WorldPos => ({ continent, x, y });
 
@@ -65,4 +65,25 @@ describe("nextLoopIndex", () => {
   it("wraps at the end", () => expect(nextLoopIndex(loop, 2, at(200, 0), 25)).toBe(0));
   it("returns 0 for an empty loop", () => expect(nextLoopIndex([], 5, at(0, 0), 25)).toBe(0));
   it("resets an out-of-range index", () => expect(nextLoopIndex(loop, 7, at(0, 0), 25)).toBe(0));
+});
+
+describe("waypointLoop", () => {
+  const cluster = { center: at(0, 0), points: [at(0, 0)] };
+  const loop = (points: WorldPos[], start = at(0, 0)) => waypointLoop(points, cluster, start, WAYPOINT_RADIUS_YARDS, WAYPOINT_MAX);
+  it("keeps the 25 nearest of 30 points, ordered nearest-neighbour from the start", () => {
+    const points: WorldPos[] = [];
+    for (let i = 0; i < 30; i++) points.push(at(i * 5, 0));
+    const result = loop(points);
+    expect(result).toHaveLength(25);
+    expect(result[0]).toEqual(at(0, 0));
+    expect(result[24]).toEqual(at(120, 0));
+    expect(result).toEqual(points.slice(0, 25));
+  });
+  it("starts from the player side", () => {
+    expect(loop([at(0, 0), at(10, 0), at(20, 0)], at(100, 0))).toEqual([at(20, 0), at(10, 0), at(0, 0)]);
+  });
+  it("excludes points at 300 yards and on another continent", () => {
+    expect(loop([at(0, 0), at(300, 0), at(5, 0, 1), at(240, 0)])).toEqual([at(0, 0), at(240, 0)]);
+  });
+  it("returns the single point", () => expect(loop([at(0, 0)])).toEqual([at(0, 0)]));
 });

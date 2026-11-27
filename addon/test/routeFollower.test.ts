@@ -17,7 +17,7 @@ const quest: QuestInfo = {
   id: 900, name: "Back to the dungeon", level: 12, requiredLevel: 11, requiredMaxLevel: null, races: 0, classes: 0,
   preGroup: [], preSingle: [], exclusiveTo: [], nextInChain: null, children: [],
   starterNpcs: [], starterObjects: [], finisherNpcs: [], finisherObjects: [],
-  objectives: [], baseXp: null, hasUnsupportedRequirement: false, isElite: false, zoneAreaId: null,
+  objectives: [{ kind: "npc", id: 5, required: 1, index: 1 }], baseXp: null, hasUnsupportedRequirement: false, isElite: false, zoneAreaId: null,
 };
 
 const locked: QuestInfo = { ...quest, id: 901, name: "Later on", requiredLevel: 15 };
@@ -54,6 +54,7 @@ function follower(db: CharDb, combat = { on: false }) {
     quest: (id) => (id === 900 ? quest : id === 901 ? locked : null),
     toWorld: (_m, x, y): WorldPos => ({ continent: 0, x, y }),
     place: () => null,
+    positionsFor: (q) => (q.id === 900 ? [{ continent: 0, x: 10, y: 0 }, { continent: 0, x: 120, y: 0 }, { continent: 0, x: 900, y: 0 }] : []),
     timeTo: () => () => 1,
     inCombat: () => combat.on,
     taxiNodes: [
@@ -291,4 +292,15 @@ it("drops saved travel skips when the inserted steps changed since they were sav
   expect(db.route.skippedSteps).toEqual([]);
   expect(db.route.startIndex).toBe(startIndex);
   expect(reloaded.view()?.total).toBe(6);
+});
+
+it("builds an objective step's waypoints in game from the repository positions", () => {
+  install({ segmentEndLevel: 10 }, [{ ...grind(10, 10, "complete"), questId: 900, objectiveIndex: 1, loop: [[1, 1]] }]);
+  const f = follower(loadCharDb(null));
+  const snap = snapshot(10);
+  snap.log.set(900, { complete: false, objectivesDone: new Set(), counts: [{ have: 0, need: 1 }] });
+  snap.state.inLog.add(900);
+  const target = f.targets(snap)?.[0];
+  expect(target?.kind).toBe("objective");
+  expect(target?.cluster?.points).toEqual([{ continent: 0, x: 10, y: 0 }, { continent: 0, x: 120, y: 0 }]);
 });

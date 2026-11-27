@@ -8,7 +8,7 @@ import {
   passesMaxLevelOption,
   type PlayerQuestState,
 } from "../quests/availability";
-import { CLUSTER_RADIUS_YARDS, clusterSpawns, pickCluster, type SpawnCluster } from "./spawns";
+import { objectiveClusters, pickCluster, type SpawnCluster } from "./spawns";
 
 export type TargetKind = "accept" | "objective" | "turnin" | "route";
 export type QuestTargetKind = Exclude<TargetKind, "route">;
@@ -137,7 +137,7 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
         const key = `${q.id}:${obj.index}`;
         let clusters = input.clusters.get(key);
         if (clusters == null) {
-          clusters = clusterSpawns(positionsFor(q, "objective", obj.index), CLUSTER_RADIUS_YARDS);
+          clusters = objectiveClusters(positionsFor(q, "objective", obj.index));
           input.clusters.set(key, clusters);
         }
         const cluster = pickCluster(clusters, timeTo);

@@ -31,7 +31,7 @@
 
 ### Guide arrow
 - **What it points to:** quest givers, quest items, objects and mob areas, with the distance and the step label as white text under the arrow.
-- **Kill objectives:** it loops through the mob spawn points of the area and moves on to the next point when you reach one. It doesn't send you to a single spot.
+- **Kill objectives:** it routes you through the mob spawn points around the chosen area (up to 25 within 250 yards), nearest first, and moves on to the next waypoint when you reach one. The map pin follows the current waypoint. It doesn't send you to a single spot.
 - **Many spawn locations:** it targets the closest group and shows "+N other spots" for the rest.
 - **Objectives:** it follows them in quest log order, honouring QuestieDB ordering hints.
 - **Moving it:** drag it with the left mouse button while it is unlocked (the default on a new character). The position is saved. Tick **Lock arrow** in the Options (or `/mmq arrow lock`) to freeze it; a locked arrow lets clicks through. `/mmq arrow move` unlocks it. An unlocked arrow with no target stays hidden until you untick **Lock arrow** or use `/mmq arrow move`.

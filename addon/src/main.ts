@@ -148,6 +148,7 @@ function syncArrow(): void {
   if (next === shownArrow) return;
   shownArrow = next;
   guard("arrow", () => getArrow().setTarget(next));
+  game.refreshPins();
 }
 
 function clearArrow(): void {
@@ -184,13 +185,15 @@ function start(): Game | null {
   if (repo == null) return null;
   const charDb = getDb();
   const player = createPlayerState(_G.LibQuestieDB as LibQuestieDBApi, charDb);
-  const routing = createRouting(repo, charDb, createPositions(repo, mapToWorld(repo), () => playerFaction()));
+  const positionsFor = createPositions(repo, mapToWorld(repo), () => playerFaction());
+  const routing = createRouting(repo, charDb, positionsFor);
   const follower = createRouteFollower({
     db: charDb,
     faction: () => playerFaction(),
     quest: (id) => repo.get(id),
     toWorld: (uiMapId, x, y) => uiMapToWorld(uiMapId, x, y),
     place: createPlaceFor(repo, () => playerFaction()),
+    positionsFor,
     timeTo: (snap) => routing.timeTo(snap),
     inCombat: () => InCombatLockdown(),
     taxiNodes: TRAVEL.taxiNodes,
@@ -220,8 +223,10 @@ function start(): Game | null {
       db: charDb,
       label: (target) => describeTarget(target, targetQuest(target, (id) => repo.get(id))),
       getPins: () => {
-        const current = engine.current();
-        const next = engine.targets().find((target) => !sameKey(target, current)) ?? null;
+        const target = engine.current();
+        const waypoint = target?.kind === "objective" ? engine.waypoint() : null;
+        const current = target != null && waypoint != null ? { ...target, pos: waypoint } : target;
+        const next = engine.targets().find((other) => !sameKey(other, target)) ?? null;
         return { current, next };
       },
     }),

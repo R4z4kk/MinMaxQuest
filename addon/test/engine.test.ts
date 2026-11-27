@@ -342,6 +342,21 @@ describe("arrowTarget", () => {
     expect(engine.arrowTarget()?.pos).toEqual(at(100));
   });
 
+  it("exposes the current waypoint and restarts the loop when the waypoint list changes", () => {
+    const first = target(1, { kind: "objective", objectiveIndex: 2, pos: at(70), cluster: { center: at(70), points: [at(100), at(40)] } });
+    const { engine, world } = setup([first], [quest(1)]);
+    engine.refreshTargets(true);
+    expect(engine.waypoint()).toEqual(at(40));
+    if (world.snap != null) world.snap.pos = at(30);
+    world.clock = 0.5;
+    engine.refreshTargets(false);
+    expect(engine.waypoint()).toEqual(at(100));
+    world.list = [target(1, { kind: "objective", objectiveIndex: 2, pos: at(70), cluster: { center: at(70), points: [at(100), at(40), at(60)] } })];
+    world.clock = 3;
+    engine.refreshTargets(true);
+    expect(engine.waypoint()).toEqual(at(40));
+  });
+
   it("keeps the same object while nothing changes", () => {
     const { engine, world } = setup([target(1)], [quest(1)]);
     engine.refreshTargets(true);

@@ -6,6 +6,8 @@ export interface SpawnCluster {
 }
 
 export const CLUSTER_RADIUS_YARDS = 60;
+export const WAYPOINT_RADIUS_YARDS = 250;
+export const WAYPOINT_MAX = 25;
 
 export function clusterSpawns(points: WorldPos[], radius: number): SpawnCluster[] {
   const valid = points.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
@@ -74,4 +76,24 @@ export function nextLoopIndex(loop: WorldPos[], current: number, player: WorldPo
   if (loop.length === 0 || current < 0 || current >= loop.length) return 0;
   if (!(distance(player, loop[current]) <= advanceYards)) return current;
   return (current + 1) % loop.length;
+}
+
+export function waypointLoop(points: WorldPos[], cluster: SpawnCluster, start: WorldPos, radius: number, max: number): WorldPos[] {
+  const near: { pos: WorldPos; d: number }[] = [];
+  for (const pos of points) {
+    if (pos.continent !== cluster.center.continent) continue;
+    const d = distance(cluster.center, pos);
+    if (d <= radius) near.push({ pos, d });
+  }
+  near.sort((a, b) => a.d - b.d);
+  const kept: WorldPos[] = [];
+  for (let i = 0; i < near.length && i < max; i++) kept.push(near[i].pos);
+  return killLoop({ center: cluster.center, points: kept }, start);
+}
+
+export function objectiveClusters(points: WorldPos[]): SpawnCluster[] {
+  return clusterSpawns(points, CLUSTER_RADIUS_YARDS).map((c) => ({
+    center: c.center,
+    points: waypointLoop(points, c, c.center, WAYPOINT_RADIUS_YARDS, WAYPOINT_MAX),
+  }));
 }
