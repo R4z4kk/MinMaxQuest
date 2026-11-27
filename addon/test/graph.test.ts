@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CONSTANTS } from "../src/core/constants";
 import type { WorldPos } from "../src/core/geometry";
 import type { TravelData } from "../src/data/generated/travel";
-import { buildGraph, firstHop, solveFrom, taxiDestination, travelTime, type TravelContext } from "../src/travel/graph";
+import { buildGraph, firstHop, hearthPenaltyOf, solveFrom, taxiDestination, travelTime, type TravelContext } from "../src/travel/graph";
 
 const SPEED = 7;
 const WALK = CONSTANTS.detourFactor.value / SPEED;
@@ -26,6 +26,7 @@ function context(partial: Partial<TravelContext> = {}): TravelContext {
     knownTaxiNodes: new Set<number>(),
     faction: "A",
     hearth: { ready: false, pos: null },
+    hearthPenaltySec: CONSTANTS.hearthPenaltySec.value,
     ...partial,
   };
 }
@@ -100,8 +101,23 @@ describe("travel graph", () => {
   it("uses a ready hearthstone when home is next to the target", () => {
     const ctx = context({ hearth: { ready: true, pos: pos(5000, 5000) } });
     const { time, hop } = evaluate(data({}), ctx, pos(0, 0), pos(5030, 5040));
-    expect(time).toBeCloseTo(CONSTANTS.hearthCastSec.value + 50 * WALK);
+    expect(time).toBeCloseTo(CONSTANTS.hearthCastSec.value + CONSTANTS.hearthPenaltySec.value + 50 * WALK);
     expect(hop?.kind).toBe("hearth");
+  });
+
+  it("reports the hearth penalty only when the first hop is the hearthstone", () => {
+    const ctx = context({ hearth: { ready: true, pos: pos(5000, 5000) } });
+    const graph = buildGraph(data({}), ctx);
+    const plan = solveFrom(graph, pos(0, 0), ctx);
+    expect(hearthPenaltyOf(plan, graph, pos(5030, 5040), ctx)).toBe(CONSTANTS.hearthPenaltySec.value);
+    expect(hearthPenaltyOf(plan, graph, pos(10, 0), ctx)).toBe(0);
+  });
+
+  it("walks a short trip even when the inn is next to the target", () => {
+    const ctx = context({ hearth: { ready: true, pos: pos(100, 0) } });
+    const { time, hop } = evaluate(data({}), ctx, pos(0, 0), pos(126, 0));
+    expect(time).toBeCloseTo(126 * WALK);
+    expect(hop?.kind).toBe("walk");
   });
 
   it("ignores the hearthstone while it is on cooldown", () => {

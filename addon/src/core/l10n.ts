@@ -8,6 +8,7 @@ export type L10nKey =
   | "tabCompletion"
   | "positionUnavailable"
   | "arrowUsage"
+  | "hideAll"
   | "help"
   | "targetAccept"
   | "targetObjective"
@@ -111,7 +112,19 @@ export type L10nKey =
   | "corpseUnknown"
   | "language"
   | "languageAuto"
-  | "reload";
+  | "reload"
+  | "groupRaid"
+  | "groupKey"
+  | "groupMisc"
+  | "stepLevel"
+  | "stepKill"
+  | "stepTalk"
+  | "stepUse"
+  | "stepTalkAny"
+  | "stepUseAny"
+  | "stepRep"
+  | "stepProf"
+  | "stepEnd";
 
 const EN: Record<L10nKey, string> = {
   questieMissing: "QuestieDB is required",
@@ -121,7 +134,8 @@ const EN: Record<L10nKey, string> = {
   tabCompletion: "Completion",
   positionUnavailable: "position unavailable",
   arrowUsage: "usage: /mmq arrow move|lock|test",
-  help: "commands: /mmq (window) | help | q <id> | chain <questId> | targets | skip [confirm] | pin <id> | unpin | skipped | unskip <id>|all | arrow move|lock|test | debug build <n> | debug prof",
+  hideAll: "Hide MinMaxQuest (/mmq to show)",
+  help: "commands: /mmq (show/hide all) | help | q <id> | chain <questId> | targets | skip [confirm] | pin <id> | unpin | skipped | unskip <id>|all | arrow move|lock|test | debug build <n> | debug prof",
   targetAccept: "pick up",
   targetObjective: "objective",
   targetTurnin: "turn in",
@@ -225,6 +239,18 @@ const EN: Record<L10nKey, string> = {
   language: "Language",
   languageAuto: "Auto",
   reload: "Reload",
+  groupRaid: "Raids",
+  groupKey: "Keys",
+  groupMisc: "Misc",
+  stepLevel: "Reach level {n}",
+  stepKill: "Kill {name}",
+  stepTalk: "Talk to {name}",
+  stepUse: "Use {name}",
+  stepTalkAny: "Talk to the NPC",
+  stepUseAny: "Use the object",
+  stepRep: "{faction}: {n} reputation",
+  stepProf: "Profession {name}",
+  stepEnd: "Access unlocked",
 };
 
 const FR: Record<L10nKey, string> = {
@@ -235,7 +261,8 @@ const FR: Record<L10nKey, string> = {
   tabCompletion: "Complétion",
   positionUnavailable: "position indisponible",
   arrowUsage: "usage : /mmq arrow move|lock|test",
-  help: "commandes : /mmq (fenêtre) | help | q <id> | chain <questId> | targets | skip [confirm] | pin <id> | unpin | skipped | unskip <id>|all | arrow move|lock|test | debug build <n> | debug prof",
+  hideAll: "Masquer MinMaxQuest (/mmq pour réafficher)",
+  help: "commandes : /mmq (afficher/masquer tout) | help | q <id> | chain <questId> | targets | skip [confirm] | pin <id> | unpin | skipped | unskip <id>|all | arrow move|lock|test | debug build <n> | debug prof",
   targetAccept: "prendre",
   targetObjective: "objectif",
   targetTurnin: "rendre",
@@ -339,6 +366,18 @@ const FR: Record<L10nKey, string> = {
   language: "Langue",
   languageAuto: "Auto",
   reload: "Recharger",
+  groupRaid: "Raids",
+  groupKey: "Clés",
+  groupMisc: "Divers",
+  stepLevel: "Atteins le niveau {n}",
+  stepKill: "Tue {name}",
+  stepTalk: "Parle à {name}",
+  stepUse: "Utilise {name}",
+  stepTalkAny: "Parle au PNJ",
+  stepUseAny: "Utilise l'objet",
+  stepRep: "{faction} : réputation {n}",
+  stepProf: "Métier {name}",
+  stepEnd: "Accès débloqué",
 };
 
 let french: boolean | null = null;

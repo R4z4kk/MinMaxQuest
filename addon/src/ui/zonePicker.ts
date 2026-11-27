@@ -8,6 +8,7 @@ export interface ZoneEntry {
 
 export interface ZonePicker {
   toggle(anchor: WowFrame, entries: ZoneEntry[], onSelect: (areaId: number) => void): void;
+  hide(): void;
 }
 
 const NAME = "MinMaxQuestZonePicker";
@@ -66,6 +67,10 @@ export function createZonePicker(parent: WowFrame): ZonePicker {
   };
 
   return {
+    hide() {
+      if (frame != null) frame.Hide();
+      chosen = null;
+    },
     toggle(anchor, list, onSelect) {
       const picker = frame ?? build();
       frame = picker;

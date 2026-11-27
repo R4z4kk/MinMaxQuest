@@ -1,23 +1,31 @@
+import { ACCESS, type AccessEntry, type AccessStep } from "../data/generated/access";
+import type { CharDb } from "../core/storage";
 import type { QuestInfo } from "../data/questRepository";
+import { maskAllows } from "../quests/availability";
 
-export interface AccessChainDef {
-  id: string;
-  name: { frFR: string; enUS: string };
-  kind: "dungeon" | "raid" | "key";
-  levelRange: [number, number];
-  start: { A: number[]; H: number[] };
-  explicitSteps?: { A: number[]; H: number[] };
+export function findEntry(id: string): AccessEntry | null {
+  return ACCESS.entries.find((entry) => entry.id === id) ?? null;
 }
 
-export const ACCESS_CHAINS: AccessChainDef[] = [
-  {
-    id: "dalaran-sewers",
-    name: { frFR: "Égouts de Dalaran", enUS: "Dalaran Sewers" },
-    kind: "key",
-    levelRange: [28, 33],
-    start: { A: [92432], H: [92432] },
-  },
-];
+export function forFaction(entry: AccessEntry, faction: "A" | "H"): boolean {
+  return entry.faction === "AH" || entry.faction === faction;
+}
+
+export function entriesFor(faction: "A" | "H"): AccessEntry[] {
+  return ACCESS.entries.filter((entry) => forFaction(entry, faction));
+}
+
+export function visibleSteps(entry: AccessEntry, raceMask: number): AccessStep[] {
+  return entry.steps.filter((step) => step.excludedRaces == null || step.excludedRaces <= 0 || !maskAllows(step.excludedRaces, raceMask));
+}
+
+export function entryQuests(entry: AccessEntry, raceMask: number): number[] {
+  const ids: number[] = [];
+  for (const step of visibleSteps(entry, raceMask)) {
+    if ((step.kind === "pickUp" || step.kind === "turnIn" || step.kind === "quest") && !ids.includes(step.ref)) ids.push(step.ref);
+  }
+  return ids;
+}
 
 export function walkChain(startIds: number[], get: (id: number) => QuestInfo | null): number[] {
   const steps: number[] = [];
@@ -35,11 +43,17 @@ export function walkChain(startIds: number[], get: (id: number) => QuestInfo | n
   return steps;
 }
 
-export function resolveSteps(
-  def: AccessChainDef,
-  faction: "A" | "H",
-  get: (id: number) => QuestInfo | null,
-): number[] {
-  if (def.explicitSteps != null) return def.explicitSteps[faction];
-  return walkChain(def.start[faction], get);
+// Entry ids of the former hard-coded Dalaran Sewers chain, by faction.
+const LEGACY_CHAINS: Record<string, { A: string; H: string }> = { "dalaran-sewers": { A: "154", H: "155" } };
+
+// Drops tracked and expanded ids that are not access entries; an unknown faction cannot migrate legacy ids.
+export function pruneAccessState(db: Pick<CharDb, "trackedChains" | "expandedChain">, faction: "A" | "H" | null): void {
+  const kept: string[] = [];
+  for (const raw of db.trackedChains) {
+    const legacy = LEGACY_CHAINS[raw];
+    const id = legacy == null || faction == null ? raw : legacy[faction];
+    if (findEntry(id) != null && !kept.includes(id)) kept.push(id);
+  }
+  db.trackedChains = kept;
+  if (db.expandedChain != null && findEntry(db.expandedChain) == null) db.expandedChain = null;
 }

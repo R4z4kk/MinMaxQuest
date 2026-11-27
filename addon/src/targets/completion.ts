@@ -8,7 +8,7 @@ import {
   passesMaxLevelOption,
   type PlayerQuestState,
 } from "../quests/availability";
-import { CLUSTER_RADIUS_YARDS, clusterSpawns, pickCluster, type SpawnCluster } from "./spawns";
+import { objectiveClusters, pickCluster, type SpawnCluster } from "./spawns";
 
 export type TargetKind = "accept" | "objective" | "turnin" | "route";
 export type QuestTargetKind = Exclude<TargetKind, "route">;
@@ -29,6 +29,8 @@ export interface Target {
   cluster: SpawnCluster | null;
   otherSpots: number;
   seconds: number;
+  // Part of seconds that only ranks (hearthstone penalty); not shown.
+  penaltySec: number;
   questLevel: number;
   trivial: boolean;
   elite: boolean;
@@ -43,6 +45,8 @@ export interface CompletionOptions {
   showElite: boolean;
   minLevelGap: number | null;
   pinnedQuestId: number | null;
+  // Proximity only: ui maps allowed; absent means no restriction.
+  nearbyMaps?: Set<number>;
 }
 
 export interface CompletionInput {
@@ -54,11 +58,19 @@ export interface CompletionInput {
   timeTo: (p: WorldPos) => number;
   // Spawns never change, so clusters are kept across refreshes, keyed by questId:objectiveIndex.
   clusters: Map<string, SpawnCluster[]>;
+  uiMapOf?: (zoneAreaId: number) => number | null;
+  penaltyOf?: (p: WorldPos) => number;
 }
 
 export interface ZoneProgress {
   done: number;
   total: number;
+}
+
+function inNearbyMaps(q: QuestInfo, maps: Set<number>, uiMapOf: CompletionInput["uiMapOf"]): boolean {
+  if (q.zoneAreaId == null || uiMapOf == null) return false;
+  const uiMapId = uiMapOf(q.zoneAreaId);
+  return uiMapId != null && maps.has(uiMapId);
 }
 
 export function selectTargets(input: CompletionInput, opts: CompletionOptions): Target[] {
@@ -91,6 +103,7 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
       cluster,
       otherSpots,
       seconds: timeTo(pos),
+      penaltySec: input.penaltyOf?.(pos) ?? 0,
       questLevel: q.level,
       trivial,
       elite: q.isElite,
@@ -121,6 +134,7 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
     } else if (!pinned) {
       if (!opts.showElite && q.isElite) continue;
       if (!opts.showTrivial && trivial) continue;
+      if (opts.mode === "proximity" && opts.nearbyMaps != null && !inNearbyMaps(q, opts.nearbyMaps, input.uiMapOf)) continue;
       if (opts.mode === "zone" && (opts.zoneAreaId == null || q.zoneAreaId !== opts.zoneAreaId)) continue;
     }
 
@@ -137,7 +151,7 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
         const key = `${q.id}:${obj.index}`;
         let clusters = input.clusters.get(key);
         if (clusters == null) {
-          clusters = clusterSpawns(positionsFor(q, "objective", obj.index), CLUSTER_RADIUS_YARDS);
+          clusters = objectiveClusters(positionsFor(q, "objective", obj.index));
           input.clusters.set(key, clusters);
         }
         const cluster = pickCluster(clusters, timeTo);

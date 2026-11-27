@@ -1,4 +1,4 @@
-import { ACCESS_CHAINS, resolveSteps } from "../access/chains";
+import { entryQuests, findEntry, forFaction } from "../access/chains";
 import { distance, type WorldPos } from "../core/geometry";
 import { currentLocale, t } from "../core/l10n";
 import { reportOnce } from "../core/report";
@@ -7,8 +7,8 @@ import type { QuestInfo } from "../data/questRepository";
 import { questLabel, type PlayerSnapshot } from "../game/engine";
 import { isFriendlyTo } from "../game/positions";
 import { isAvailable } from "../quests/availability";
-import type { Target, TargetKind } from "../targets/completion";
-import type { SpawnCluster } from "../targets/spawns";
+import type { CompletionInput, Target, TargetKind } from "../targets/completion";
+import { objectiveClusters, nearestCluster, type SpawnCluster } from "../targets/spawns";
 import type { TaxiLeg } from "../travel/graph";
 import { follow, type FollowView } from "./follow";
 import type { EmittedStep } from "./format";
@@ -24,6 +24,7 @@ export interface FollowerDeps {
   quest(id: number): QuestInfo | null;
   toWorld(uiMapId: number, x: number, y: number): WorldPos | null;
   place: PlaceFor;
+  positionsFor: CompletionInput["positionsFor"];
   // Null when the player position is unknown.
   timeTo(snap: PlayerSnapshot): ((p: WorldPos) => number) | null;
   inCombat(): boolean;
@@ -139,21 +140,23 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
     }
   };
 
-  const chainBlocks = (r: FactionRoutes, base: EmittedStep[]): InsertBlock[] => {
+  const chainBlocks = (r: FactionRoutes, base: EmittedStep[], raceMask: number): InsertBlock[] => {
     const present = new Set<number>();
     for (const s of base) if (s.questId != null) present.add(s.questId);
     const blocks: InsertBlock[] = [];
     const faction = r.faction;
     for (const id of db.trackedChains) {
-      const def = ACCESS_CHAINS.find((chain) => chain.id === id);
-      if (def == null) {
+      const entry = findEntry(id);
+      if (entry == null) {
         reportOnce(`routeChain:${id}`, t("routeChainUnknown").replace("{id}", id));
         continue;
       }
-      const { block, unplaceable } = chainBlock(resolveSteps(def, faction, quest), quest, deps.place, present);
+      if (!forFaction(entry, faction)) continue;
+      const { block, unplaceable } = chainBlock(entryQuests(entry, raceMask), quest, deps.place, present);
       if (unplaceable > 0) {
-        reportOnce(`routeChain:${id}`, t("routeChainUnplaceable").replace("{name}", def.name[currentLocale()]).replace("{n}", String(unplaceable)));
+        reportOnce(`routeChain:${id}`, t("routeChainUnplaceable").replace("{name}", entry.name[currentLocale()]).replace("{n}", String(unplaceable)));
       }
+      for (const s of block.steps) if (s.questId != null) present.add(s.questId);
       blocks.push(block);
     }
     for (const areaId of db.dungeonReturns) {
@@ -208,7 +211,7 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
     }
     baseIndex = new Map();
     base.forEach((s, i) => baseIndex.set(s, i));
-    const list = insertBlocks(base, db.route.startIndex, chainBlocks(r, base), toWorld);
+    const list = insertBlocks(base, db.route.startIndex, chainBlocks(r, base, snap.state.raceMask), toWorld);
     const listIndex = new Map<EmittedStep, number>();
     let insertedIds = 0;
     list.forEach((s, i) => {
@@ -252,14 +255,17 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
     taxiPos: (id) => taxiNode(id)?.pos ?? null,
   });
 
-  const loopCluster = (s: EmittedStep, center: WorldPos): SpawnCluster | null => {
-    if (s.loop == null) return null;
-    const points: WorldPos[] = [];
-    for (const [x, y] of s.loop) {
-      const p = deps.toWorld(s.uiMapId, x, y);
-      if (p != null) points.push(p);
+  const clusterCache = new Map<string, SpawnCluster[]>();
+
+  const objectiveCluster = (s: EmittedStep, quest: QuestInfo | null, pos: WorldPos): SpawnCluster | null => {
+    if (quest == null || s.objectiveIndex == null) return null;
+    const key = `${quest.id}:${s.objectiveIndex}`;
+    let clusters = clusterCache.get(key);
+    if (clusters == null) {
+      clusters = objectiveClusters(deps.positionsFor(quest, "objective", s.objectiveIndex));
+      clusterCache.set(key, clusters);
     }
-    return points.length > 0 ? { center, points } : null;
+    return nearestCluster(clusters, pos);
   };
 
   const toTarget = (i: number, timeTo: (p: WorldPos) => number): Target | null => {
@@ -278,9 +284,10 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
       kind,
       objectiveIndex: kind === "objective" ? (s.objectiveIndex ?? null) : null,
       pos,
-      cluster: kind === "objective" ? loopCluster(s, pos) : null,
+      cluster: kind === "objective" ? objectiveCluster(s, quest, pos) : null,
       otherSpots: 0,
       seconds: Number.isNaN(seconds) ? Infinity : seconds,
+      penaltySec: 0,
       questLevel: quest?.level ?? s.targetLevel,
       trivial: false,
       elite: quest?.isElite ?? false,

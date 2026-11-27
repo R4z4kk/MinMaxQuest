@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import type { WorldPos } from "../src/core/geometry";
+import { formatDuration, type WorldPos } from "../src/core/geometry";
 import { setLocale } from "../src/core/l10n";
 import type { QuestInfo } from "../src/data/questRepository";
 import type { Target } from "../src/targets/completion";
@@ -26,7 +26,7 @@ const at = (x: number): WorldPos => ({ continent: 0, x, y: 0 });
 
 function target(questId: number, over: Partial<Target> = {}): Target {
   return {
-    questId, kind: "accept", objectiveIndex: null, pos: at(questId * 100), cluster: null, otherSpots: 0, seconds: 30,
+    questId, kind: "accept", objectiveIndex: null, pos: at(questId * 100), cluster: null, otherSpots: 0, seconds: 30, penaltySec: 0,
     questLevel: 10, trivial: false, elite: false, zoneAreaId: null, ...over,
   };
 }
@@ -111,6 +111,16 @@ describe("completionView", () => {
     target(4, { seconds: 300, elite: true, questLevel: 12 }),
     target(9, { seconds: 400 }),
   ];
+
+  it("shows travel time without the hearthstone ranking penalty", () => {
+    setLocale("enUS");
+    const hearth = [target(1, { seconds: 400, penaltySec: 300 }), target(2, { seconds: 400, penaltySec: 300 })];
+    const view = completionView(hearth, hearth[0], getQuest, at(0), 10);
+    expect(view.next?.line).toContain(formatDuration(100));
+    expect(view.rows).toEqual([]);
+    const rows = completionView([target(3), ...hearth], target(3), getQuest, at(0), 10);
+    expect(rows.rows[0].time).toBe(formatDuration(100));
+  });
 
   it("shows the current target, the next one and the remaining quests once each", () => {
     setLocale("enUS");

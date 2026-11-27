@@ -7,6 +7,7 @@ export interface TravelContext {
   knownTaxiNodes: Set<number>;
   faction: "A" | "H";
   hearth: { ready: boolean; pos: WorldPos | null };
+  hearthPenaltySec: number;
 }
 
 export interface TravelPlan {
@@ -238,7 +239,7 @@ export function solveFrom(graph: TravelGraph, origin: WorldPos, ctx: TravelConte
       }
     }
     if (current === originSlot && graph.hearthSlot >= 0 && ctx.hearth.ready) {
-      relax(graph, current, graph.hearthSlot, CONSTANTS.hearthCastSec.value, HEARTH);
+      relax(graph, current, graph.hearthSlot, CONSTANTS.hearthCastSec.value + ctx.hearthPenaltySec, HEARTH);
     }
   }
 
@@ -330,6 +331,11 @@ function bestApproach(plan: TravelPlan, graph: TravelGraph, target: WorldPos, ct
 export function travelTime(plan: TravelPlan, graph: TravelGraph, target: WorldPos, ctx: TravelContext): number {
   bestApproach(plan, graph, target, ctx);
   return graph.bestCost;
+}
+
+// Ranking penalty included in travelTime when the path starts with the hearthstone; 0 otherwise.
+export function hearthPenaltyOf(plan: TravelPlan, graph: TravelGraph, target: WorldPos, ctx: TravelContext): number {
+  return firstHop(plan, graph, target, ctx)?.kind === "hearth" ? ctx.hearthPenaltySec : 0;
 }
 
 export function firstHop(plan: TravelPlan, graph: TravelGraph, target: WorldPos, ctx: TravelContext): TravelHop | null {

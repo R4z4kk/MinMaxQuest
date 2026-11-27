@@ -1,3 +1,4 @@
+import { ACCESS } from "../data/generated/access";
 import { TRAVEL } from "../data/generated/travel";
 
 export interface DatedValue {
@@ -30,6 +31,8 @@ export const CONSTANTS = {
   detourFactor: dated(1.25, "Questwarden docs/ROUTE_OPTIMIZATION.md (unvalidated)"),
   hearthCooldownSec: dated(3600, `wago.tools SpellCooldowns ${SPELL_BUILD} spell 8690`),
   hearthCastSec: dated(10, `wago.tools SpellCastTimes ${SPELL_BUILD}`),
+  hearthPenaltySec: dated(300, "MinMaxQuest design choice: keep the Hearthstone for real zone changes (loading screen, 60 min cooldown)"),
+  completionHearthPenaltySec: dated(900, "MinMaxQuest design choice: Completion finishes nearby quests, the Hearthstone only for a 15 min gain"),
 };
 
 export const XP_PER_LEVEL = {
@@ -50,5 +53,5 @@ export function expiredRecords(records: Record<string, Expirable>, today: string
 }
 
 export function expiredConstants(today: string): string[] {
-  return expiredRecords({ ...CONSTANTS, XP_PER_LEVEL, TRAVEL: TRAVEL.source }, today);
+  return expiredRecords({ ...CONSTANTS, XP_PER_LEVEL, TRAVEL: TRAVEL.source, ACCESS: ACCESS.source }, today);
 }

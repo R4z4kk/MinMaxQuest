@@ -26,10 +26,14 @@ export interface UiContext {
   account(): AccountDb;
   game(): UiGame | null;
   arrow(): ArrowApi;
+  hideAll(): void;
 }
 
 export interface Ui {
-  toggle(): void;
+  isShown(): boolean;
+  setShown(shown: boolean): void;
+  // Redraws the Access tab if it is shown, e.g. once item names reach the client cache.
+  refreshAccess(): void;
 }
 
 function noticeTab(message: string): TabView {
@@ -68,9 +72,9 @@ function gameTabs(db: CharDb, account: AccountDb, game: UiGame, arrow: UiContext
 }
 
 export function createUi(ctx: UiContext): Ui {
-  let built: { window: WindowApi; banner: Banner } | null = null;
+  let built: { window: WindowApi; banner: Banner; access: TabView } | null = null;
 
-  const build = (): { window: WindowApi; banner: Banner } => {
+  const build = (): { window: WindowApi; banner: Banner; access: TabView } => {
     const db = ctx.db();
     const game = ctx.game();
     let window: WindowApi | null = null;
@@ -79,17 +83,24 @@ export function createUi(ctx: UiContext): Ui {
       game == null
         ? { quest: notice, access: notice, completion: notice }
         : gameTabs(db, ctx.account(), game, () => ctx.arrow(), (tab) => window?.setTab(tab), (height) => window?.frame.SetHeight(height));
-    window = createWindow(db, tabs);
-    return { window, banner: createBanner(window.frame, () => (game == null ? null : game.follower.routesBuild())) };
+    window = createWindow(db, tabs, () => ctx.hideAll());
+    return { window, banner: createBanner(window.frame, () => (game == null ? null : game.follower.routesBuild())), access: tabs.access };
   };
 
   return {
-    toggle() {
+    isShown: () => built?.window.isShown() ?? false,
+    setShown(shown) {
       guard(UI_FEATURE, () => {
+        if (!shown && built == null) return;
         const ui = built ?? build();
         built = ui;
-        if (ui.window.toggle()) ui.banner.update();
+        ui.window.setShown(shown);
+        if (shown) ui.banner.update();
       });
+    },
+    refreshAccess() {
+      const ui = built;
+      if (ui != null) guard(UI_FEATURE, () => ui.access.refresh());
     },
   };
 }

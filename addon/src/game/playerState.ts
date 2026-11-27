@@ -100,6 +100,38 @@ export function itemCount(itemId: number): number {
   return count(itemId);
 }
 
+// Same source as Attune: C_Reputation when present, else the classic call. Null for an unknown faction.
+export function repEarned(factionId: number): number | null {
+  const byId = C_Reputation?.GetFactionDataByID;
+  if (byId != null) return byId(factionId)?.currentStanding ?? null;
+  if (GetFactionInfoByID == null) throw new Error("no faction API");
+  const [name, , , , , earned] = GetFactionInfoByID(factionId);
+  return name == null ? null : earned;
+}
+
+function named(value: string | null): string | null {
+  return value == null || value === "" ? null : value;
+}
+
+// Client names, null while uncached or when the API is missing; callers fall back to QuestieDB or the id.
+export function clientQuestTitle(questId: number): string | null {
+  const title = C_QuestLog.GetTitleForQuestID;
+  return title == null ? null : named(title(questId));
+}
+
+export function clientItemName(itemId: number): string | null {
+  const name = C_Item?.GetItemNameByID;
+  return name == null ? null : named(name(itemId));
+}
+
+export function clientFactionName(factionId: number): string | null {
+  const byId = C_Reputation?.GetFactionDataByID;
+  if (byId != null) return named(byId(factionId)?.name ?? null);
+  if (GetFactionInfoByID == null) return null;
+  const [name] = GetFactionInfoByID(factionId);
+  return named(name);
+}
+
 // Same order as Questie QuestieCompat.GetItemCooldown.
 export function itemCooldown(itemId: number): LuaMultiReturn<[number, number, number | boolean]> {
   const getter = C_Container?.GetItemCooldown ?? C_Item?.GetItemCooldown ?? GetItemCooldown;

@@ -96,7 +96,7 @@ function onTaxiMapOpened(deps: AutoFlyDeps): void {
   const read = readFromMap() ?? readFromSlots(db);
   record(db, read.slots);
   deps.refresh();
-  if (!db.autoFly || IsShiftKeyDown()) return;
+  if (!db.autoFly || db.hidden || IsShiftKeyDown()) return;
   const leg = deps.currentLeg();
   if (leg == null) return;
   const here = read.slots.find((slot) => slot.state === "current");

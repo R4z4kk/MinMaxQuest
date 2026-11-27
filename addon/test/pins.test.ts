@@ -21,9 +21,10 @@ function lib.AddMinimapIconWorld(self, ref, icon, inst, x, y, edge)
 end
 function lib.RemoveWorldMapIcon(self, ref, icon) log[#log + 1] = "unworld|" .. idOf(icon) end
 function lib.RemoveMinimapIcon(self, ref, icon) log[#log + 1] = "unmini|" .. idOf(icon) end
-LibStub = function(name)
+local baseStub = LibStub
+LibStub = function(name, silent)
   if name == "HereBeDragons-Pins-2.0" then return lib end
-  return nil
+  return baseStub(name, silent)
 end
 
 UISpecialFrames = {}
@@ -282,6 +283,44 @@ it("falls back to the player's map when the world position has no map of its own
   try {
     await s.refresh();
     expect(await s.list("way")).toEqual(["set|1429|0.5|0.5", "track|true"]);
+  } finally {
+    s.close();
+  }
+});
+
+it("moves the objective pin to the current waypoint as the player advances", async () => {
+  const s = await pins(OBJECTIVE_QUEST);
+  try {
+    await s.cmd("pin 101");
+    const placed = (await s.list("log")).filter((l) => l.startsWith("world|1|"));
+    expect(placed).toEqual(["world|1|0|2010|1010|3", "world|1|0|2090|1090|3"]);
+    await s.run("log = {}");
+    await s.refresh("player = { 1090, 2090 }");
+    expect((await s.list("log")).filter((l) => l.startsWith("world|1|"))).toEqual(["world|1|0|2010|1010|3"]);
+  } finally {
+    s.close();
+  }
+});
+
+it("removes the pins and the waypoint with the eye button and restores them when shown again", async () => {
+  const s = await pins();
+  try {
+    await s.cmd("");
+    await s.run("log = {}");
+    await s.run(`scripts["MinMaxQuestEye.OnClick"](nil, "LeftButton")`);
+    expect(await s.list("log")).toEqual(["unworld|1", "unmini|2", "unworld|3"]);
+    expect(await s.list("way")).toEqual(["set|1429|0.25|0.75", "track|true", "clear"]);
+    await s.refresh();
+    expect(await s.list("log")).toEqual(["unworld|1", "unmini|2", "unworld|3"]);
+    await s.run("log = {}");
+    await s.cmd("");
+    expect(await s.list("log")).toEqual([
+      "world|1|0|2020|1010|3",
+      "mini|2|0|2020|1010|true",
+      "world|3|0|2090|1090|3",
+    ]);
+    expect((await s.list("way")).pop()).toBe("track|true");
+    expect(await s.printed()).toBe("");
   } finally {
     s.close();
   }

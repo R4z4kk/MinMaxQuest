@@ -133,3 +133,14 @@ it("matches localized names learned earlier, ignoring accents and case", async (
     s.close();
   }
 });
+
+it("does not fly while everything is hidden", async () => {
+  const s = await fly("MinMaxQuestCharDB.hidden = true");
+  try {
+    await s.open();
+    expect(await s.taken()).toBe("");
+    expect(await s.run(`return #MinMaxQuestCharDB.knownTaxiNodes`)).toBe(2);
+  } finally {
+    s.close();
+  }
+});

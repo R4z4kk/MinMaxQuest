@@ -12,6 +12,7 @@ export interface CharDb {
   window: { x: number; y: number } | null;
   arrow: { x: number; y: number; locked: boolean } | null;
   itemButton: { x: number; y: number } | null;
+  hidden: boolean;
   completion: {
     mode: "proximity" | "zone" | "log";
     zoneAreaId: number | null;
@@ -43,6 +44,7 @@ export const CHAR_DEFAULTS: CharDb = {
   window: null,
   arrow: null,
   itemButton: null,
+  hidden: false,
   completion: { mode: "proximity", zoneAreaId: null, showTrivial: true, showElite: true },
   minLevelGap: null,
   routeElites: false,

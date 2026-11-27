@@ -10,10 +10,10 @@ import { confirmSkip } from "./skipDialog";
 import {
   bar, button, checkbox, COLOR, GLYPH, hline, label, paint, PAD, setLabel, SIZE, text, UI_FEATURE,
 } from "./theme";
-import type { TabView } from "./window";
+import { CONTENT_TOP, createTabButton, placeTabs, TAB_HEIGHT, type TabButton, type TabView } from "./window";
 import {
-  completionView, footerTexts, headerZone, logHeader, modeText, percentText, progressText, remainingLabel, rowLines, zoneLabel,
-  type RowLine,
+  completionView, footerTexts, headerZone, logHeader, modeText, MODES, percentText, progressText, remainingLabel, rowLines, zoneLabel,
+  type Mode, type RowLine,
 } from "./viewModel";
 import { createZonePicker } from "./zonePicker";
 
@@ -30,8 +30,8 @@ const HEIGHT = 480;
 const MAX_ROWS = 10;
 const ROW_HEIGHT = 15;
 const INNER = WIDTH - 2 * PAD;
-const HEADER_WIDTH = INNER - 180;
-const MODE_GAP = 4;
+const ZONE_HEADER_WIDTH = INNER - 180;
+const BODY_HEIGHT = HEIGHT - CONTENT_TOP - TAB_HEIGHT;
 const EMPTY: ZoneProgress = { done: 0, total: 0 };
 
 interface Row {
@@ -111,10 +111,22 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
     if (!notified) draw();
   };
 
+  const selectMode = (mode: Mode, askZone: () => void): void => {
+    db.completion.mode = mode;
+    const needsZone = mode === "zone" && db.completion.zoneAreaId == null;
+    if (needsZone) db.completion.zoneAreaId = currentZone();
+    applyOptions();
+    if (needsZone && db.completion.zoneAreaId == null) askZone();
+  };
+
   const onSkip = (): void => skipCurrent(engine, repo, draw);
 
-  const build = (parent: WowFrame) => {
-    const picker = createZonePicker(parent);
+  const build = (content: WowFrame) => {
+    const picker = createZonePicker(content);
+    const parent = CreateFrame("Frame", null, content);
+    parent.SetPoint("TOPLEFT", content, "TOPLEFT", 0, -TAB_HEIGHT);
+    parent.SetPoint("BOTTOMRIGHT", content, "BOTTOMRIGHT", 0, 0);
+    hline(content, -TAB_HEIGHT);
     let anchor: WowFrame = parent;
     const openPicker = (): void => {
       if (index == null) return;
@@ -127,24 +139,13 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
     const zoneButton = button(parent, "MinMaxQuestCompletionZone", "", openPicker);
     zoneButton.frame.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, -7);
     anchor = zoneButton.frame;
-    const mode = button(parent, "MinMaxQuestCompletionMode", "", () => {
-      if (db.completion.mode === "log") {
-        db.completion.mode = "proximity";
-      } else if (db.completion.mode === "zone") {
-        db.completion.mode = "log";
-      } else {
-        if (db.completion.zoneAreaId == null) {
-          const here = currentZone();
-          if (here == null) {
-            openPicker();
-            return;
-          }
-          db.completion.zoneAreaId = here;
-        }
-        db.completion.mode = "zone";
-      }
-      applyOptions();
-    });
+    const modeTabs: TabButton[] = MODES.map((mode) =>
+      createTabButton(content, `MinMaxQuestCompletionTab${mode}`, modeText(mode), () => {
+        picker.hide();
+        selectMode(mode, openPicker);
+      }),
+    );
+    placeTabs(content, modeTabs, WIDTH, 0);
     setLabel(label(parent, PAD, -60), t("nearestTarget"));
     const pinned = button(parent, "MinMaxQuestCompletionUnpin", `${t("pinnedTag")} · ${GLYPH.close}`, () => {
       engine.pin(null);
@@ -171,7 +172,7 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
       row.name.SetWidth(INNER - 24 - 48);
       rows.push(row);
     }
-    const filterY = -(HEIGHT - 50) + 46;
+    const filterY = -BODY_HEIGHT + 46;
     hline(parent, filterY + 6);
     const show = at(text(parent, SIZE.small, COLOR.sub), parent, filterY);
     show.SetText(t("showFilters"));
@@ -189,7 +190,7 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
       zoneCount: at(text(parent, SIZE.small, COLOR.sub), parent, -27),
       zonePercent: at(text(parent, SIZE.small, COLOR.sub, "RIGHT"), parent, -27, true),
       zoneBar: bar(parent, INNER, PAD, -42),
-      mode,
+      modeTabs,
       zoneButton,
       pinned,
       nearestName: at(text(parent, SIZE.body, COLOR.text), parent, -76),
@@ -204,19 +205,8 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
       continent: at(text(parent, SIZE.small, COLOR.sub), parent, filterY - 22),
       total: at(text(parent, SIZE.small, COLOR.accent, "RIGHT"), parent, filterY - 22, true),
     };
-    w.zoneName.SetWidth(HEADER_WIDTH);
     w.nearestName.SetWidth(INNER - 60);
-    const layoutHeader = (inLog: boolean): void => {
-      mode.frame.ClearAllPoints();
-      if (inLog) {
-        mode.frame.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, -7);
-        w.zoneName.SetWidth(INNER - mode.frame.GetWidth() - MODE_GAP);
-      } else {
-        mode.frame.SetPoint("RIGHT", zoneButton.frame, "LEFT", -MODE_GAP, 0);
-        w.zoneName.SetWidth(HEADER_WIDTH);
-      }
-    };
-    return { ...w, layoutHeader };
+    return w;
   };
 
   const draw = (): void => {
@@ -227,25 +217,26 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
     const zoneId = headerZone(options.mode, options.zoneAreaId, currentZone());
     const zone = (zoneId == null ? null : totals.get(zoneId)) ?? EMPTY;
     const inLog = options.mode === "log";
+    const inZone = options.mode === "zone";
     if (inLog) {
       w.zoneName.SetText(logHeader(engine.snapshot()?.state.inLog.size ?? 0));
       w.zoneCount.SetText("");
       w.zonePercent.SetText("");
       w.zoneBar.setFraction(0);
-      w.zoneButton.frame.Hide();
     } else {
       w.zoneName.SetText(zoneLabel(index, zoneId));
       w.zoneCount.SetText(progressText(zone));
       w.zonePercent.SetText(percentText(zone));
       w.zoneBar.setFraction(zone.total > 0 ? zone.done / zone.total : 0);
       w.zoneButton.setText(`${zoneLabel(index, options.zoneAreaId ?? zoneId)} ${GLYPH.dropdown}`);
-      w.zoneButton.frame.Show();
     }
-    w.mode.setText(modeText(options.mode));
+    if (inZone) w.zoneButton.frame.Show();
+    else w.zoneButton.frame.Hide();
     if (options.mode !== laidOutMode) {
       laidOutMode = options.mode;
-      w.layoutHeader(inLog);
+      w.zoneName.SetWidth(inZone ? ZONE_HEADER_WIDTH : INNER);
     }
+    MODES.forEach((mode, i) => w.modeTabs[i].setActive(mode === options.mode));
     if (db.pinnedQuestId != null) w.pinned.frame.Show();
     else w.pinned.frame.Hide();
 

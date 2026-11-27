@@ -26,7 +26,7 @@ const EXPANSION = "Forever";
 
 type FieldKind = "string" | "number" | "list" | "strings" | "trigger";
 
-// Every field addon/src/data/questRepository.ts reads.
+// Every field addon/src/data/questRepository.ts reads, plus specialFlags for tools/access-import.
 const QUEST_FIELDS: Record<string, FieldKind> = {
   name: "string",
   startedBy: "list",
@@ -51,6 +51,7 @@ const QUEST_FIELDS: Record<string, FieldKind> = {
   requiredMaxLevel: "number",
   sourceItemId: "number",
   requiredSourceItems: "list",
+  specialFlags: "number",
 };
 
 const SELECT_FILES = String.raw`
@@ -540,7 +541,7 @@ function staleField(raw: unknown): string | null {
   if (!isRecord(raw)) return null;
   const missing = (table: unknown, field: string): boolean =>
     isRecord(table) && Object.values(table).some((row) => isRecord(row) && !(field in row));
-  for (const field of ["objectivesText", "sourceItemId", "requiredSourceItems"]) if (missing(raw.quests, field)) return `quests[].${field}`;
+  for (const field of ["objectivesText", "sourceItemId", "requiredSourceItems", "specialFlags"]) if (missing(raw.quests, field)) return `quests[].${field}`;
   for (const table of ["npcs", "objects", "items"]) if (missing(raw[table], "name")) return `${table}[].name`;
   return null;
 }

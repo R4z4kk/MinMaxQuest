@@ -6,7 +6,7 @@ import { loadCharDb, type CharDb } from "../src/core/storage";
 import type { QuestInfo } from "../src/data/questRepository";
 import type { PlayerSnapshot } from "../src/game/engine";
 import { encodeSteps, type EmittedStep, type StepType } from "../src/route/format";
-import { createRouteFollower } from "../src/route/follower";
+import { createRouteFollower, type FollowerDeps } from "../src/route/follower";
 
 const grind = (targetLevel: number, x: number, type: StepType = "grind"): EmittedStep => ({
   type, uiMapId: 1, x, y: 0, targetLevel, targetXpIntoLevel: 0, estCostSeconds: 10, estXpGain: 0,
@@ -17,7 +17,7 @@ const quest: QuestInfo = {
   id: 900, name: "Back to the dungeon", level: 12, requiredLevel: 11, requiredMaxLevel: null, races: 0, classes: 0,
   preGroup: [], preSingle: [], exclusiveTo: [], nextInChain: null, children: [],
   starterNpcs: [], starterObjects: [], finisherNpcs: [], finisherObjects: [],
-  objectives: [], baseXp: null, hasUnsupportedRequirement: false, isElite: false, zoneAreaId: null,
+  objectives: [{ kind: "npc", id: 5, required: 1, index: 1 }], baseXp: null, hasUnsupportedRequirement: false, isElite: false, zoneAreaId: null,
 };
 
 const locked: QuestInfo = { ...quest, id: 901, name: "Later on", requiredLevel: 15 };
@@ -47,13 +47,14 @@ function snapshot(level: number, x = 0): PlayerSnapshot {
   };
 }
 
-function follower(db: CharDb, combat = { on: false }) {
+function follower(db: CharDb, combat = { on: false }, over: Partial<FollowerDeps> = {}) {
   return createRouteFollower({
     db,
     faction: () => "A",
     quest: (id) => (id === 900 ? quest : id === 901 ? locked : null),
     toWorld: (_m, x, y): WorldPos => ({ continent: 0, x, y }),
     place: () => null,
+    positionsFor: (q) => (q.id === 900 ? [{ continent: 0, x: 10, y: 0 }, { continent: 0, x: 120, y: 0 }, { continent: 0, x: 900, y: 0 }] : []),
     timeTo: () => () => 1,
     inCombat: () => combat.on,
     taxiNodes: [
@@ -61,6 +62,7 @@ function follower(db: CharDb, combat = { on: false }) {
       { id: 19, name: "Booty Bay", pos: { continent: 0, x: 2050, y: 0 }, faction: "A" },
       { id: 5, name: "Lakeshire", pos: { continent: 0, x: 5000, y: 0 }, faction: "A" },
     ],
+    ...over,
   });
 }
 
@@ -122,6 +124,33 @@ it("keeps a skipped step on the same step when a dungeon return is inserted befo
   expect(f.view()?.total).toBe(5);
   expect(db.route.skippedSteps).toEqual([4]);
   expect(f.view()).toMatchObject({ current: 2, next: [3], currentText: "Back to the dungeon · pick up" });
+});
+
+const keyQuest = (id: number): QuestInfo | null =>
+  id === 92432 || id === 92458 ? { ...quest, id, requiredLevel: 8, objectives: [] } : null;
+const placeAt = { uiMapId: 1, x: 15, y: 0 };
+
+it("inserts the quests of a tracked entry and skips another faction's entry", () => {
+  install();
+  const db = loadCharDb(null);
+  const f = follower(db, { on: false }, { quest: keyQuest, place: () => placeAt });
+  f.targets(snapshot(11));
+  expect(f.view()?.total).toBe(4);
+  db.trackedChains = ["155"];
+  f.targets(snapshot(11));
+  expect(f.view()?.total).toBe(4);
+  db.trackedChains = ["154"];
+  f.targets(snapshot(11));
+  expect(f.view()?.total).toBe(8);
+  expect(reports).toEqual([]);
+});
+
+it("reports a tracked id that is not an access entry", () => {
+  install();
+  const db = loadCharDb(null);
+  db.trackedChains = ["nope"];
+  follower(db).targets(snapshot(11));
+  expect(reports).toEqual(["MinMaxQuest: tracked chain nope is unknown"]);
 });
 
 it("waits for the end of combat to change the variant", () => {
@@ -291,4 +320,15 @@ it("drops saved travel skips when the inserted steps changed since they were sav
   expect(db.route.skippedSteps).toEqual([]);
   expect(db.route.startIndex).toBe(startIndex);
   expect(reloaded.view()?.total).toBe(6);
+});
+
+it("builds an objective step's waypoints in game from the repository positions", () => {
+  install({ segmentEndLevel: 10 }, [{ ...grind(10, 10, "complete"), questId: 900, objectiveIndex: 1, loop: [[1, 1]] }]);
+  const f = follower(loadCharDb(null));
+  const snap = snapshot(10);
+  snap.log.set(900, { complete: false, objectivesDone: new Set(), counts: [{ have: 0, need: 1 }] });
+  snap.state.inLog.add(900);
+  const target = f.targets(snap)?.[0];
+  expect(target?.kind).toBe("objective");
+  expect(target?.cluster?.points).toEqual([{ continent: 0, x: 10, y: 0 }, { continent: 0, x: 120, y: 0 }]);
 });

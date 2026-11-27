@@ -64,6 +64,7 @@ export interface Engine {
   current(): Target | null;
   targets(): Target[];
   arrowTarget(): ArrowTarget | null;
+  waypoint(): WorldPos | null;
   skip(questId: number, confirmed: boolean): SkipResult;
   skipStep(index: number): void;
   skipped(): number[];
@@ -164,7 +165,13 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
       return;
     }
     const center = target.cluster.center;
-    const key = `${target.questId}:${target.objectiveIndex}:${center.continent}:${center.x}:${center.y}`;
+    let sumX = 0;
+    let sumY = 0;
+    for (const p of target.cluster.points) {
+      sumX += p.x;
+      sumY += p.y;
+    }
+    const key = `${target.questId}:${target.objectiveIndex}:${center.continent}:${target.cluster.points.length}:${sumX}:${sumY}`;
     if (loop == null || key !== loopKey) {
       loopKey = key;
       loop = killLoop(target.cluster, pos ?? target.pos);
@@ -252,6 +259,7 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
     current: () => currentTarget,
     targets: () => list,
     arrowTarget: () => arrow,
+    waypoint: () => (loop != null && loop.length > 0 ? loop[loopIndex] : null),
     skip(questId, confirmed) {
       const quest = deps.getQuest(questId);
       const chain = quest == null ? [] : followUps(questId, (id) => deps.getQuest(id));

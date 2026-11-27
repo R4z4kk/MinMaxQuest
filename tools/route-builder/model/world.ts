@@ -1,4 +1,4 @@
-import { ACCESS_CHAINS, resolveSteps } from "../../../addon/src/access/chains";
+import { ACCESS_CHAINS, resolveSteps } from "../../access-import/legacyChains";
 import { distance, type WorldPos } from "../../../addon/src/core/geometry";
 import {
   createQuestRepository,
@@ -90,7 +90,7 @@ export type ExclusionReason =
   | "raidOrBattleground";
 
 // Race ids: QuestieDB src/corrections/enum/expansions.lua, Forever raceKeys ALL_ALLIANCE / ALL_HORDE.
-const FACTION_RACES: Record<"A" | "H", number[]> = { A: [1, 3, 4, 7, 95], H: [2, 5, 6, 8, 96] };
+export const FACTION_RACES: Record<"A" | "H", number[]> = { A: [1, 3, 4, 7, 95], H: [2, 5, 6, 8, 96] };
 
 // areaIds: QuestieDB src/corrections/enum/zones.lua (v1.1.6). Classic race start zones per
 // https://warcraft.wiki.gg/wiki/Starting_zone; Skyborne (95, 96) start on Zephras Isle (Forever).
@@ -121,7 +121,7 @@ function exclude(reason: ExclusionReason): never {
   throw new Excluded(reason);
 }
 
-function raceUnion(s: QuestieSnapshot, races: number[]): number {
+export function raceUnion(s: QuestieSnapshot, races: number[]): number {
   let mask = 0;
   for (const race of races) {
     const bit = s.raceMaskById[race];

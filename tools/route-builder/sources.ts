@@ -29,3 +29,12 @@ export const CMANGOS_CLASSIC_DB = {
   verifiedOn: "2026-11-27",
   expiresOn: "2026-12-27",
 } as const;
+
+// Read from the locally installed addon; the user chose to reuse its data (no license declared).
+export const ATTUNE = {
+  version: "16001-46",
+  path: "../Attune",
+  source: "Attune by CixiDelmont, https://warcraftratings.com",
+  verifiedOn: "2026-11-27",
+  expiresOn: "2026-12-27",
+} as const;

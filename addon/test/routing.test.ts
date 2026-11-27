@@ -29,6 +29,8 @@ const repo: QuestRepository = {
   itemSources: () => ({ npcs: [], objects: [] }),
   uiMapIdForArea: () => null,
   npcFriendlyTo: () => null,
+  npcName: () => null,
+  objectName: () => null,
   lastError: () => null,
 };
 
@@ -98,6 +100,34 @@ describe("routing caches", () => {
   });
 });
 
+describe("routing proximity perimeter", () => {
+  const withMaps = (nearby: Set<number>, zones: Record<number, number> = {}) => {
+    const db = loadCharDb(null);
+    const local: QuestRepository = { ...repo, uiMapIdForArea: (areaId) => (areaId === 12 ? 100 : 200) };
+    const scope = { maps: () => nearby, zoneOf: (id: number) => zones[id] ?? id };
+    return { db, routing: createRouting(local, db, (q) => [at(q.id * 70)], NO_TRAVEL, scope) };
+  };
+
+  it("keeps only nearby zone maps in proximity, leaving zone mode alone", () => {
+    const { db, routing } = withMaps(new Set([100]));
+    expect(routing.completion(snapshot(at(0))).map((t) => t.questId)).toEqual([1, 2]);
+    db.completion.mode = "zone";
+    db.completion.zoneAreaId = 40;
+    expect(routing.completion(snapshot(at(0))).map((t) => t.questId)).toEqual([3]);
+  });
+
+  it("lists nothing in proximity when no zone can be resolved", () => {
+    expect(withMaps(new Set<number>()).routing.completion(snapshot(at(0)))).toEqual([]);
+  });
+
+  it("keeps a dungeon quest whose parent zone is nearby and drops one whose parent is far", () => {
+    const kept = withMaps(new Set([100]), { 200: 100 }).routing.completion(snapshot(at(0)));
+    expect(kept.map((t) => t.questId)).toEqual([1, 2, 3]);
+    const dropped = withMaps(new Set([100]), { 200: 300 }).routing.completion(snapshot(at(0)));
+    expect(dropped.map((t) => t.questId)).toEqual([1, 2]);
+  });
+});
+
 describe("routing", () => {
   it("lists every known quest sorted by walking time", () => {
     const { routing } = setup();
@@ -127,5 +157,24 @@ describe("routing", () => {
   it("has no first hop before any plan", () => {
     const solvedElsewhere = setup().routing.completion(snapshot(at(0)))[0];
     expect(setup().routing.firstHop(solvedElsewhere)).toBeNull();
+  });
+});
+
+describe("hearth penalty by mode", () => {
+  const home = at(20000);
+  const withHearth = (): PlayerSnapshot => ({ ...snapshot(at(0)), hearth: { ready: true, pos: home } });
+
+  it("uses the quest-mode penalty in quest mode", () => {
+    const { db, routing } = setup();
+    db.activeMode = "quest";
+    expect(routing.timeTo(withHearth())?.(home)).toBeCloseTo(CONSTANTS.hearthCastSec.value + CONSTANTS.hearthPenaltySec.value);
+  });
+
+  it("uses the larger completion penalty in completion mode", () => {
+    const { db, routing } = setup();
+    db.activeMode = "completion";
+    expect(routing.timeTo(withHearth())?.(home)).toBeCloseTo(
+      CONSTANTS.hearthCastSec.value + CONSTANTS.completionHearthPenaltySec.value,
+    );
   });
 });

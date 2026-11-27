@@ -22,6 +22,11 @@ QuestieDB-derived route data (data/routes)
   Quest, NPC, object and item data from QuestieDB v1.1.6. GPL-3.0.
   https://github.com/Questie/QuestieDB
 
+Attune access data (data/generated/access.ts, tools/access-import)
+  Dungeon, raid, key and other access entries imported from the Attune addon by CixiDelmont,
+  version 16001-46. https://warcraftratings.com
+  Attune declares no license; its data is reused with credit.
+
 wago.tools DB2 tables (vendor/wago)
   UiMapAssignment, Map and AreaTable CSVs of build 1.60.1.71139, retrieved from
   https://wago.tools. Game data (c) Blizzard Entertainment.

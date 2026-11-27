@@ -203,6 +203,27 @@ describe("createQuestRepository", () => {
     expect(reported[0]).toContain("ObjectiveFirst");
   });
 
+  it("reads and caches NPC and object names, null when missing or unreadable", () => {
+    const lib = fakeLib({});
+    const reads: string[] = [];
+    lib.Npc = {
+      Get: (id, field) => {
+        reads.push(`npc ${id} ${field}`);
+        if (id === 9) throw new Error("boom");
+        return ({ 1: "Hogger", 2: 5 } as Record<number, unknown>)[id] ?? null;
+      },
+    };
+    lib.Object = { Get: (id, field) => (reads.push(`object ${id} ${field}`), id === 7 ? "Altar" : null) };
+    const repo = repoFor(lib);
+    expect([repo.npcName(1), repo.npcName(2), repo.npcName(3), repo.objectName(7), repo.objectName(8)]).toEqual([
+      "Hogger", null, null, "Altar", null,
+    ]);
+    expect([repo.npcName(1), repo.npcName(3), repo.objectName(7)]).toEqual(["Hogger", null, "Altar"]);
+    expect(reads).toEqual(["npc 1 name", "npc 2 name", "npc 3 name", "object 7 name", "object 8 name"]);
+    expect(repo.npcName(9)).toBeNull();
+    expect(reported[0]).toContain("npcName");
+  });
+
   it("reads the factions an NPC is friendly to", () => {
     const repo = repoFor(fakeLib({}));
     expect([1, 2, 3, 4].map((id) => repo.npcFriendlyTo(id))).toEqual(["A", "AH", null, null]);

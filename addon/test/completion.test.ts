@@ -98,6 +98,14 @@ describe("selectTargets", () => {
     expect(targets[0].pos).toEqual(at(25));
   });
 
+  it("extends the picked cluster with every spawn within 250 yards, not the farther ones", () => {
+    const q = quest({ id: 1, objectives: [objective(1)] });
+    const positions: Positions = { "1:objective:1": [at(0), at(150), at(200), at(600)] };
+    const targets = selectTargets(input([q], positions, { log: new Map([[1, logged(false)]]) }), opts());
+    expect(targets[0].pos).toEqual(at(0));
+    expect(targets[0].cluster?.points).toEqual([at(0), at(150), at(200)]);
+  });
+
   it("counts the other clusters as otherSpots, and none for accept and turnin", () => {
     const q = quest({ id: 1, objectives: [objective(1)] });
     const spots = { "1:objective:1": [at(10), at(500), at(1000)] };
@@ -157,6 +165,18 @@ describe("selectTargets", () => {
       opts({ minLevelGap: 2 }),
     );
     expect(targets.map((t) => t.questId)).toEqual([2]);
+  });
+
+  it("proximity keeps only quests whose zone map is in the nearby set", () => {
+    const quests = [quest({ id: 1, zoneAreaId: 10 }), quest({ id: 2, zoneAreaId: 20 }), quest({ id: 3, zoneAreaId: null }), quest({ id: 4, zoneAreaId: 30 })];
+    const positions = { "1:accept:null": [at(1)], "2:accept:null": [at(2)], "3:accept:null": [at(3)], "4:accept:null": [at(4)] };
+    const maps: Record<number, number> = { 10: 100, 20: 200 };
+    const scoped = input(quests, positions, { uiMapOf: (areaId) => maps[areaId] ?? null });
+    const near = selectTargets(scoped, opts({ nearbyMaps: new Set([100]) }));
+    expect(near.map((t) => t.questId)).toEqual([1]);
+    expect(selectTargets(scoped, opts({ nearbyMaps: new Set<number>() }))).toEqual([]);
+    expect(selectTargets(scoped, opts({ mode: "zone", zoneAreaId: 20, nearbyMaps: new Set([100]) })).map((t) => t.questId)).toEqual([2]);
+    expect(selectTargets(scoped, opts()).map((t) => t.questId)).toEqual([1, 2, 3, 4]);
   });
 
   it("zone mode keeps only targets of the chosen zone", () => {

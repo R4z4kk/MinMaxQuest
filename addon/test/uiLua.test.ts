@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+import { entriesFor, visibleSteps } from "../src/access/chains";
 import { loggedIn, QUEST_MODE } from "./helpers/fakeGame";
 
 const UI_FAKES = `
@@ -57,13 +58,13 @@ it("switches the three tabs, resizing the window and saving the tab", async () =
     expect(await s.run("return MinMaxQuestCharDB.tab")).toBe("completion");
     const texts = await s.texts();
     expect(texts).toContain("Elwynn Forest");
-    expect(texts).toContain("0 / 2 quests");
+    expect(texts).toContain("0 / 3 quests");
     expect(texts).toContain("Test Quest");
     expect(texts).toContain("pick up · <1 min · 22 m");
-    expect(texts).toContain("Eastern Kingdoms · 0 / 2");
+    expect(texts).toContain("Eastern Kingdoms · 0 / 3");
     await s.click("MinMaxQuestTabaccess");
     expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|320|420");
-    expect(await s.texts()).toContain("Dalaran Sewers");
+    expect((await s.texts()).some((line) => line.startsWith("KEYS · "))).toBe(true);
     await s.click("MinMaxQuestTabquest");
     expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|270|262");
     expect(await s.run("return MinMaxQuestCharDB.tab")).toBe("quest");
@@ -116,23 +117,38 @@ it("shows a notice instead of the tabs when QuestieDB is unusable", async () => 
   }
 });
 
-it("changes Completion mode, zone and filters and unpins from the window", async () => {
+it("switches Completion modes with sub-tabs, picks a zone, filters and unpins from the window", async () => {
   const s = await ui();
   const completion = () => s.run("local c = MinMaxQuestCharDB.completion; return { c.mode, c.zoneAreaId or 0, c.showTrivial, c.showElite }");
+  const lit = async () => {
+    const out: string[] = [];
+    for (const mode of ["proximity", "zone", "log"]) {
+      const on = await s.run(
+        `for _, r in ipairs(layout) do if r.name == "texture" and r.parent == "MinMaxQuestCompletionTab${mode}" and r.colored then return r.shown end end`,
+      );
+      if (on === true) out.push(mode);
+    }
+    return out;
+  };
   try {
     await s.cmd("");
     await s.click("MinMaxQuestTabcompletion");
-    await s.click("MinMaxQuestCompletionMode");
+    expect(await lit()).toEqual(["proximity"]);
+    await s.click("MinMaxQuestCompletionTabzone");
     expect(await completion()).toEqual(["zone", 12, true, true]);
-    await s.click("MinMaxQuestCompletionMode");
+    expect(await lit()).toEqual(["zone"]);
+    await s.click("MinMaxQuestCompletionTablog");
     expect(await completion()).toEqual(["log", 12, true, true]);
+    expect(await lit()).toEqual(["log"]);
     expect((await s.texts()).some((line) => line.endsWith("in log"))).toBe(true);
-    await s.click("MinMaxQuestCompletionMode");
+    await s.click("MinMaxQuestCompletionTabproximity");
     expect(await completion()).toEqual(["proximity", 12, true, true]);
+    expect(await lit()).toEqual(["proximity"]);
     await s.click("MinMaxQuestFilterGrey");
     await s.click("MinMaxQuestFilterElite");
     expect(await completion()).toEqual(["proximity", 12, false, false]);
     await s.run("MinMaxQuestCharDB.completion.zoneAreaId = nil");
+    await s.click("MinMaxQuestCompletionTabzone");
     await s.click("MinMaxQuestCompletionZone");
     expect(await s.texts()).toContain("Elwynn Forest");
     await s.click("MinMaxQuestZonePickerRow1");
@@ -146,19 +162,161 @@ it("changes Completion mode, zone and filters and unpins from the window", async
   }
 });
 
-it("expands a chain and tracks it from the Access tab", async () => {
+it("shows the zone picker button only in Zone mode and has no mode cycle button", async () => {
   const s = await ui();
   try {
     await s.cmd("");
-    await s.click("MinMaxQuestTabaccess");
-    await s.click("MinMaxQuestChain1");
-    expect(await s.run("return MinMaxQuestCharDB.expandedChain")).toBe("dalaran-sewers");
-    await s.click("MinMaxQuestChain1Track");
-    expect(await s.run("return MinMaxQuestCharDB.trackedChains[1]")).toBe("dalaran-sewers");
-    expect(await s.texts()).toContain("1 chain tracked");
-    await s.click("MinMaxQuestChain1");
+    await s.click("MinMaxQuestTabcompletion");
+    expect(await s.visibilityOf("MinMaxQuestCompletionZone")).toBe("MinMaxQuestCompletionZone|Hide");
+    expect(await s.run("return scripts['MinMaxQuestCompletionMode.OnClick'] == nil")).toBe(true);
+    await s.click("MinMaxQuestCompletionTabzone");
+    expect(await s.visibilityOf("MinMaxQuestCompletionZone")).toBe("MinMaxQuestCompletionZone|Show");
+    await s.click("MinMaxQuestCompletionTablog");
+    expect(await s.visibilityOf("MinMaxQuestCompletionZone")).toBe("MinMaxQuestCompletionZone|Hide");
+    await s.click("MinMaxQuestCompletionTabproximity");
+    expect(await s.visibilityOf("MinMaxQuestCompletionZone")).toBe("MinMaxQuestCompletionZone|Hide");
+  } finally {
+    s.close();
+  }
+});
+
+it("labels the Completion sub-tabs in both locales", async () => {
+  for (const [locale, labels] of [["enUS", ["Proximity", "Zone", "Log"]], ["frFR", ["Proximité", "Zone", "Journal"]]] as const) {
+    const s = await ui(`MinMaxQuestDB = { locale = "${locale}" }`);
+    try {
+      await s.cmd("");
+      await s.click("MinMaxQuestTabcompletion");
+      const texts = await s.texts();
+      for (const label of labels) expect(texts).toContain(label);
+      const calls = await s.calls();
+      for (const mode of ["proximity", "zone", "log"]) expect(calls).toContain(`MinMaxQuestCompletionTab${mode}|SetSize|100.0|24`);
+    } finally {
+      s.close();
+    }
+  }
+});
+
+const ALLIANCE_DUNGEONS = entriesFor("A").filter((entry) => entry.group === "dungeon");
+const ROW_POOL = 17;
+
+async function accessTab(setup = "") {
+  const s = await ui(setup);
+  await s.cmd("");
+  await s.click("MinMaxQuestTabaccess");
+  return s;
+}
+
+it("lists the access groups with counts for an Alliance character and no Horde-only entry", async () => {
+  const s = await accessTab();
+  try {
+    const headers = (await s.texts()).map((line) => /^([A-Z]+) · \d+\/(\d+) /.exec(line)).filter((match) => match != null);
+    const total = (group: string) => entriesFor("A").filter((entry) => entry.group === group).length;
+    expect(headers.map((match) => match[1])).toEqual(["DUNGEONS", "RAIDS", "KEYS", "MISC"]);
+    expect(headers.map((match) => Number(match[2]))).toEqual([total("dungeon"), total("raid"), total("key"), total("misc")]);
+    expect(await s.texts()).not.toContain(ALLIANCE_DUNGEONS[0].name.enUS);
+    await s.click("MinMaxQuestAccessRow1");
+    const texts = await s.texts();
+    expect(texts).toContain(ALLIANCE_DUNGEONS[0].name.enUS);
+    expect(texts).not.toContain("Ragefire Chasm");
+    expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|320|420");
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("expands an access entry with its step states and collapses it again", async () => {
+  const s = await accessTab(`C_QuestLog.GetTitleForQuestID = function(id) return "Client " .. id end`);
+  try {
+    await s.click("MinMaxQuestAccessRow1");
+    await s.clearCalls();
+    await s.click("MinMaxQuestAccessRow2");
+    expect(await s.run("return MinMaxQuestCharDB.expandedChain")).toBe(ALLIANCE_DUNGEONS[0].id);
+    const texts = await s.texts();
+    expect(texts).toContain("Reach level 10");
+    expect(texts.some((line) => line.endsWith(`Client ${ALLIANCE_DUNGEONS[0].steps[1].ref}`))).toBe(true);
+    expect(texts.filter((line) => line.startsWith("» "))).toHaveLength(1);
+    expect(texts.some((line) => /^1\/\d+ steps$/.test(line))).toBe(true);
+    await s.click("MinMaxQuestAccessRow2");
     expect(await s.run("return MinMaxQuestCharDB.expandedChain == nil")).toBe(true);
     expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("scrolls the access list without creating frames", async () => {
+  const s = await accessTab();
+  const created = async () => (await s.run("return created")) as number;
+  const last = ALLIANCE_DUNGEONS[ALLIANCE_DUNGEONS.length - 1].name.enUS;
+  try {
+    await s.click("MinMaxQuestAccessRow1");
+    expect(await s.texts()).not.toContain(last);
+    const before = await created();
+    await s.clearCalls();
+    for (let i = 0; i < 20; i++) await s.run(`scripts["MinMaxQuestAccessList.OnMouseWheel"](nil, -1)`);
+    expect(await s.texts()).toContain(last);
+    expect(await created()).toBe(before);
+    expect(await s.run(`return scripts["MinMaxQuestAccessRow${ROW_POOL + 1}.OnClick"] == nil`)).toBe(true);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("stores a tracked access entry and refreshes the targets", async () => {
+  const s = await accessTab(QUEST_MODE);
+  const reads = async () => (await s.run("return raceCalls")) as number;
+  const track = `MinMaxQuestAccessRow${2 + visibleSteps(ALLIANCE_DUNGEONS[0], 1).length + 1}Track`;
+  try {
+    await s.click("MinMaxQuestAccessRow1");
+    await s.click("MinMaxQuestAccessRow2");
+    expect(await s.visibilityOf(track)).toBe(`${track}|Show`);
+    const before = await reads();
+    await s.click(track);
+    expect(await s.run("return MinMaxQuestCharDB.trackedChains[1]")).toBe(ALLIANCE_DUNGEONS[0].id);
+    expect(await reads()).toBe(before + 1);
+    expect(await s.texts()).toContain("1 chain tracked");
+    await s.click(track);
+    expect(await s.run("return #MinMaxQuestCharDB.trackedChains")).toBe(0);
+    expect(await reads()).toBe(before + 2);
+  } finally {
+    s.close();
+  }
+});
+
+it("redraws a visible Access tab on the next tick once an item name is received", async () => {
+  const s = await accessTab(`itemNames = {}; C_Item.GetItemNameByID = function(id) return itemNames[id] end`);
+  const named = async () => (await s.texts()).some((line) => line.startsWith("Ancient Rune"));
+  try {
+    expect(await s.calls()).toContain("MinMaxQuestEvents|RegisterEvent|GET_ITEM_INFO_RECEIVED");
+    await s.click("MinMaxQuestAccessRow1");
+    await s.click("MinMaxQuestAccessRow2");
+    expect(await s.texts()).toContain("#274286");
+    await s.run("itemNames[274286] = 'Ancient Rune'");
+    await s.clearCalls();
+    await s.event(`"GET_ITEM_INFO_RECEIVED", 274286, true`);
+    expect(await named()).toBe(false);
+    await s.tick();
+    expect(await named()).toBe(true);
+    await s.click("MinMaxQuestTabquest");
+    await s.run("itemNames[274286] = 'Ancient Rune 2'");
+    await s.clearCalls();
+    await s.event(`"GET_ITEM_INFO_RECEIVED", 274286, true`);
+    await s.tick();
+    expect(await named()).toBe(false);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("opens the group of a tracked entry and keeps the others collapsed", async () => {
+  const s = await accessTab(`MinMaxQuestCharDB = { trackedChains = { "154" } }`);
+  try {
+    const texts = await s.texts();
+    expect(texts).toContain("Dalaran Sewer Key");
+    expect(texts).not.toContain(ALLIANCE_DUNGEONS[0].name.enUS);
   } finally {
     s.close();
   }
@@ -306,14 +464,14 @@ it("shows expired constants in the banner", async () => {
   }
 });
 
-it("opens the zone picker when Zone mode has no zone to use", async () => {
+it("opens the zone picker when the Zone sub-tab has no zone to use", async () => {
   const s = await ui("C_Map.GetBestMapForUnit = function() return nil end");
   try {
     await s.cmd("");
     await s.click("MinMaxQuestTabcompletion");
     await s.clearCalls();
-    await s.click("MinMaxQuestCompletionMode");
-    expect(await s.run("return MinMaxQuestCharDB.completion.mode")).toBe("proximity");
+    await s.click("MinMaxQuestCompletionTabzone");
+    expect(await s.run("return MinMaxQuestCharDB.completion.mode")).toBe("zone");
     expect(await s.visibilityOf("MinMaxQuestZonePicker")).toBe("MinMaxQuestZonePicker|Show");
   } finally {
     s.close();
@@ -351,23 +509,6 @@ it("drives the arrow from the last of the Quest and Completion tabs", async () =
     await s.click("MinMaxQuestTabquest");
     await s.tick();
     expect(await firstTarget()).toBe("MinMaxQuest: [33] Wolves Across the Border · pick up · <1 min");
-  } finally {
-    s.close();
-  }
-});
-
-it("refreshes the targets when a chain is tracked or untracked", async () => {
-  const s = await ui(QUEST_MODE);
-  const reads = async () => (await s.run("return raceCalls")) as number;
-  try {
-    await s.cmd("");
-    await s.click("MinMaxQuestTabaccess");
-    await s.click("MinMaxQuestChain1");
-    const before = await reads();
-    await s.click("MinMaxQuestChain1Track");
-    expect(await reads()).toBe(before + 1);
-    await s.click("MinMaxQuestChain1Track");
-    expect(await reads()).toBe(before + 2);
   } finally {
     s.close();
   }
@@ -641,16 +782,15 @@ extentOf = edge
 local function named(name)
   for i = #layout, 1, -1 do if layout[i].name == name then return layout[i] end end
 end
-local mode, zone = named("MinMaxQuestCompletionMode"), named("MinMaxQuestCompletionZone")
+local zone = named("MinMaxQuestCompletionZone")
 local header
 for i = #layout, 1, -1 do
   local r = layout[i]
   if r.name == "font" and r.width ~= nil and r.text == HEADER then header = r break end
 end
-local ml, mr = edge(mode)
 local zl, zr = edge(zone)
 local hl, hr = edge(header)
-return { ml, mr, zone.shown and 1 or 0, zl, zr, hl, hr, textWidth(header.text), header.width }
+return { zone.shown and 1 or 0, zl, zr, hl, hr, textWidth(header.text), header.width }
 `;
 
 const HEADERS = {
@@ -668,16 +808,16 @@ for (const locale of ["enUS", "frFR"] as const) {
       try {
         await s.cmd("");
         await s.click("MinMaxQuestTabcompletion");
-        const [ml, mr, zoneShown, zl, zr, hl, hr, textW, headerW] = (await s.run(
+        const [zoneShown, zl, zr, hl, hr, textW, headerW] = (await s.run(
           `HEADER = ${JSON.stringify(HEADERS[locale][mode])}
 ${LAYOUT_LUA}`,
         )) as number[];
-        const boxes = [[ml, mr], [hl, hr], ...(zoneShown === 1 ? [[zl, zr]] : [])];
+        const boxes = [[hl, hr], ...(zoneShown === 1 ? [[zl, zr]] : [])];
         for (const [l, r] of boxes) expect(l >= 0 && r <= 300).toBe(true);
         boxes.sort((a, b) => a[0] - b[0]);
         for (let i = 1; i < boxes.length; i++) expect(boxes[i - 1][1] <= boxes[i][0]).toBe(true);
         expect(textW <= headerW).toBe(true);
-        expect(zoneShown).toBe(mode === "log" ? 0 : 1);
+        expect(zoneShown).toBe(mode === "zone" ? 1 : 0);
       } finally {
         s.close();
       }
@@ -798,6 +938,168 @@ it("clears the item icon when the item goes away and sets no attribute when the 
     await s.clearCalls();
     await s.event(`"BAG_UPDATE_DELAYED"`);
     expect((await s.calls()).filter((c) => c.startsWith("MinMaxQuestItemButton|SetAttribute|item|"))).toEqual([]);
+  } finally {
+    s.close();
+  }
+});
+
+const ARROW = "MinMaxQuestArrow";
+const HOLDER = "MinMaxQuestItemHolder";
+const WINDOW = "MinMaxQuestWindow";
+
+it("hides and shows the window, the arrow and the item button together with /mmq", async () => {
+  const s = await ui(ITEM_FAKES);
+  try {
+    expect(await s.visibilityOf(ARROW)).toBe(`${ARROW}|Show`);
+    await s.cmd("");
+    expect(await s.visibility()).toBe(`${WINDOW}|Show`);
+    expect(await s.visibilityOf(ARROW)).toBe(`${ARROW}|Show`);
+    expect(await s.visibilityOf(HOLDER)).toBe(`${HOLDER}|Show`);
+    await s.cmd("");
+    expect(await s.visibility()).toBe(`${WINDOW}|Hide`);
+    expect(await s.visibilityOf(ARROW)).toBe(`${ARROW}|Hide`);
+    expect(await s.visibilityOf(HOLDER)).toBe(`${HOLDER}|Hide`);
+    expect(await s.run("return MinMaxQuestCharDB.hidden")).toBe(true);
+    await s.tick();
+    expect(await s.visibilityOf(ARROW)).toBe(`${ARROW}|Hide`);
+    await s.cmd("");
+    expect(await s.visibility()).toBe(`${WINDOW}|Show`);
+    expect(await s.visibilityOf(ARROW)).toBe(`${ARROW}|Show`);
+    expect(await s.visibilityOf(HOLDER)).toBe(`${HOLDER}|Show`);
+    expect(await s.run("return MinMaxQuestCharDB.hidden")).toBe(false);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("hides everything with the eye button, keeps it hidden after a reload and /mmq brings it back", async () => {
+  const s = await ui(ITEM_FAKES);
+  try {
+    await s.cmd("");
+    expect(await s.calls()).toContain("MinMaxQuestEye|SetSize|14|14");
+    await s.click("MinMaxQuestEye");
+    expect(await s.visibility()).toBe(`${WINDOW}|Hide`);
+    expect(await s.visibilityOf(ARROW)).toBe(`${ARROW}|Hide`);
+    expect(await s.visibilityOf(HOLDER)).toBe(`${HOLDER}|Hide`);
+    expect(await s.run("return MinMaxQuestCharDB.hidden")).toBe(true);
+  } finally {
+    s.close();
+  }
+  const reloaded = await ui(`${ITEM_FAKES}
+MinMaxQuestCharDB = { hidden = true }`);
+  try {
+    const calls = await reloaded.calls();
+    expect(calls).not.toContain(`${ARROW}|Show`);
+    expect(calls).not.toContain(`${HOLDER}|Show`);
+    expect(calls).not.toContain(`${WINDOW}|Show`);
+    await reloaded.cmd("");
+    expect(await reloaded.visibility()).toBe(`${WINDOW}|Show`);
+    expect(await reloaded.visibilityOf(ARROW)).toBe(`${ARROW}|Show`);
+    expect(await reloaded.visibilityOf(HOLDER)).toBe(`${HOLDER}|Show`);
+    expect(await reloaded.run("return MinMaxQuestCharDB.hidden")).toBe(false);
+    expect(await reloaded.printed()).toBe("");
+  } finally {
+    reloaded.close();
+  }
+});
+
+it("defers the item holder visibility to PLAYER_REGEN_ENABLED when hidden in combat", async () => {
+  const s = await ui(ITEM_FAKES);
+  try {
+    await s.cmd("");
+    await s.clearCalls();
+    await s.run("inCombat = true");
+    await s.cmd("");
+    expect(await s.visibility()).toBe(`${WINDOW}|Hide`);
+    expect(await s.visibilityOf(ARROW)).toBe(`${ARROW}|Hide`);
+    expect((await s.calls()).filter((c) => SECURE_CALL.test(c))).toEqual([]);
+    await s.run("inCombat = false");
+    await s.event(`"PLAYER_REGEN_ENABLED"`);
+    expect(await s.visibilityOf(HOLDER)).toBe(`${HOLDER}|Hide`);
+    await s.run("inCombat = true");
+    await s.clearCalls();
+    await s.cmd("");
+    expect((await s.calls()).filter((c) => SECURE_CALL.test(c))).toEqual([]);
+    await s.run("inCombat = false");
+    await s.event(`"PLAYER_REGEN_ENABLED"`);
+    expect(await s.visibilityOf(HOLDER)).toBe(`${HOLDER}|Show`);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("shows the arrow outline and grip only on hover or drag while unlocked", async () => {
+  const s = await ui();
+  const outline = () => s.run(`return shownOutline("${ARROW}")`);
+  const fire = (event: string) => s.run(`scripts["${ARROW}.${event}"](nil)`);
+  try {
+    expect(await outline()).toBe(0);
+    await fire("OnEnter");
+    expect(await outline()).toBe(5);
+    await fire("OnLeave");
+    expect(await outline()).toBe(0);
+    await fire("OnEnter");
+    await fire("OnDragStart");
+    await fire("OnLeave");
+    expect(await outline()).toBe(5);
+    await fire("OnDragStop");
+    expect(await outline()).toBe(0);
+    await fire("OnEnter");
+    await s.cmd("arrow lock");
+    expect(await outline()).toBe(0);
+    expect(await s.run(`return scripts["${ARROW}.OnEnter"] == nil`)).toBe(true);
+    await s.cmd("arrow move");
+    expect(await outline()).toBe(0);
+    await fire("OnEnter");
+    expect(await outline()).toBe(5);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("forces the arrow and the window visible while placing the arrow", async () => {
+  const s = await ui(ITEM_FAKES);
+  try {
+    await s.cmd("");
+    await s.cmd("");
+    expect(await s.run("return MinMaxQuestCharDB.hidden")).toBe(true);
+    await s.cmd("arrow move");
+    expect(await s.run("return MinMaxQuestCharDB.hidden")).toBe(false);
+    expect(await s.visibility()).toBe(`${WINDOW}|Show`);
+    expect(await s.visibilityOf(ARROW)).toBe(`${ARROW}|Show`);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("resets the arrow outline when the arrow is hidden while hovered", async () => {
+  const s = await ui();
+  try {
+    await s.run(`scripts["${ARROW}.OnEnter"](nil)`);
+    expect(await s.run(`return shownOutline("${ARROW}")`)).toBe(5);
+    await s.run(`scripts["${ARROW}.OnHide"](nil)`);
+    expect(await s.run(`return shownOutline("${ARROW}")`)).toBe(0);
+    await s.run(`scripts["${ARROW}.OnDragStart"](nil)`);
+    await s.run(`scripts["${ARROW}.OnHide"](nil)`);
+    expect(await s.run(`return shownOutline("${ARROW}")`)).toBe(0);
+  } finally {
+    s.close();
+  }
+});
+
+it("does not redraw the open window when unlocking the arrow", async () => {
+  const s = await ui();
+  try {
+    await s.cmd("");
+    await s.cmd("arrow lock");
+    await s.clearCalls();
+    await s.cmd("arrow move");
+    expect((await s.calls()).filter((c) => c.startsWith(`${WINDOW}|SetSize`))).toEqual([]);
+    expect(await s.printed()).toBe("");
   } finally {
     s.close();
   }

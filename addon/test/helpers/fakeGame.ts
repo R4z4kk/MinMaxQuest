@@ -36,14 +36,15 @@ local function fake(name)
       if method == "SetScript" then
         return function(self, event, fn) scripts[name .. "." .. event] = fn end
       end
-      if method == "CreateTexture" then return function() created = created + 1; return fake("texture") end end
-      if method == "CreateFontString" then return function() created = created + 1; return fake("font") end end
+      if method == "CreateTexture" then return function() created = created + 1; local child = fake("texture"); child.__rec.parent = name; return child end end
+      if method == "CreateFontString" then return function() created = created + 1; local child = fake("font"); child.__rec.parent = name; return child end end
       if method == "IsShown" or method == "IsVisible" then return function() return shown end end
       if VALUES[method] ~= nil then return function() return VALUES[method] end end
       return function(self, ...)
         if method == "Show" then shown = true elseif method == "Hide" then shown = false end
         if method == "Show" or method == "Hide" then rec.shown = shown end
         if method == "SetText" then rec.text = (...) or ""
+        elseif method == "SetColorTexture" then rec.colored = true
         elseif method == "SetWidth" then rec.width = (...)
         elseif method == "ClearAllPoints" then rec.points = {}
         elseif method == "SetPoint" then local point, rel, relPoint, x = ...; rec.points[#rec.points + 1] = { point, rel, relPoint, x } end
@@ -53,6 +54,14 @@ local function fake(name)
       end
     end,
   })
+end
+-- Number of shown outline edges and grip glyphs under the named frame.
+function shownOutline(parent)
+  local n = 0
+  for _, r in ipairs(layout) do
+    if r.parent == parent and (r.colored or r.text == "::") and r.shown then n = n + 1 end
+  end
+  return n
 end
 templates = {}
 CreateFrame = function(kind, name, parent, template)
@@ -85,6 +94,10 @@ C_Item = {
   GetItemSpell = function(id) if itemSpells[id] then return itemSpells[id], 1 end end,
   GetItemIconByID = function(id) return 1000 + id end,
 }
+-- Earned reputation by faction id; unknown factions return nothing.
+reps = {}
+C_Reputation = { GetFactionDataByID = function(id) if reps[id] then return { name = "F" .. id, currentStanding = reps[id] } end end }
+GetFactionInfoByID = function() end
 player = { 1000, 2000 }
 UnitPosition = function() return player[1], player[2], 0, 0 end
 GetPlayerFacing = function() return 0 end
@@ -116,14 +129,21 @@ InCombatLockdown = function() return inCombat end
 GameTooltip = fake("GameTooltip")
 FauxScrollFrame_GetOffset = function() return 0 end
 CreateVector2D = function(x, y) return { x = x, y = y } end
+LibStub = function(name)
+  if name == "HereBeDragons-2.0" then
+    return { mapData = { [1429] = { 1000, 1000, 1000, 1000, instance = 0, mapType = 3, parent = 0 } } }
+  end
+  return setmetatable({}, { __index = function() return function() return true end end })
+end
 C_Map = {
+  GetBestMapForUnit = function() return 1429 end,
   GetWorldPosFromMapPos = function(map, v) return 0, { x = 1000 + v.x * 100, y = 2000 + v.y * 100 } end,
 }
 C_Timer = { NewTicker = function(seconds, fn) ticker = fn end }
 quests = {
-  [100] = { name = "Test Quest", questLevel = 10, requiredLevel = 1, startedBy = { { 500 } } },
-  [101] = { name = "Second", questLevel = 10, requiredLevel = 1, startedBy = { { 501 } } },
-  [102] = { name = "Later", questLevel = 11, requiredLevel = 11, startedBy = { { 501 } } },
+  [100] = { name = "Test Quest", questLevel = 10, requiredLevel = 1, zoneOrSort = 12, startedBy = { { 500 } } },
+  [101] = { name = "Second", questLevel = 10, requiredLevel = 1, zoneOrSort = 12, startedBy = { { 501 } } },
+  [102] = { name = "Later", questLevel = 11, requiredLevel = 11, zoneOrSort = 12, startedBy = { { 501 } } },
 }
 spawns = { [500] = { [12] = { { 10, 20 } } }, [501] = { [12] = { { 90, 90 } } } }
 zonePrivate = {

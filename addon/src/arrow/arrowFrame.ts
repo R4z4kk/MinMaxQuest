@@ -12,6 +12,7 @@ export interface ArrowApi {
   frame: WowFrame;
   setTarget(target: ArrowTarget | null): void;
   setLocked(locked: boolean): void;
+  setHidden(hidden: boolean): void;
   isLocked(): boolean;
 }
 
@@ -76,6 +77,9 @@ export function createArrow(db: CharDb): ArrowApi {
 
   let target: ArrowTarget | null = null;
   let locked = db.arrow?.locked ?? false;
+  let hidden = db.hidden;
+  let hovering = false;
+  let dragging = false;
   let placing = false;
   let elapsedSum = 0;
   let lastKey = -1;
@@ -87,6 +91,10 @@ export function createArrow(db: CharDb): ArrowApi {
   }
 
   function refresh(): void {
+    if (hidden) {
+      frame.Hide();
+      return;
+    }
     if (target == null) {
       applyVisibility(placing);
       return;
@@ -135,29 +143,58 @@ export function createArrow(db: CharDb): ArrowApi {
     if (left != null && top != null) db.arrow = { x: left, y: top, locked };
   }
 
+  function paintOutline(): void {
+    const show = !locked && (hovering || dragging);
+    for (const edge of outline) {
+      if (show) edge.Show();
+      else edge.Hide();
+    }
+    if (show) grip.Show();
+    else grip.Hide();
+  }
+
   function applyLock(next: boolean): void {
     locked = next;
-    for (const edge of outline) {
-      if (locked) edge.Hide();
-      else edge.Show();
-    }
-    if (locked) grip.Hide();
-    else grip.Show();
+    hovering = false;
+    dragging = false;
+    paintOutline();
     frame.SetMovable(!locked);
     frame.EnableMouse(!locked);
     if (locked) {
+      frame.SetScript("OnEnter", null);
+      frame.SetScript("OnLeave", null);
       frame.SetScript("OnDragStart", null);
       frame.SetScript("OnDragStop", null);
     } else {
       frame.RegisterForDrag("LeftButton");
-      frame.SetScript("OnDragStart", () => frame.StartMoving());
+      frame.SetScript("OnEnter", () => {
+        hovering = true;
+        paintOutline();
+      });
+      frame.SetScript("OnLeave", () => {
+        hovering = false;
+        paintOutline();
+      });
+      frame.SetScript("OnDragStart", () => {
+        dragging = true;
+        paintOutline();
+        frame.StartMoving();
+      });
       frame.SetScript("OnDragStop", () => {
+        dragging = false;
+        paintOutline();
         frame.StopMovingOrSizing();
         savePosition();
       });
     }
     refresh();
   }
+
+  frame.SetScript("OnHide", () => {
+    hovering = false;
+    dragging = false;
+    paintOutline();
+  });
 
   applyLock(locked);
 
@@ -181,6 +218,11 @@ export function createArrow(db: CharDb): ArrowApi {
       placing = !next;
       applyLock(next);
       savePosition();
+    },
+    setHidden(next) {
+      if (next === hidden) return;
+      hidden = next;
+      refresh();
     },
     isLocked: () => locked,
   };

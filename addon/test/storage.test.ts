@@ -25,6 +25,11 @@ describe("withDefaults", () => {
 
 describe("loadCharDb", () => {
   it("returns CHAR_DEFAULTS values for nothing saved", () => expect(loadCharDb(null)).toEqual(CHAR_DEFAULTS));
+  it("keeps a saved hidden flag and resets a non-boolean one", () => {
+    expect(CHAR_DEFAULTS.hidden).toBe(false);
+    expect(loadCharDb({ hidden: true }).hidden).toBe(true);
+    expect(loadCharDb({ hidden: "yes" }).hidden).toBe(false);
+  });
   it("accepts documented shapes in nullable fields", () => {
     const saved: Partial<CharDb> = {
       window: { x: 1, y: 2 },

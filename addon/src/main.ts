@@ -4,6 +4,7 @@ import { createItemButton, itemUsable, type ItemButtonApi } from "./arrow/itemBu
 import { questItemFor, type ItemDeps } from "./arrow/questItem";
 import { applyLanguage, t } from "./core/l10n";
 import { guard, isDisabled, reportOnce } from "./core/report";
+import { pruneAccessState } from "./access/chains";
 import { loadAccountDb, loadCharDb, type AccountDb, type CharDb } from "./core/storage";
 import { TRAVEL } from "./data/generated/travel";
 import { createQuestRepository, type QuestInfo, type QuestRepository, type RepoResult } from "./data/questRepository";
@@ -11,6 +12,7 @@ import { createCommands } from "./game/commands";
 import { createEngine, describeTarget, sameKey, targetQuest, type Engine } from "./game/engine";
 import { createPlayerState, HEARTHSTONE_SPELL_ID, itemCount, playerFaction, type PlayerStateReader } from "./game/playerState";
 import { createPlaceFor, createPositions, mapToWorld, uiMapToWorld } from "./game/positions";
+import { createNeighbourFinder, type HbdMapData } from "./game/neighbours";
 import { createRouting } from "./game/routing";
 import { installMapPins } from "./map/pins";
 import { installPinButtons } from "./questlog/pinButtons";
@@ -32,7 +34,8 @@ const FORCING_EVENTS = [
   "PLAYER_UNGHOST",
 ];
 const ITEM_EVENTS = ["BAG_UPDATE_DELAYED", "BAG_UPDATE_COOLDOWN"];
-const EVENTS = ["PLAYER_LOGIN", "QUEST_LOG_UPDATE", "HEARTHSTONE_BOUND", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", ...ITEM_EVENTS, ...FORCING_EVENTS];
+const ITEM_INFO_EVENT = "GET_ITEM_INFO_RECEIVED";
+const EVENTS = ["PLAYER_LOGIN", "QUEST_LOG_UPDATE", ITEM_INFO_EVENT, "HEARTHSTONE_BOUND", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", ...ITEM_EVENTS, ...FORCING_EVENTS];
 
 interface Game {
   engine: Engine;
@@ -60,6 +63,7 @@ function getDb(): CharDb {
   getAccountDb();
   if (db == null) {
     db = loadCharDb(_G.MinMaxQuestCharDB);
+    pruneAccessState(db, playerFaction());
     _G.MinMaxQuestCharDB = db;
   }
   return db;
@@ -86,6 +90,7 @@ function getArrow(): ArrowApi {
     arrow = {
       ...created,
       setLocked: (locked) => {
+        if (!locked && (getDb().hidden || !ui.isShown())) setAllHidden(false);
         created.setLocked(locked);
         const button = itemButton;
         if (button != null) guard("itemButton", () => button.setLocked(locked));
@@ -119,6 +124,8 @@ let shownArrow: ArrowTarget | null = null;
 // Events only raise flags; the ticker runs at most one refresh per tick.
 let forcePending = true;
 let logDirty = true;
+// Item names arrive in bursts: the Access tab redraws once on the next tick.
+let itemInfoPending = false;
 let lastMode: CharDb["activeMode"] | null = null;
 
 const corpseDeps: CorpseDeps = {
@@ -148,6 +155,7 @@ function syncArrow(): void {
   if (next === shownArrow) return;
   shownArrow = next;
   guard("arrow", () => getArrow().setTarget(next));
+  game.refreshPins();
 }
 
 function clearArrow(): void {
@@ -156,13 +164,26 @@ function clearArrow(): void {
   guard("arrow", () => getArrow().setTarget(null));
 }
 
-const ui = createUi({ db: () => getDb(), account: () => getAccountDb(), game: () => start(), arrow: () => getArrow() });
+function setAllHidden(hidden: boolean): void {
+  getDb().hidden = hidden;
+  ui.setShown(!hidden);
+  guard("arrow", () => getArrow().setHidden(hidden));
+  const button = itemButton;
+  if (button != null) guard("itemButton", () => button.setHidden(hidden));
+  game?.refreshPins();
+}
+
+function toggleAll(): void {
+  setAllHidden(!getDb().hidden && ui.isShown());
+}
+
+const ui = createUi({ db: () => getDb(), account: () => getAccountDb(), game: () => start(), arrow: () => getArrow(), hideAll: () => setAllHidden(true) });
 
 const commands = createCommands({
   repository: () => getRepository(),
   arrow: () => getArrow(),
   game: () => start(),
-  toggleWindow: () => ui.toggle(),
+  toggleWindow: () => toggleAll(),
 });
 
 function tick(current: Game): void {
@@ -176,6 +197,10 @@ function tick(current: Game): void {
   forcePending = false;
   current.engine.refreshTargets(force);
   syncArrow();
+  if (itemInfoPending) {
+    itemInfoPending = false;
+    ui.refreshAccess();
+  }
 }
 
 function start(): Game | null {
@@ -184,13 +209,21 @@ function start(): Game | null {
   if (repo == null) return null;
   const charDb = getDb();
   const player = createPlayerState(_G.LibQuestieDB as LibQuestieDBApi, charDb);
-  const routing = createRouting(repo, charDb, createPositions(repo, mapToWorld(repo), () => playerFaction()));
+  const positionsFor = createPositions(repo, mapToWorld(repo), () => playerFaction());
+  const neighbours = createNeighbourFinder(
+    () => (LibStub?.("HereBeDragons-2.0", true) as { mapData: HbdMapData } | null)?.mapData ?? null,
+  );
+  const routing = createRouting(repo, charDb, positionsFor, TRAVEL, {
+    maps: () => neighbours.around(C_Map.GetBestMapForUnit("player")),
+    zoneOf: (uiMapId) => neighbours.zoneOf(uiMapId),
+  });
   const follower = createRouteFollower({
     db: charDb,
     faction: () => playerFaction(),
     quest: (id) => repo.get(id),
     toWorld: (uiMapId, x, y) => uiMapToWorld(uiMapId, x, y),
     place: createPlaceFor(repo, () => playerFaction()),
+    positionsFor,
     timeTo: (snap) => routing.timeTo(snap),
     inCombat: () => InCombatLockdown(),
     taxiNodes: TRAVEL.taxiNodes,
@@ -220,8 +253,10 @@ function start(): Game | null {
       db: charDb,
       label: (target) => describeTarget(target, targetQuest(target, (id) => repo.get(id))),
       getPins: () => {
-        const current = engine.current();
-        const next = engine.targets().find((target) => !sameKey(target, current)) ?? null;
+        const target = engine.current();
+        const waypoint = target?.kind === "objective" ? engine.waypoint() : null;
+        const current = target != null && waypoint != null ? { ...target, pos: waypoint } : target;
+        const next = engine.targets().find((other) => !sameKey(other, target)) ?? null;
         return { current, next };
       },
     }),
@@ -287,6 +322,8 @@ function onEvent(event: string, arg1: unknown, arg3: unknown): void {
     if (button != null) guard("itemButton", () => button.onCombatEnd());
   } else if (ITEM_EVENTS.includes(event)) {
     syncItem();
+  } else if (event === ITEM_INFO_EVENT) {
+    itemInfoPending = true;
   } else if (event === "QUEST_LOG_UPDATE") {
     logDirty = true;
   } else if (FORCING_EVENTS.includes(event)) {

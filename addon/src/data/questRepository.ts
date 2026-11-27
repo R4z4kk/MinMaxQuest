@@ -48,6 +48,8 @@ export interface QuestRepository {
   itemSources(itemId: number): { npcs: number[]; objects: number[] };
   uiMapIdForArea(areaId: number): number | null;
   npcFriendlyTo(npcId: number): "A" | "H" | "AH" | null;
+  npcName(npcId: number): string | null;
+  objectName(objectId: number): string | null;
   lastError(): string | null;
 }
 
@@ -192,6 +194,18 @@ function buildRepository(lib: LibQuestieDBApi): QuestRepository {
   const quests: Record<number, QuestInfo> = {};
   const missing: Record<number, true> = {};
   const ranks: Record<number, number> = {};
+  // "" marks a name already read as missing.
+  const npcNames: Record<number, string> = {};
+  const objectNames: Record<number, string> = {};
+  const cachedName = (method: string, cache: Record<number, string>, id: number, read: () => unknown): string | null => {
+    let name = cache[id];
+    if (name == null) {
+      const value = safe<unknown>(method, null, read);
+      name = typeof value === "string" ? value : "";
+      cache[id] = name;
+    }
+    return name === "" ? null : name;
+  };
   let ids: number[] | null = null;
   const field = (id: number, name: string): unknown => lib.Quest.Get(id, name);
 
@@ -282,6 +296,8 @@ function buildRepository(lib: LibQuestieDBApi): QuestRepository {
         const value = lib.Npc.Get(npcId, "friendlyToFaction");
         return value === "A" || value === "H" || value === "AH" ? value : null;
       }),
+    npcName: (npcId) => cachedName("npcName", npcNames, npcId, () => lib.Npc.Get(npcId, "name")),
+    objectName: (objectId) => cachedName("objectName", objectNames, objectId, () => lib.Object.Get(objectId, "name")),
     lastError: () => firstError,
   };
 }

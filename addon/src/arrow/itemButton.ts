@@ -5,6 +5,7 @@ import { itemCooldown, itemCount } from "../game/playerState";
 export interface ItemButtonApi {
   want(itemId: number | null): void;
   setLocked(locked: boolean): void;
+  setHidden(hidden: boolean): void;
   onCombatStart(): void;
   onCombatEnd(): void;
 }
@@ -78,6 +79,7 @@ export function createItemButton(db: CharDb, anchor: () => WowFrame): ItemButton
   let wish: number | null = null;
   let applied: number | null = null;
   let locked = db.arrow?.locked ?? false;
+  let hidden = db.hidden;
   let placing = false;
   let moving = false;
   let placePending = true;
@@ -135,7 +137,7 @@ export function createItemButton(db: CharDb, anchor: () => WowFrame): ItemButton
     }
     holder.EnableMouse(!locked);
     paint();
-    if (applied != null || placing) holder.Show();
+    if (!hidden && (applied != null || placing)) holder.Show();
     else holder.Hide();
   }
 
@@ -168,6 +170,11 @@ export function createItemButton(db: CharDb, anchor: () => WowFrame): ItemButton
       locked = next;
       placing = !next;
       if (db.itemButton == null) placePending = true;
+      if (!InCombatLockdown()) apply();
+    },
+    setHidden(next) {
+      if (next === hidden) return;
+      hidden = next;
       if (!InCombatLockdown()) apply();
     },
     onCombatStart() {
