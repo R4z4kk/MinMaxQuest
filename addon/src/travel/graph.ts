@@ -333,6 +333,11 @@ export function travelTime(plan: TravelPlan, graph: TravelGraph, target: WorldPo
   return graph.bestCost;
 }
 
+// Ranking penalty included in travelTime when the path starts with the hearthstone; 0 otherwise.
+export function hearthPenaltyOf(plan: TravelPlan, graph: TravelGraph, target: WorldPos, ctx: TravelContext): number {
+  return firstHop(plan, graph, target, ctx)?.kind === "hearth" ? ctx.hearthPenaltySec : 0;
+}
+
 export function firstHop(plan: TravelPlan, graph: TravelGraph, target: WorldPos, ctx: TravelContext): TravelHop | null {
   const approach = bestApproach(plan, graph, target, ctx);
   if (approach === UNREACHABLE) return null;

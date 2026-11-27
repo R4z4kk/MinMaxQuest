@@ -8,6 +8,7 @@ import type { SpawnCluster } from "../targets/spawns";
 import {
   buildGraph,
   firstHop,
+  hearthPenaltyOf,
   solveFrom,
   taxiDestination,
   travelTime,
@@ -18,6 +19,11 @@ import {
   type TravelPlan,
 } from "../travel/graph";
 import type { PlayerSnapshot } from "./engine";
+
+export interface NearbyScope {
+  maps(): Set<number>;
+  zoneOf(uiMapId: number): number | null;
+}
 
 export interface Routing {
   completion(snap: PlayerSnapshot): Target[];
@@ -45,7 +51,7 @@ export function createRouting(
   db: CharDb,
   positionsFor: CompletionInput["positionsFor"],
   data: TravelData = TRAVEL,
-  nearbyMaps: (() => Set<number>) | null = null,
+  nearby: NearbyScope | null = null,
 ): Routing {
   let quests: QuestInfo[] | null = null;
   let graph: TravelGraph | null = null;
@@ -104,11 +110,15 @@ export function createRouting(
           positionsFor,
           timeTo: (p) => travelTime(current.plan, current.graph, p, current.ctx),
           clusters,
-          uiMapOf: (areaId) => repo.uiMapIdForArea(areaId),
+          uiMapOf: (areaId) => {
+            const uiMapId = repo.uiMapIdForArea(areaId);
+            return uiMapId == null || nearby == null ? uiMapId : nearby.zoneOf(uiMapId);
+          },
+          penaltyOf: (p) => hearthPenaltyOf(current.plan, current.graph, p, current.ctx),
         },
         {
           mode, zoneAreaId, showTrivial, showElite, minLevelGap: db.minLevelGap, pinnedQuestId: db.pinnedQuestId,
-          ...(mode === "proximity" && nearbyMaps != null ? { nearbyMaps: nearbyMaps() } : {}),
+          ...(mode === "proximity" && nearby != null ? { nearbyMaps: nearby.maps() } : {}),
         },
       );
     },

@@ -51,6 +51,12 @@ export function pickCluster(clusters: SpawnCluster[], timeTo: (p: WorldPos) => n
   return best;
 }
 
+// Closest cluster to pos by distance; null when none is on pos's continent.
+export function nearestCluster(clusters: SpawnCluster[], pos: WorldPos): SpawnCluster | null {
+  const best = pickCluster(clusters, (p) => distance(p, pos));
+  return best != null && Number.isFinite(distance(best.center, pos)) ? best : null;
+}
+
 export function killLoop(cluster: SpawnCluster, start: WorldPos): WorldPos[] {
   const remaining = cluster.points.slice();
   const order: WorldPos[] = [];

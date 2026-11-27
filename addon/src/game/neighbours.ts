@@ -44,11 +44,14 @@ export function neighbourMaps(current: number, rects: MapRect[], marginYards: nu
 export interface NeighbourFinder {
   // Maps near the zone holding uiMapId; empty when it cannot be placed on a zone.
   around(uiMapId: number | null): Set<number>;
+  // Zone map holding uiMapId (dungeon and sub-maps climb to their parent zone); null when none.
+  zoneOf(uiMapId: number | null): number | null;
 }
 
 export function createNeighbourFinder(read: () => HbdMapData | null, zoneType: number = ZONE_MAP_TYPE): NeighbourFinder {
   const cache = new Map<number, Set<number>>();
   const none = new Set<number>();
+  const zones = new Map<number, number | null>();
   let rects: MapRect[] | null = null;
 
   const isZone = (map: HbdMap): boolean => map.mapType === zoneType && map[0] > 0 && map[1] > 0;
@@ -65,6 +68,15 @@ export function createNeighbourFinder(read: () => HbdMapData | null, zoneType: n
   };
 
   return {
+    zoneOf(uiMapId) {
+      if (uiMapId == null) return null;
+      if (zones.has(uiMapId)) return zones.get(uiMapId) ?? null;
+      const data = read();
+      if (data == null) return null;
+      const zone = resolve(data, uiMapId);
+      zones.set(uiMapId, zone);
+      return zone;
+    },
     around(uiMapId) {
       if (uiMapId == null) return none;
       const cached = cache.get(uiMapId);

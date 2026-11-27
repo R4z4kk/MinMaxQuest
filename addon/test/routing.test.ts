@@ -101,10 +101,11 @@ describe("routing caches", () => {
 });
 
 describe("routing proximity perimeter", () => {
-  const withMaps = (nearby: Set<number>) => {
+  const withMaps = (nearby: Set<number>, zones: Record<number, number> = {}) => {
     const db = loadCharDb(null);
     const local: QuestRepository = { ...repo, uiMapIdForArea: (areaId) => (areaId === 12 ? 100 : 200) };
-    return { db, routing: createRouting(local, db, (q) => [at(q.id * 70)], NO_TRAVEL, () => nearby) };
+    const scope = { maps: () => nearby, zoneOf: (id: number) => zones[id] ?? id };
+    return { db, routing: createRouting(local, db, (q) => [at(q.id * 70)], NO_TRAVEL, scope) };
   };
 
   it("keeps only nearby zone maps in proximity, leaving zone mode alone", () => {
@@ -117,6 +118,13 @@ describe("routing proximity perimeter", () => {
 
   it("lists nothing in proximity when no zone can be resolved", () => {
     expect(withMaps(new Set<number>()).routing.completion(snapshot(at(0)))).toEqual([]);
+  });
+
+  it("keeps a dungeon quest whose parent zone is nearby and drops one whose parent is far", () => {
+    const kept = withMaps(new Set([100]), { 200: 100 }).routing.completion(snapshot(at(0)));
+    expect(kept.map((t) => t.questId)).toEqual([1, 2, 3]);
+    const dropped = withMaps(new Set([100]), { 200: 300 }).routing.completion(snapshot(at(0)));
+    expect(dropped.map((t) => t.questId)).toEqual([1, 2]);
   });
 });
 

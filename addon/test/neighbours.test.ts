@@ -66,4 +66,14 @@ describe("createNeighbourFinder", () => {
     expect(f.around(1)).toBe(f.around(1));
     expect(reads).toBe(1);
   });
+
+  it("zoneOf resolves a dungeon map to its parent zone", () => {
+    const withDungeon: HbdMapData = { ...data, 6: hbd(0, 0, 0, 0, 4, 1, 5), 7: hbd(0, 0, 0, 0, 4, 99, 5) };
+    const f = finder(() => withDungeon);
+    expect(f.zoneOf(6)).toBe(1);
+    expect(f.zoneOf(1)).toBe(1);
+    expect(f.zoneOf(7)).toBeNull();
+    expect(f.zoneOf(null)).toBeNull();
+    expect(finder(() => null).zoneOf(1)).toBeNull();
+  });
 });

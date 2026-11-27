@@ -8,7 +8,7 @@ import { questLabel, type PlayerSnapshot } from "../game/engine";
 import { isFriendlyTo } from "../game/positions";
 import { isAvailable } from "../quests/availability";
 import type { CompletionInput, Target, TargetKind } from "../targets/completion";
-import { objectiveClusters, pickCluster, type SpawnCluster } from "../targets/spawns";
+import { objectiveClusters, nearestCluster, type SpawnCluster } from "../targets/spawns";
 import type { TaxiLeg } from "../travel/graph";
 import { follow, type FollowView } from "./follow";
 import type { EmittedStep } from "./format";
@@ -265,7 +265,7 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
       clusters = objectiveClusters(deps.positionsFor(quest, "objective", s.objectiveIndex));
       clusterCache.set(key, clusters);
     }
-    return pickCluster(clusters, (p) => distance(p, pos));
+    return nearestCluster(clusters, pos);
   };
 
   const toTarget = (i: number, timeTo: (p: WorldPos) => number): Target | null => {
@@ -287,6 +287,7 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
       cluster: kind === "objective" ? objectiveCluster(s, quest, pos) : null,
       otherSpots: 0,
       seconds: Number.isNaN(seconds) ? Infinity : seconds,
+      penaltySec: 0,
       questLevel: quest?.level ?? s.targetLevel,
       trivial: false,
       elite: quest?.isElite ?? false,

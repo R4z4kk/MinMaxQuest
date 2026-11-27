@@ -154,7 +154,7 @@ export function rowLines(view: CompletionView, slots: number): RowLine[] {
 
 function targetView(target: Target, getQuest: QuestGetter, player: WorldPos | null): TargetView {
   const yards = player == null ? Infinity : distance(player, target.pos);
-  const line = `${targetAction(target)} · ${formatDuration(target.seconds)} · ${formatDistance(yards, currentLocale())}`;
+  const line = `${targetAction(target)} · ${formatDuration(target.seconds - target.penaltySec)} · ${formatDistance(yards, currentLocale())}`;
   return { questId: target.questId, name: targetName(target, getQuest), line };
 }
 
@@ -185,7 +185,7 @@ export function completionView(
     rows.push({
       level: String(target.questLevel),
       name: targetName(target, getQuest),
-      time: formatDuration(target.seconds),
+      time: formatDuration(target.seconds - target.penaltySec),
       grey: target.trivial,
       elite: target.elite,
     });

@@ -29,6 +29,8 @@ export interface Target {
   cluster: SpawnCluster | null;
   otherSpots: number;
   seconds: number;
+  // Part of seconds that only ranks (hearthstone penalty); not shown.
+  penaltySec: number;
   questLevel: number;
   trivial: boolean;
   elite: boolean;
@@ -57,6 +59,7 @@ export interface CompletionInput {
   // Spawns never change, so clusters are kept across refreshes, keyed by questId:objectiveIndex.
   clusters: Map<string, SpawnCluster[]>;
   uiMapOf?: (zoneAreaId: number) => number | null;
+  penaltyOf?: (p: WorldPos) => number;
 }
 
 export interface ZoneProgress {
@@ -100,6 +103,7 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
       cluster,
       otherSpots,
       seconds: timeTo(pos),
+      penaltySec: input.penaltyOf?.(pos) ?? 0,
       questLevel: q.level,
       trivial,
       elite: q.isElite,

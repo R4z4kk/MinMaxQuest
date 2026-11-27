@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { WorldPos } from "../src/core/geometry";
-import { CLUSTER_RADIUS_YARDS, WAYPOINT_MAX, WAYPOINT_RADIUS_YARDS, clusterSpawns, killLoop, nextLoopIndex, pickCluster, waypointLoop } from "../src/targets/spawns";
+import { CLUSTER_RADIUS_YARDS, WAYPOINT_MAX, WAYPOINT_RADIUS_YARDS, clusterSpawns, killLoop, nearestCluster, nextLoopIndex, pickCluster, waypointLoop } from "../src/targets/spawns";
 
 const at = (x: number, y: number, continent = 0): WorldPos => ({ continent, x, y });
 
@@ -86,4 +86,14 @@ describe("waypointLoop", () => {
     expect(loop([at(0, 0), at(300, 0), at(5, 0, 1), at(240, 0)])).toEqual([at(0, 0), at(240, 0)]);
   });
   it("returns the single point", () => expect(loop([at(0, 0)])).toEqual([at(0, 0)]));
+});
+
+describe("nearestCluster", () => {
+  const a = { center: at(0, 0), points: [at(0, 0)] };
+  const b = { center: at(100, 0), points: [at(100, 0)] };
+  it("picks the cluster closest to the position", () => expect(nearestCluster([b, a], at(10, 0))).toBe(a));
+  it("returns null when every cluster is on another continent", () => {
+    expect(nearestCluster([a, b], at(0, 0, 1))).toBeNull();
+  });
+  it("returns null without clusters", () => expect(nearestCluster([], at(0, 0))).toBeNull());
 });

@@ -212,7 +212,10 @@ function start(): Game | null {
   const neighbours = createNeighbourFinder(
     () => (LibStub?.("HereBeDragons-2.0", true) as { mapData: HbdMapData } | null)?.mapData ?? null,
   );
-  const routing = createRouting(repo, charDb, positionsFor, TRAVEL, () => neighbours.around(C_Map.GetBestMapForUnit("player")));
+  const routing = createRouting(repo, charDb, positionsFor, TRAVEL, {
+    maps: () => neighbours.around(C_Map.GetBestMapForUnit("player")),
+    zoneOf: (uiMapId) => neighbours.zoneOf(uiMapId),
+  });
   const follower = createRouteFollower({
     db: charDb,
     faction: () => playerFaction(),
