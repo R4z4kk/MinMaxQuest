@@ -1,7 +1,7 @@
 import { type CharDb } from "../core/storage";
 import { currentLocale } from "../core/l10n";
 import { formatDistance, distance, heading, type WorldPos } from "../core/geometry";
-import { guard } from "../core/report";
+import { isDisabled, reportOnce } from "../core/report";
 
 export interface ArrowTarget {
   pos: WorldPos;
@@ -53,7 +53,7 @@ export function createArrow(db: CharDb): ArrowApi {
   grip.SetFont(FONT_PATH, 14, "OUTLINE");
   grip.SetTextColor(0.788, 0.655, 0.353);
   grip.SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0);
-  grip.SetText("⠿");
+  grip.SetText("::");
   grip.Hide();
 
   const outline: WowTexture[] = [];
@@ -112,11 +112,18 @@ export function createArrow(db: CharDb): ArrowApi {
     frame.Show();
   }
 
-  frame.SetScript("OnUpdate", (_, elapsed) => {
+  function tick(): void {
+    if (isDisabled("arrow")) return;
+    const [ok, error] = pcall(refresh);
+    if (!ok) reportOnce("arrow", `arrow disabled: ${String(error)}`);
+  }
+
+  const driver = CreateFrame("Frame", FRAME_NAME + "Driver", UIParent);
+  driver.SetScript("OnUpdate", (_, elapsed) => {
     elapsedSum += elapsed;
     if (elapsedSum < REFRESH_INTERVAL) return;
     elapsedSum = 0;
-    guard("arrow", refresh);
+    tick();
   });
 
   return {
@@ -127,6 +134,7 @@ export function createArrow(db: CharDb): ArrowApi {
       refresh();
     },
     setMoveMode(on) {
+      const wasOn = moveMode;
       moveMode = on;
       for (const edge of outline) {
         if (on) edge.Show();
@@ -145,7 +153,7 @@ export function createArrow(db: CharDb): ArrowApi {
         frame.SetScript("OnDragStop", null);
         const left = frame.GetLeft();
         const top = frame.GetTop();
-        if (left != null && top != null) db.arrow = { x: left, y: top, locked: true };
+        if (wasOn && left != null && top != null) db.arrow = { x: left, y: top, locked: true };
       }
       refresh();
     },

@@ -27,6 +27,10 @@ function getArrow(): ArrowApi {
 const NORTH_TEST_YARDS = 100;
 
 function handleArrowCommand(command: string): void {
+  if (command !== "move" && command !== "lock" && command !== "test") {
+    print(`MinMaxQuest: ${t("arrowUsage")}`);
+    return;
+  }
   const api = getArrow();
   if (command === "move" || command === "lock") {
     api.setMoveMode(command === "move");
@@ -43,8 +47,8 @@ function handleArrowCommand(command: string): void {
 _G.SLASH_MMQ1 = "/mmq";
 SlashCmdList["MMQ"] = (message: string) => {
   const text = message.trim();
-  if (text.startsWith("arrow ")) {
-    guard("arrow", () => handleArrowCommand(text.slice(6)));
+  if (text === "arrow" || text.startsWith("arrow ")) {
+    guard("arrow", () => handleArrowCommand(text.slice(5).trim()));
     return;
   }
   const result = getRepository();

@@ -9,6 +9,7 @@
     "build": "tstl -p tsconfig.json",
     "pretest": "npm run build",
     "test": "vitest run",
+    "gen:arrow": "tsx tools/make-arrow-tga.ts",
     "gen:travel": "tsx tools/gen-travel/main.ts"
   },
   "keywords": [],

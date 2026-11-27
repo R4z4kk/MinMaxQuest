@@ -4,7 +4,8 @@ export type L10nKey =
   | "tabQuest"
   | "tabAccess"
   | "tabCompletion"
-  | "positionUnavailable";
+  | "positionUnavailable"
+  | "arrowUsage";
 
 const EN: Record<L10nKey, string> = {
   questieMissing: "QuestieDB is required",
@@ -13,6 +14,7 @@ const EN: Record<L10nKey, string> = {
   tabAccess: "Access",
   tabCompletion: "Completion",
   positionUnavailable: "position unavailable",
+  arrowUsage: "usage: /mmq arrow move|lock|test",
 };
 
 const FR: Record<L10nKey, string> = {
@@ -22,6 +24,7 @@ const FR: Record<L10nKey, string> = {
   tabAccess: "Accès",
   tabCompletion: "Complétion",
   positionUnavailable: "position indisponible",
+  arrowUsage: "usage : /mmq arrow move|lock|test",
 };
 
 let french: boolean | null = null;
