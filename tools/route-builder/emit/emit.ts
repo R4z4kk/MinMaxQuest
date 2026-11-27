@@ -2,6 +2,7 @@ import { TRAVEL, type TravelData } from "../../../addon/src/data/generated/trave
 import { followUps } from "../../../addon/src/quests/followUps";
 import { encodeSteps, type EmittedStep } from "../../../addon/src/route/format";
 import { SCENARIOS, type Scenario } from "../model/constants";
+import type { BenchRow } from "../bench/rxp";
 import type { World } from "../model/world";
 import { allVariants, segments, variantKey, type Evaluated, type FactionRoutes, type Segment } from "../opt/variants";
 import { applyStep, initialState, type RouteStep, type SimOptions, type SimState, type StepOutcome } from "../sim/simulate";
@@ -175,7 +176,26 @@ function reportTable(title: string, name: string, variants: Record<string, Evalu
   return [`## ${title}`, "", `| ${REPORT_COLUMNS.join(" | ")} |`, `|${REPORT_COLUMNS.map(() => " --- ").join("|")}|`, ...rows, ""];
 }
 
-export function emitReport(all: FactionRoutes[], worlds: World[], meta: EmitMeta, travel: TravelData = TRAVEL): string {
+const BENCH_COLUMNS = ["Zone", "Level", "RXP h", "Ours h", "Ours variant", "RXP steps", "RXP unknown ids", "RXP skipped quests"];
+
+function benchTable(faction: string, rows: BenchRow[]): string[] {
+  const lines = rows.map((r) => {
+    const reached = r.reached ? String(r.level) : `${r.level} (RXP ends at ${r.rxpLevel})`;
+    return `| ${[r.zone, reached, hours(r.rxpSeconds), hours(r.oursSeconds), r.variant, r.steps, r.dropped, r.skipped].join(" | ")} |`;
+  });
+  return [
+    `## ${faction} RXP benchmark`,
+    "",
+    "Medium scenario, tolerant simulation from the start-zone state; both times run to the same level.",
+    "",
+    `| ${BENCH_COLUMNS.join(" | ")} |`,
+    `|${BENCH_COLUMNS.map(() => " --- ").join("|")}|`,
+    ...lines,
+    "",
+  ];
+}
+
+export function emitReport(all: FactionRoutes[], worlds: World[], meta: EmitMeta, travel: TravelData = TRAVEL, benchmark: BenchRow[] = []): string {
   const out = ["# Route report", "", `Build ${meta.build}, QuestieDB ${meta.questieDb}, generated ${meta.generatedOn}.`, ""];
   for (const routes of all) {
     const world = worlds.find((w) => w.faction === routes.faction);
@@ -183,6 +203,8 @@ export function emitReport(all: FactionRoutes[], worlds: World[], meta: EmitMeta
     const faction = FACTION_NAMES[routes.faction];
     out.push(...reportTable(`${faction} trunk`, "trunk", routes.trunk, world, travel));
     for (const zone of sortedKeys(routes.segments)) out.push(...reportTable(`${faction} ${zone}`, zone, routes.segments[zone], world, travel));
+    const rows = benchmark.filter((r) => r.faction === routes.faction);
+    if (rows.length > 0) out.push(...benchTable(faction, rows));
     out.push(`## ${faction} excluded quests`, "", "| Reason | Count |", "| --- | --- |");
     for (const [reason, count] of [...world.excluded].sort((a, b) => a[0].localeCompare(b[0]))) out.push(`| ${reason} | ${count} |`);
     out.push("", `Zone conversion check: median offset ${world.conversionOffsetYards.toFixed(2)} yards.`, "");

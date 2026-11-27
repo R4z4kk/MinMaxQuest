@@ -1,6 +1,7 @@
 import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { TRAVEL } from "../../addon/src/data/generated/travel";
+import { benchmarkRxp, type BenchRow } from "./bench/rxp";
 import { emitFaction, emitReport, type EmitMeta } from "./emit/emit";
 import { outputDir } from "./emit/outputDir";
 import { loadPinnedCmangosCounts } from "./ingest/cmangos";
@@ -18,12 +19,12 @@ type Faction = "A" | "H";
 
 const FACTION_FILES: Record<Faction, string> = { A: "Alliance.lua", H: "Horde.lua" };
 const REPORT_FILE = "report.md";
-const USAGE = "usage: gen:routes [--faction A|H] [--variant <key>]";
+const USAGE = "usage: gen:routes [--faction A|H] [--variant <key>] [--bench <RXPGuides/Guides/forever>]";
 
-interface Args { factions: Faction[]; variants: Variant[]; partial: boolean }
+interface Args { factions: Faction[]; variants: Variant[]; partial: boolean; bench: string | null }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { factions: ["A", "H"], variants: allVariants(), partial: false };
+  const args: Args = { factions: ["A", "H"], variants: allVariants(), partial: false, bench: null };
   for (let i = 0; i < argv.length; i += 2) {
     const flag = argv[i];
     const value = argv[i + 1];
@@ -37,6 +38,8 @@ function parseArgs(argv: string[]): Args {
       if (variant == null) throw new Error(`gen:routes: --variant ${value} is not one of ${allVariants().map(variantKey).join(", ")}`);
       args.variants = [variant];
       args.partial = true;
+    } else if (flag === "--bench") {
+      args.bench = value;
     } else {
       throw new Error(`gen:routes: unknown argument ${flag} (${USAGE})`);
     }
@@ -79,6 +82,7 @@ async function main(): Promise<void> {
 
   const worlds: World[] = [];
   const all: FactionRoutes[] = [];
+  const benchmark: BenchRow[] = [];
   for (const faction of args.factions) {
     const factionStarted = Date.now();
     const world = buildWorld(snapshot, zones, faction, TRAVEL, instanceTypes, counts);
@@ -89,6 +93,7 @@ async function main(): Promise<void> {
       throw new Error(`[${faction}] ${error instanceof Error ? error.message : String(error)}`, { cause: error });
     }
     worlds.push(world);
+    if (args.bench != null) benchmark.push(...benchmarkRxp(args.bench, world, all[all.length - 1]));
     console.log(`[${faction}] routes built in ${elapsed(factionStarted)}`);
   }
 
@@ -101,7 +106,7 @@ async function main(): Promise<void> {
     if (world == null) throw new Error(`gen:routes: no world for faction ${routes.faction}`);
     write(dir, FACTION_FILES[routes.faction], emitFaction(routes, world, meta));
   }
-  write(dir, REPORT_FILE, emitReport(all, worlds, meta));
+  write(dir, REPORT_FILE, emitReport(all, worlds, meta, TRAVEL, benchmark));
   console.log(`gen:routes: done in ${elapsed(started)}`);
 }
 

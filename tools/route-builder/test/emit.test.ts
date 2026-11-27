@@ -129,6 +129,14 @@ describe("emitReport", () => {
     expect(report).toContain("| e0d0x0 | 0.98 | 1.00 | 1.02 | 1.00 | 2 | 0.0 | 5 | 1.00 | 1 |");
   });
 
+  it("adds a benchmark table only when rows are given", () => {
+    const row = { faction: "A" as const, zone: "start-zone", file: "g.lua", level: 10, rxpSeconds: 5400, rxpLevel: 10, reached: true, oursSeconds: 3600, variant: "e0d0x0", steps: 40, dropped: 3, skipped: 1 };
+    expect(report).not.toContain("RXP benchmark");
+    const withBench = emitReport([routes], [w], meta, data, [row]);
+    expect(withBench).toContain("## Alliance RXP benchmark");
+    expect(withBench).toContain("| start-zone | 10 | 1.50 | 1.00 | e0d0x0 | 40 | 3 | 1 |");
+  });
+
   it("lists exclusions and the conversion offset", () => {
     expect(report).toContain("| noXp | 4 |");
     expect(report).toContain("| class | 2 |");
