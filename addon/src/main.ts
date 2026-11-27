@@ -32,7 +32,7 @@ const FORCING_EVENTS = [
   "PLAYER_UNGHOST",
 ];
 const ITEM_EVENTS = ["BAG_UPDATE_DELAYED", "BAG_UPDATE_COOLDOWN"];
-const EVENTS = ["PLAYER_LOGIN", "QUEST_LOG_UPDATE", "HEARTHSTONE_BOUND", "PLAYER_REGEN_ENABLED", ...ITEM_EVENTS, ...FORCING_EVENTS];
+const EVENTS = ["PLAYER_LOGIN", "QUEST_LOG_UPDATE", "HEARTHSTONE_BOUND", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", ...ITEM_EVENTS, ...FORCING_EVENTS];
 
 interface Game {
   engine: Engine;
@@ -277,6 +277,9 @@ function onEvent(event: string, arg1: unknown, arg3: unknown): void {
     player.hearthBound();
     current.follower.hearthBound();
     forcePending = true;
+  } else if (event === "PLAYER_REGEN_DISABLED") {
+    const button = itemButton;
+    if (button != null) guard("itemButton", () => button.onCombatStart());
   } else if (event === "PLAYER_REGEN_ENABLED") {
     forcePending = true;
     ensureItemButton();

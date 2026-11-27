@@ -5,6 +5,7 @@ import { itemCooldown, itemCount } from "../game/playerState";
 export interface ItemButtonApi {
   want(itemId: number | null): void;
   setLocked(locked: boolean): void;
+  onCombatStart(): void;
   onCombatEnd(): void;
 }
 
@@ -119,9 +120,10 @@ export function createItemButton(db: CharDb, anchor: () => WowFrame): ItemButton
 
   function apply(): void {
     if (wish !== applied) {
+      const texture = wish == null ? null : (itemIcon(wish) ?? UNKNOWN_ICON);
+      button.SetAttribute("item", wish == null ? null : `item:${wish}`);
+      icon.SetTexture(texture);
       applied = wish;
-      button.SetAttribute("item", applied == null ? null : `item:${applied}`);
-      if (applied != null) icon.SetTexture(itemIcon(applied) ?? UNKNOWN_ICON);
     }
     if (placePending) {
       placePending = false;
@@ -167,6 +169,9 @@ export function createItemButton(db: CharDb, anchor: () => WowFrame): ItemButton
       placing = !next;
       if (db.itemButton == null) placePending = true;
       if (!InCombatLockdown()) apply();
+    },
+    onCombatStart() {
+      if (moving) stopMoving();
     },
     onCombatEnd() {
       if (moving) stopMoving();

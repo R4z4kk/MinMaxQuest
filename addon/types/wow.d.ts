@@ -128,7 +128,7 @@ interface WowRegion {
 }
 
 interface WowTexture extends WowRegion {
-  SetTexture(path: string | number): void;
+  SetTexture(path: string | number | null): void;
   SetColorTexture(r: number, g: number, b: number, a: number): void;
   SetRotation(radians: number): void;
 }
