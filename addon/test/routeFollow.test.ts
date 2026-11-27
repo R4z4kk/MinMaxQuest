@@ -1,0 +1,146 @@
+import { describe, expect, it } from "vitest";
+import type { WorldPos } from "../src/core/geometry";
+import type { QuestInfo } from "../src/data/questRepository";
+import type { PlayerQuestState } from "../src/quests/availability";
+import type { EmittedStep, StepType } from "../src/route/format";
+import { follow } from "../src/route/follow";
+import type { ProgressContext, RouteCursor } from "../src/route/progress";
+
+const step = (type: StepType, extra: Partial<EmittedStep> = {}): EmittedStep => ({
+  type, uiMapId: 1, x: 0, y: 0, targetLevel: 1, targetXpIntoLevel: 0, estCostSeconds: 5, estXpGain: 0, ...extra,
+});
+
+function info(id: number): QuestInfo {
+  return {
+    id, name: "Q" + id, level: 1, requiredLevel: 1, requiredMaxLevel: null, races: 0, classes: 0,
+    preGroup: [], preSingle: [], exclusiveTo: [], nextInChain: null, children: [],
+    starterNpcs: [], starterObjects: [], finisherNpcs: [], finisherObjects: [],
+    objectives: [], baseXp: 0, hasUnsupportedRequirement: false, isElite: false, zoneAreaId: null,
+  };
+}
+
+const quest = (id: number): QuestInfo | null => info(id);
+
+function context(extra: Partial<ProgressContext> = {}): ProgressContext {
+  return {
+    completed: new Set(), log: new Map(), level: 5, xpIntoLevel: 0, knownTaxi: new Set(),
+    pos: null, bindPos: null, hearthBoundWhileCurrent: false,
+    toWorld: (_map, x, y): WorldPos => ({ continent: 0, x, y }),
+    taxiPos: () => null,
+    ...extra,
+  };
+}
+
+function player(c: ProgressContext): PlayerQuestState {
+  return { level: c.level, raceMask: 1, classMask: 1, completed: c.completed, inLog: new Set(c.log.keys()) };
+}
+
+// A step's x is its travel time in seconds.
+const timeTo = (p: WorldPos): number => p.x;
+const at = (seconds: number, extra: Partial<EmittedStep> = {}): EmittedStep => step("fly", { x: seconds, taxiNodeId: 1, targetLevel: 5, ...extra });
+
+interface Options {
+  current?: number;
+  removed?: number[];
+  skipped?: number[];
+  ctx?: ProgressContext;
+  realizable?: (i: number) => boolean;
+  maxLevel?: number;
+}
+
+function run(steps: EmittedStep[], opts: Options = {}) {
+  const ctx = opts.ctx ?? context();
+  const cursor: RouteCursor = { current: opts.current ?? 0, removed: new Set(opts.removed ?? []) };
+  return follow(steps, cursor, ctx, timeTo, opts.realizable ?? (() => true), opts.maxLevel ?? 60, quest, player(ctx), 0, new Set(opts.skipped ?? []));
+}
+
+describe("target", () => {
+  it("is current when it is near", () => {
+    expect(run([at(10), at(1), at(2)]).target).toBe(0);
+  });
+
+  it("jumps to a window step much closer than a far current", () => {
+    expect(run([at(300), at(200), at(30)]).target).toBe(2);
+  });
+
+  it("stays on current when the gain is under the threshold", () => {
+    expect(run([at(300), at(260)]).target).toBe(0);
+  });
+
+  it("ignores unrealizable steps", () => {
+    expect(run([at(300), at(30), at(200)], { realizable: (i) => i !== 1 }).target).toBe(2);
+    expect(run([at(300), at(30)], { realizable: (i) => i !== 1 }).target).toBe(0);
+  });
+
+  it("ignores steps beyond the window", () => {
+    const steps = [at(300), ...Array.from({ length: 15 }, () => at(290)), at(10)];
+    expect(run(steps).target).toBe(0);
+  });
+
+  it("takes the last step inside the window", () => {
+    const steps = [at(300), ...Array.from({ length: 14 }, () => at(290)), at(10)];
+    expect(run(steps).target).toBe(15);
+  });
+
+  it("ignores removed and skipped steps", () => {
+    expect(run([at(300), at(10), at(20)], { removed: [1], skipped: [2] }).target).toBe(0);
+  });
+
+  it("ignores done steps", () => {
+    const ctx = context({ knownTaxi: new Set([9]) });
+    const steps = [at(300), step("getFlightPath", { x: 5, taxiNodeId: 9 }), at(100)];
+    expect(run(steps, { ctx }).target).toBe(2);
+  });
+
+  it("goes to the earliest of tied candidates", () => {
+    expect(run([at(300), at(30), at(30)]).target).toBe(1);
+  });
+});
+
+describe("next", () => {
+  it("lists up to 3 following todo steps", () => {
+    expect(run([at(1), at(1), at(1), at(1), at(1)]).next).toEqual([1, 2, 3]);
+  });
+
+  it("skips removed, skipped and done steps", () => {
+    const ctx = context({ knownTaxi: new Set([9]) });
+    const steps = [at(1), at(1), at(1), step("getFlightPath", { taxiNodeId: 9, targetLevel: 5 }), at(1), at(1)];
+    expect(run(steps, { ctx, removed: [1], skipped: [2] }).next).toEqual([4, 5]);
+  });
+});
+
+describe("levelGap", () => {
+  it("is null at a gap of 3", () => {
+    expect(run([at(1, { targetLevel: 8 })]).levelGap).toBeNull();
+  });
+
+  it("is set at a gap of 4", () => {
+    expect(run([at(1, { targetLevel: 9 })]).levelGap).toBe(-4);
+    expect(run([at(1, { targetLevel: 1 })]).levelGap).toBe(4);
+  });
+});
+
+describe("remainingSeconds", () => {
+  it("sums only not-done steps from current", () => {
+    const ctx = context({ knownTaxi: new Set([9]) });
+    const steps = [at(1, { estCostSeconds: 10 }), step("getFlightPath", { taxiNodeId: 9, estCostSeconds: 99 }), at(1, { estCostSeconds: 7 }), at(1, { estCostSeconds: 3 })];
+    expect(run(steps, { ctx, skipped: [3] }).remainingSeconds).toBe(17);
+    expect(run(steps, { ctx, current: 2 }).remainingSeconds).toBe(10);
+  });
+});
+
+describe("finished", () => {
+  it("is true at the end of the route", () => {
+    expect(run([at(1)], { current: 1 })).toEqual({ target: null, current: null, next: [], levelGap: null, remainingSeconds: 0, finished: true });
+  });
+
+  it("is true at the max level", () => {
+    const view = run([at(1)], { ctx: context({ level: 60 }) });
+    expect(view.finished).toBe(true);
+    expect(view.target).toBeNull();
+  });
+
+  it("is false otherwise", () => {
+    expect(run([at(1)]).finished).toBe(false);
+  });
+});
