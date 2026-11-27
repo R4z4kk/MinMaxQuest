@@ -43,7 +43,7 @@ export interface RouteView extends FollowView {
 }
 
 export interface RouteFollower {
-  // Null while the routes are unavailable (missing, invalid or undecodable): the engine uses completion.
+  // Null while the routes are unavailable (missing, invalid or the wanted variant undecodable): the engine uses completion.
   targets(snap: PlayerSnapshot): Target[] | null;
   view(): RouteView | null;
   resync(): void;
@@ -67,6 +67,7 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
   let unavailable: string | null = null;
   let builtKey = "";
   let failedKey = "";
+  let failedMessage = "";
   let steps: EmittedStep[] = [];
   let baseIndex = new Map<EmittedStep, number>();
   let hearthSteps: number[] = [];
@@ -195,7 +196,8 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
       stamp = `${composed.key}@${r.meta.generatedOn}`;
     } catch (error) {
       failedKey = key;
-      reportOnce("routeDecode", `${t("routesMissing")} (${String(error)})`);
+      failedMessage = String(error);
+      reportOnce("routeDecode", `${t("routesMissing")} (${failedMessage})`);
       return false;
     }
     const previous = steps;
@@ -393,7 +395,8 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
     },
     unavailable: () => {
       load();
-      return unavailable;
+      if (unavailable != null) return unavailable;
+      return failedKey !== "" && wantedKey() === failedKey ? failedMessage : null;
     },
     returnDungeons() {
       const r = load();

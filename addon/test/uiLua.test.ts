@@ -360,6 +360,19 @@ it("shows Routes not installed without a routes global", async () => {
   }
 });
 
+it("shows Routes not installed when the variant fails to decode", async () => {
+  const s = await routeTab(`MinMaxQuestRoutes.Alliance.trunk.e0d0x0 = "z;1;2"`);
+  try {
+    await s.run("now = now + 3");
+    await s.tick();
+    expect(await s.texts()).toContain("Routes not installed - use Completion meanwhile");
+    expect(await s.visibilityOf("MinMaxQuestOpenCompletion")).not.toBe("MinMaxQuestOpenCompletion|Hide");
+    expect(await s.visibilityOf("MinMaxQuestRouteSkip")).toBe("MinMaxQuestRouteSkip|Hide");
+  } finally {
+    s.close();
+  }
+});
+
 it("shows Route finished at the maximum level", async () => {
   const s = await routeTab("UnitLevel = function() return 60 end");
   try {

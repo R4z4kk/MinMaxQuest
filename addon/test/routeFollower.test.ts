@@ -234,3 +234,28 @@ it("aims past a level-locked accept to the next doable step", () => {
   expect(f.view()).toMatchObject({ current: 0, target: 1 });
   expect(list?.map((t) => t.route?.index)).toEqual([1, 0]);
 });
+
+it("is unavailable while the wanted variant fails to decode", () => {
+  install();
+  const routes = (globalThis as Record<string, { Alliance: { trunk: Record<string, string> } }>).MinMaxQuestRoutes;
+  routes.Alliance.trunk.e1d0x0 = "z;1;2";
+  const db = loadCharDb(null);
+  const f = follower(db);
+  expect(f.targets(snapshot(1))).not.toBeNull();
+  expect(f.unavailable()).toBeNull();
+  db.routeElites = true;
+  expect(f.targets(snapshot(1))).toBeNull();
+  expect(f.unavailable()).toContain("e1d0x0");
+  db.routeElites = false;
+  expect(f.unavailable()).toBeNull();
+  expect(f.targets(snapshot(1))).not.toBeNull();
+});
+
+it("is unavailable when the first variant fails to decode", () => {
+  install();
+  const routes = (globalThis as Record<string, { Alliance: { trunk: Record<string, string> } }>).MinMaxQuestRoutes;
+  routes.Alliance.trunk.e0d0x0 = "z;1;2";
+  const f = follower(loadCharDb(null));
+  expect(f.targets(snapshot(12))).toBeNull();
+  expect(f.unavailable()).toContain("e0d0x0");
+});
