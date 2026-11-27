@@ -24,6 +24,7 @@ describe("world from the real QuestieDB snapshot", () => {
           `excluded ${JSON.stringify(Object.fromEntries(w.excluded))}`,
         );
         expect(w.quests.size).toBeGreaterThan(1000);
+        expect(w.startZones.map((z) => z.key)).toContain("zephras-isle");
         startZones += w.startZones.length;
       }
       expect(startZones).toBeGreaterThanOrEqual(6);

@@ -41,5 +41,6 @@ describe("model", () => {
     expect(expired).toContain("npcInteractSec");
     expect(expired).toContain("slow.dungeonSec");
     expect(expired).toContain("QUESTIE_DB");
+    expect(expired).toContain("WAGO_DB2");
   });
 });

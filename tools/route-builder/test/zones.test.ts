@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { loadZones, parseZones, zonePercentToWorld } from "../ingest/zones";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { parseCsv } from "../ingest/csv";
+import { loadZones, parseUiMapAssignment, parseZones, zonePercentToWorld } from "../ingest/zones";
+import { WAGO_DB2 } from "../sources";
 
 const LUA = `local _, ns = ...
 ns.Zones = {
@@ -33,5 +37,55 @@ describe("zones", () => {
     const zones = await loadZones();
     expect(zones.get(1411)?.continent).toBe(1);
     expect(zones.size).toBeGreaterThan(30);
+  });
+
+  it("loads Zephras Isle from UiMapAssignment, keeping Zones.lua rects", async () => {
+    const zones = await loadZones();
+    expect(zones.get(2521)).toEqual({ uiMapId: 2521, continent: 2991, minX: 1247.9169921875, minY: -1331.25, maxX: 4956.25, maxY: 4231.25, low: null, high: null });
+    expect(zones.get(1429)?.low).toBe(1);
+  });
+
+  it("matches Zones.lua for a uiMap present in both sources", async () => {
+    const lua = await parseZones(readFileSync(join("vendor", "shortest-path-forever", "Zones.lua"), "utf8"));
+    const csv = parseUiMapAssignment(readFileSync(join("vendor", "wago", `UiMapAssignment-${WAGO_DB2.build}.csv`), "utf8"), "UiMapAssignment.csv");
+    for (const id of [1412, 1429]) {
+      const a = lua.get(id)!;
+      const b = csv.get(id)!;
+      expect([b.continent, b.minX, b.minY, b.maxX, b.maxY].map(Math.round)).toEqual([a.continent, a.minX, a.minY, a.maxX, a.maxY]);
+    }
+  });
+});
+
+const ASSIGNMENT_HEADER = "UiMin_0,UiMin_1,UiMax_0,UiMax_1,Region_0,Region_1,Region_2,Region_3,Region_4,Region_5,ID,UiMapID,OrderIndex,MapID,AreaID";
+
+describe("UiMapAssignment", () => {
+  it("keeps full-map rows of order 0 only", () => {
+    const csv = [
+      ASSIGNMENT_HEADER,
+      "0,0,1,1,10,20,-1000000,30,40,1000000,1,500,0,7,0",
+      "0.5,0,1,1,11,21,-1000000,31,41,1000000,2,501,0,7,0",
+      "0,0,1,1,12,22,-1000000,32,42,1000000,3,502,1,7,0",
+    ].join("\n");
+    expect([...parseUiMapAssignment(csv, "t.csv").values()]).toEqual([
+      { uiMapId: 500, continent: 7, minX: 10, minY: 20, maxX: 30, maxY: 40, low: null, high: null },
+    ]);
+  });
+
+  it("names the file and row of a malformed value", () => {
+    const csv = [ASSIGNMENT_HEADER, "0,0,1,1,x,20,-1000000,30,40,1000000,1,500,0,7,0"].join("\n");
+    expect(() => parseUiMapAssignment(csv, "t.csv")).toThrow("t.csv: row 2 has no numeric Region_0");
+  });
+});
+
+describe("parseCsv", () => {
+  it("reads quoted fields with commas, quotes and newlines by header name", () => {
+    expect(parseCsv('a,b\r\n"x, y","say ""hi""\nthere"\n1,2\n', "t.csv")).toEqual([
+      { a: "x, y", b: 'say "hi"\nthere' },
+      { a: "1", b: "2" },
+    ]);
+  });
+
+  it("rejects a row with the wrong field count", () => {
+    expect(() => parseCsv("a,b\n1\n", "t.csv")).toThrow("t.csv: row 2 has 1 fields, header has 2");
   });
 });

@@ -2,8 +2,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { LuaFactory } from "wasmoon";
 import type { WorldPos } from "../../../addon/src/core/geometry";
+import { WAGO_DB2 } from "../sources";
+import { csvNumber, parseCsv } from "./csv";
 
 const ZONES_FILE = join("vendor", "shortest-path-forever", "Zones.lua");
+const UI_MAP_ASSIGNMENT_FILE = join("vendor", "wago", `UiMapAssignment-${WAGO_DB2.build}.csv`);
 const FILE_LABEL = "Zones.lua";
 const PERCENT = 100;
 
@@ -72,8 +75,37 @@ export async function parseZones(lua: string): Promise<Map<number, UiMapRect>> {
   return zones;
 }
 
+// Full-map assignments only: UiMin (0,0), UiMax (1,1), OrderIndex 0. Region_0..2 = min x,y,z; Region_3..5 = max.
+export function parseUiMapAssignment(csv: string, label: string): Map<number, UiMapRect> {
+  const rects = new Map<number, UiMapRect>();
+  parseCsv(csv, label).forEach((row, i) => {
+    const rowNumber = i + 2;
+    const n = (column: string): number => csvNumber(row, column, label, rowNumber);
+    const fullMap = n("UiMin_0") === 0 && n("UiMin_1") === 0 && n("UiMax_0") === 1 && n("UiMax_1") === 1;
+    if (!fullMap || n("OrderIndex") !== 0) return;
+    const uiMapId = n("UiMapID");
+    if (rects.has(uiMapId)) throw new Error(`${label}: row ${rowNumber} repeats uiMap ${uiMapId}`);
+    rects.set(uiMapId, {
+      uiMapId,
+      continent: n("MapID"),
+      minX: n("Region_0"),
+      minY: n("Region_1"),
+      maxX: n("Region_3"),
+      maxY: n("Region_4"),
+      low: null,
+      high: null,
+    });
+  });
+  return rects;
+}
+
+// Zones.lua first; UiMapAssignment only fills uiMaps it lacks (e.g. Zephras Isle 2521).
 export async function loadZones(): Promise<Map<number, UiMapRect>> {
-  return parseZones(readFileSync(ZONES_FILE, "utf8"));
+  const zones = await parseZones(readFileSync(ZONES_FILE, "utf8"));
+  for (const [id, rect] of parseUiMapAssignment(readFileSync(UI_MAP_ASSIGNMENT_FILE, "utf8"), UI_MAP_ASSIGNMENT_FILE)) {
+    if (!zones.has(id)) zones.set(id, rect);
+  }
+  return zones;
 }
 
 export function zonePercentToWorld(rect: UiMapRect, x: number, y: number): WorldPos {
