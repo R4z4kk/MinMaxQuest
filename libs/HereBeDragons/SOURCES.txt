@@ -1,0 +1,15 @@
+Vendored unmodified, fetched 2026-11-27.
+
+HereBeDragons-2.0.lua, HereBeDragons-Pins-2.0.lua
+  https://github.com/Nevcairiel/HereBeDragons  tag 2.18-release (HBD 2.0 minor 35, Pins minor 17)
+  License: BSD (declared as "X-License: BSD" in the upstream HereBeDragons.toc; the repository ships no LICENSE file)
+
+CallbackHandler-1.0.lua
+  https://repos.curseforge.com/wow/callbackhandler/trunk/CallbackHandler-1.0/ (r29)
+  License: BSD-2.0 (declared in the upstream CallbackHandler-1.0.toc)
+
+LibStub.lua
+  https://repos.wowace.com/wow/libstub/tags/1.0/ (r109)
+  License: Public Domain (header of LibStub.lua)
+
+All three are GPL-3.0 compatible.

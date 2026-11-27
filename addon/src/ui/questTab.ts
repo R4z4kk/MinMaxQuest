@@ -6,6 +6,7 @@ import type { TabView } from "./window";
 export interface QuestDeps {
   db: CharDb;
   refreshTargets(): void;
+  refreshPins(): void;
   openCompletion(): void;
 }
 
@@ -17,18 +18,20 @@ export function createQuestTab(deps: QuestDeps): TabView {
   let elites: Checkbox | null = null;
   let dungeons: Checkbox | null = null;
   let autoFly: Checkbox | null = null;
+  let nativeWaypoint: Checkbox | null = null;
   const gapButtons: Button[] = [];
 
   const draw = (): void => {
     elites?.set(db.routeElites);
     dungeons?.set(db.routeDungeons);
     autoFly?.set(db.autoFly);
+    nativeWaypoint?.set(db.nativeWaypoint);
     gapButtons.forEach((gapButton, i) => gapButton.setPrimary(GAPS[i] === (db.minLevelGap ?? 0)));
   };
 
   return {
     width: 270,
-    height: 260,
+    height: 278,
     render(parent) {
       const message = text(parent, SIZE.body, COLOR.sub);
       message.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -14);
@@ -55,8 +58,14 @@ export function createQuestTab(deps: QuestDeps): TabView {
         draw();
       });
       autoFly.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -138);
+      nativeWaypoint = checkbox(parent, "MinMaxQuestNativeWaypoint", t("nativeWaypoint"), () => {
+        db.nativeWaypoint = !db.nativeWaypoint;
+        deps.refreshPins();
+        draw();
+      });
+      nativeWaypoint.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -156);
       const gapLabel = text(parent, SIZE.small, COLOR.sub);
-      gapLabel.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -160);
+      gapLabel.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -178);
       gapLabel.SetText(t("maxQuestLevel"));
       let previous: WowFrame | null = null;
       for (const gap of GAPS) {
@@ -65,7 +74,7 @@ export function createQuestTab(deps: QuestDeps): TabView {
           deps.refreshTargets();
           draw();
         });
-        if (previous == null) gapButton.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -176);
+        if (previous == null) gapButton.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -194);
         else gapButton.frame.SetPoint("LEFT", previous, "RIGHT", 4, 0);
         previous = gapButton.frame;
         gapButtons.push(gapButton);

@@ -22,7 +22,7 @@ function quest(id: number, over: Partial<QuestInfo> = {}): QuestInfo {
 
 function target(questId: number, over: Partial<Target> = {}): Target {
   return {
-    questId, kind: "accept", objectiveIndex: null, pos: at(questId * 10), cluster: null, seconds: questId,
+    questId, kind: "accept", objectiveIndex: null, pos: at(questId * 10), cluster: null, otherSpots: 0, seconds: questId,
     questLevel: 10, trivial: false, elite: false, zoneAreaId: null, ...over,
   };
 }

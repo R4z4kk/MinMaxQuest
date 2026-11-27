@@ -52,7 +52,26 @@ declare namespace C_Map {
   function GetAreaInfo(areaId: number): string | null;
   function GetBestMapForUnit(unit: string): number | null;
   function GetMapInfo(uiMapId: number): WowMapInfo | null;
+  const GetMapPosFromWorldPos:
+    | ((this: void, continent: number, pos: WowVector2D, overrideUiMapId?: number) => LuaMultiReturn<[number | null, WowVector2D | null]>)
+    | null;
+  const CanSetUserWaypointOnMap: ((this: void, uiMapId: number) => boolean) | null;
+  const SetUserWaypoint: ((this: void, point: unknown) => void) | null;
+  const ClearUserWaypoint: ((this: void) => void) | null;
 }
+
+declare const C_SuperTrack: { SetSuperTrackedUserWaypoint: ((this: void, on: boolean) => void) | null } | null;
+declare const UiMapPoint: {
+  CreateFromCoordinates: ((this: void, uiMapId: number, x: number, y: number) => unknown) | null;
+} | null;
+
+interface HbdPins {
+  AddWorldMapIconWorld(ref: string, icon: WowFrame, instanceId: number, x: number, y: number, showFlag: number): boolean;
+  AddMinimapIconWorld(ref: string, icon: WowFrame, instanceId: number, x: number, y: number, floatOnEdge: boolean): boolean;
+  RemoveWorldMapIcon(ref: string, icon: WowFrame): void;
+  RemoveMinimapIcon(ref: string, icon: WowFrame): void;
+}
+declare const LibStub: ((this: void, name: string, silent: boolean) => unknown) | null;
 
 declare namespace C_QuestLog {
   function GetNumQuestLogEntries(): LuaMultiReturn<[number, number]>;
@@ -125,6 +144,7 @@ declare function FauxScrollFrame_GetOffset(frame: unknown): number;
 declare const GameTooltip: {
   SetOwner(owner: WowFrame, anchor: string): void;
   SetText(text: string): void;
+  AddLine(text: string, r: number, g: number, b: number): void;
   Show(): void;
   Hide(): void;
 };

@@ -17,6 +17,7 @@ export interface Target {
   objectiveIndex: number | null;
   pos: WorldPos;
   cluster: SpawnCluster | null;
+  otherSpots: number;
   seconds: number;
   questLevel: number;
   trivial: boolean;
@@ -66,6 +67,7 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
     objectiveIndex: number | null,
     pos: WorldPos,
     cluster: SpawnCluster | null,
+    otherSpots: number,
   ): void => {
     targets.push({
       questId: q.id,
@@ -73,6 +75,7 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
       objectiveIndex,
       pos,
       cluster,
+      otherSpots,
       seconds: timeTo(pos),
       questLevel: q.level,
       trivial,
@@ -104,16 +107,16 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
     if (entry == null) {
       if (!isAvailable(q, player) || !passesMaxLevelOption(q, player, opts.minLevelGap)) continue;
       const pos = nearest(positionsFor(q, "accept", null));
-      if (pos != null) push(q, trivial, "accept", null, pos, null);
+      if (pos != null) push(q, trivial, "accept", null, pos, null, 0);
     } else if (entry.complete) {
       const pos = nearest(positionsFor(q, "turnin", null));
-      if (pos != null) push(q, trivial, "turnin", null, pos, null);
+      if (pos != null) push(q, trivial, "turnin", null, pos, null, 0);
     } else {
       for (const obj of q.objectives) {
         if (entry.objectivesDone.has(obj.index)) continue;
         const clusters = clusterSpawns(positionsFor(q, "objective", obj.index), CLUSTER_RADIUS_YARDS);
         const cluster = pickCluster(clusters, timeTo);
-        if (cluster != null) push(q, trivial, "objective", obj.index, cluster.center, cluster);
+        if (cluster != null) push(q, trivial, "objective", obj.index, cluster.center, cluster, clusters.length - 1);
       }
     }
   }

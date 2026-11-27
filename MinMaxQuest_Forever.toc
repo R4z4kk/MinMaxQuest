@@ -6,4 +6,8 @@
 ## SavedVariables: MinMaxQuestDB
 ## SavedVariablesPerCharacter: MinMaxQuestCharDB
 
+libs\HereBeDragons\LibStub.lua
+libs\HereBeDragons\CallbackHandler-1.0.lua
+libs\HereBeDragons\HereBeDragons-2.0.lua
+libs\HereBeDragons\HereBeDragons-Pins-2.0.lua
 build\MinMaxQuest.lua

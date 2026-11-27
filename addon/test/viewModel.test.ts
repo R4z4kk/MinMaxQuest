@@ -25,7 +25,7 @@ const at = (x: number): WorldPos => ({ continent: 0, x, y: 0 });
 
 function target(questId: number, over: Partial<Target> = {}): Target {
   return {
-    questId, kind: "accept", objectiveIndex: null, pos: at(questId * 100), cluster: null, seconds: 30,
+    questId, kind: "accept", objectiveIndex: null, pos: at(questId * 100), cluster: null, otherSpots: 0, seconds: 30,
     questLevel: 10, trivial: false, elite: false, zoneAreaId: null, ...over,
   };
 }

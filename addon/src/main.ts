@@ -4,10 +4,11 @@ import { guard, reportOnce } from "./core/report";
 import { loadCharDb, type CharDb } from "./core/storage";
 import { createQuestRepository, type QuestInfo, type QuestRepository, type RepoResult } from "./data/questRepository";
 import { createCommands } from "./game/commands";
-import { createEngine, type Engine } from "./game/engine";
+import { createEngine, describeTarget, sameKey, type Engine } from "./game/engine";
 import { createPlayerState, HEARTHSTONE_SPELL_ID, type PlayerStateReader } from "./game/playerState";
 import { createPositions, mapToWorld } from "./game/positions";
 import { createRouting } from "./game/routing";
+import { installMapPins } from "./map/pins";
 import { installPinButtons } from "./questlog/pinButtons";
 import { installAutoFly } from "./taxi/autoFly";
 import { createUi } from "./ui/ui";
@@ -29,6 +30,7 @@ interface Game {
   player: PlayerStateReader;
   repo: QuestRepository;
   quests(): QuestInfo[];
+  refreshPins(): void;
 }
 
 let db: CharDb | null = null;
@@ -116,7 +118,25 @@ function start(): Game | null {
     },
     charDb,
   );
-  const started: Game = { engine, player, repo, quests: () => routing.quests() };
+  const mapPins = guard("mapPins", () =>
+    installMapPins({
+      db: charDb,
+      label: (target) => describeTarget(target, repo.get(target.questId)),
+      getPins: () => {
+        const current = engine.current();
+        const next = engine.targets().find((target) => !sameKey(target, current)) ?? null;
+        return { current, next };
+      },
+    }),
+  );
+  if (mapPins != null) engine.onChange(() => mapPins.refresh());
+  const started: Game = {
+    engine,
+    player,
+    repo,
+    quests: () => routing.quests(),
+    refreshPins: () => mapPins?.refresh(),
+  };
   game = started;
   const refreshPins = guard("pinButtons", () =>
     installPinButtons(

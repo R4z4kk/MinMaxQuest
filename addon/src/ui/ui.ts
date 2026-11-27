@@ -15,6 +15,7 @@ export interface UiGame {
   engine: Engine;
   repo: QuestRepository;
   quests(): QuestInfo[];
+  refreshPins(): void;
 }
 
 export interface UiContext {
@@ -46,6 +47,7 @@ function gameTabs(db: CharDb, game: UiGame, setTab: (tab: TabId) => void): Recor
     quest: createQuestTab({
       db,
       refreshTargets: () => engine.refreshTargets(true),
+      refreshPins: () => game.refreshPins(),
       openCompletion: () => setTab("completion"),
     }),
     access: createAccessTab({ db, engine, repo, areaName: (areaId) => maps.areaName(areaId) }),

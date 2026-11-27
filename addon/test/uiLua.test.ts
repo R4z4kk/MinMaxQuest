@@ -33,7 +33,7 @@ it("toggles the window with /mmq and opens the Quest tab by default", async () =
   try {
     await s.cmd("");
     expect(await s.visibility()).toBe("MinMaxQuestWindow|Show");
-    expect(await s.calls()).toContain("MinMaxQuestWindow|SetSize|270|260");
+    expect(await s.calls()).toContain("MinMaxQuestWindow|SetSize|270|278");
     const texts = await s.texts();
     expect(texts).toContain("MINMAXQUEST");
     expect(texts.slice(texts.indexOf("MINMAXQUEST"), texts.indexOf("MINMAXQUEST") + 4)).toEqual([
@@ -65,7 +65,7 @@ it("switches the three tabs, resizing the window and saving the tab", async () =
     expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|320|420");
     expect(await s.texts()).toContain("Dalaran Sewers");
     await s.click("MinMaxQuestTabquest");
-    expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|270|260");
+    expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|270|278");
     expect(await s.run("return MinMaxQuestCharDB.tab")).toBe("quest");
     expect(await s.printed()).toBe("");
   } finally {
