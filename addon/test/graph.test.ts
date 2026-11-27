@@ -13,7 +13,7 @@ const SOURCE: TravelData["source"] = {
   name: "Shortest Path Forever",
   version: "test",
   build: "test",
-  generatedOn: "2026-11-27",
+  verifiedOn: "2026-11-27", expiresOn: "2026-12-27",
 };
 
 function data(partial: Partial<TravelData>): TravelData {

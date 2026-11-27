@@ -2,7 +2,7 @@
 import type { WorldPos } from "../../core/geometry";
 
 export interface TravelData {
-  source: { name: "Shortest Path Forever"; version: string; build: string; generatedOn: string };
+  source: { name: "Shortest Path Forever"; version: string; build: string; verifiedOn: string; expiresOn: string };
   taxiNodes: { id: number; name: string; pos: WorldPos; faction: "A" | "H" | "AH" }[];
   taxiEdges: { from: number; to: number; seconds: number }[];
   transports: {
@@ -15,7 +15,7 @@ export interface TravelData {
 }
 
 export const TRAVEL: TravelData = {
-  source: {"name":"Shortest Path Forever","version":"1.48.0","build":"1.60.1.71139","generatedOn":"2026-11-27"},
+  source: {"name":"Shortest Path Forever","version":"1.48.0","build":"1.60.1.71139","verifiedOn":"2026-11-27","expiresOn":"2026-12-27"},
   taxiNodes: [
     {"id":2,"name":"Stormwind, Elwynn","pos":{"continent":0,"x":-8832.8,"y":478.6},"faction":"A"},
     {"id":4,"name":"Sentinel Hill, Westfall","pos":{"continent":0,"x":-10628.9,"y":1036.7},"faction":"A"},

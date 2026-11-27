@@ -1,3 +1,5 @@
+import { TRAVEL } from "../data/generated/travel";
+
 export interface DatedValue {
   value: number;
   source: string;
@@ -37,19 +39,16 @@ export const XP_PER_LEVEL = {
   expiresOn: EXPIRES_ON,
 };
 
-interface Expirable {
+export interface Expirable {
   expiresOn: string;
 }
 
-function isExpirable(entry: object): entry is Expirable {
-  return typeof (entry as Partial<Expirable>).expiresOn === "string";
+export function expiredRecords(records: Record<string, Expirable>, today: string): string[] {
+  const expired: string[] = [];
+  for (const [name, entry] of Object.entries(records)) if (entry.expiresOn < today) expired.push(name);
+  return expired;
 }
 
 export function expiredConstants(today: string): string[] {
-  const expired: string[] = [];
-  for (const [name, entry] of Object.entries(CONSTANTS as Record<string, object>)) {
-    if (isExpirable(entry) && entry.expiresOn < today) expired.push(name);
-  }
-  if (XP_PER_LEVEL.expiresOn < today) expired.push("XP_PER_LEVEL");
-  return expired;
+  return expiredRecords({ ...CONSTANTS, XP_PER_LEVEL, TRAVEL: TRAVEL.source }, today);
 }

@@ -13,6 +13,8 @@ it("maps the vendored Shortest Path Forever data", async () => {
 
   expect(data.source.build).toBe("1.60.1.71139");
   expect(data.source.name).toBe("Shortest Path Forever");
+  expect(data.source.verifiedOn).toBe("2026-11-27");
+  expect(data.source.expiresOn).toBe("2026-12-27");
   expect(data.taxiNodes.length).toBeGreaterThanOrEqual(60);
   expect(data.taxiEdges.length).toBeGreaterThan(0);
   expect(data.transports.length).toBeGreaterThan(0);

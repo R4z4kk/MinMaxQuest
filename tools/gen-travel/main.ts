@@ -9,6 +9,8 @@ const OUTPUT_FILE = "addon/src/data/generated/travel.ts";
 const LUA_FILES = ["Taxi.lua", "Routes.lua", "Transports.lua"];
 const TRANSPORT_KINDS = ["boat", "zeppelin", "tram"];
 const MS_PER_SECOND = 1000;
+const VALID_DAYS = 30;
+const MS_PER_DAY = 86400000;
 
 const EXTRACT = `
 local out = { nodes = {}, paths = {}, docks = {}, routes = {} }
@@ -68,11 +70,17 @@ function readHeaderBuild(taxiSource: string): string {
   return match[1];
 }
 
-function readVersion(versionText: string): { version: string; generatedOn: string } {
+function addDays(isoDate: string, days: number): string {
+  const time = Date.parse(`${isoDate}T00:00:00Z`);
+  if (!Number.isFinite(time)) throw new Error(`gen-travel: bad date ${isoDate}`);
+  return new Date(time + days * MS_PER_DAY).toISOString().slice(0, 10);
+}
+
+function readVersion(versionText: string): { version: string; verifiedOn: string } {
   const version = /^v?([\d.]+)/.exec(versionText);
   const date = /retrieved (\d{4}-\d{2}-\d{2})/.exec(versionText);
   if (version == null || date == null) throw new Error("gen-travel: unreadable VERSION file");
-  return { version: version[1], generatedOn: date[1] };
+  return { version: version[1], verifiedOn: date[1] };
 }
 
 function seconds(milliseconds: number): number {
@@ -81,7 +89,7 @@ function seconds(milliseconds: number): number {
 
 export async function generateTravel(vendorDir: string): Promise<TravelData> {
   const taxiSource = readFileSync(join(vendorDir, "Taxi.lua"), "utf8");
-  const { version, generatedOn } = readVersion(readFileSync(join(vendorDir, "VERSION"), "utf8"));
+  const { version, verifiedOn } = readVersion(readFileSync(join(vendorDir, "VERSION"), "utf8"));
   const lua = await new LuaFactory().createEngine();
   let extracted: Record<string, unknown>;
   try {
@@ -148,7 +156,13 @@ export async function generateTravel(vendorDir: string): Promise<TravelData> {
   }
 
   return {
-    source: { name: "Shortest Path Forever", version, build: readHeaderBuild(taxiSource), generatedOn },
+    source: {
+      name: "Shortest Path Forever",
+      version,
+      build: readHeaderBuild(taxiSource),
+      verifiedOn,
+      expiresOn: addDays(verifiedOn, VALID_DAYS),
+    },
     taxiNodes,
     taxiEdges,
     transports,
@@ -158,7 +172,7 @@ export async function generateTravel(vendorDir: string): Promise<TravelData> {
 const INTERFACE_TEXT = `import type { WorldPos } from "../../core/geometry";
 
 export interface TravelData {
-  source: { name: "Shortest Path Forever"; version: string; build: string; generatedOn: string };
+  source: { name: "Shortest Path Forever"; version: string; build: string; verifiedOn: string; expiresOn: string };
   taxiNodes: { id: number; name: string; pos: WorldPos; faction: "A" | "H" | "AH" }[];
   taxiEdges: { from: number; to: number; seconds: number }[];
   transports: {
