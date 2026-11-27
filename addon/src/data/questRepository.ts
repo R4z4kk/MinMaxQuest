@@ -82,6 +82,28 @@ function present<T>(value: T | null, what: string): T {
   return value;
 }
 
+function decodeMap(raw: unknown, what: string): Record<string, unknown> {
+  let value = raw;
+  if (typeof raw === "string") {
+    const [chunk, compileError] = loadstring(raw, `=${what}`);
+    if (chunk == null) throw new Error(`${what} does not compile: ${compileError}`);
+    value = chunk();
+  }
+  if (value == null || typeof value !== "object") throw new Error(`${what} is not a table`);
+  return value as Record<string, unknown>;
+}
+
+// As Questie Database/Zones/zoneDB.lua ZoneDB.Initialize: decode both payloads, then apply the override on top.
+function readAreaToUiMap(zones: { private: QuestieDBZonePrivate }): QuestieDBIdMap<unknown> {
+  const merged: QuestieDBIdMap<unknown> = {};
+  const sources = [
+    decodeMap(zones.private.areaIdToUiMapId, "ZoneDB.private.areaIdToUiMapId"),
+    decodeMap(zones.private.areaIdToUiMapIdOverride, "ZoneDB.private.areaIdToUiMapIdOverride"),
+  ];
+  for (const source of sources) for (const [key, uiMapId] of Object.entries(source)) merged[Number(key)] = uiMapId;
+  return merged;
+}
+
 function readSpawns(spawns: unknown): AreaPoint[] {
   if (spawns == null || typeof spawns !== "object") return [];
   const points: AreaPoint[] = [];
@@ -159,10 +181,8 @@ function buildRepository(lib: LibQuestieDBApi): QuestRepository {
   const xpDb = safe<QuestieDBIdMap<QuestieDBPair> | null>("QuestXP", null, () =>
     present(lib.Support.Get("QuestXP").db, "QuestXP.db"),
   );
-  const areaToUiMap = safe<QuestieDBIdMap<number> | null>(
-    "ZoneDB",
-    null,
-    () => present(lib.Support.Get("ZoneDB").private.areaIdToUiMapId, "ZoneDB.private.areaIdToUiMapId"),
+  const areaToUiMap = safe<QuestieDBIdMap<unknown> | null>("ZoneDB", null, () =>
+    readAreaToUiMap(present(lib.Support.Get("ZoneDB"), "ZoneDB")),
   );
   const hints = safe<QuestieDBObjectiveFirst | null>("ObjectiveFirst", null, () =>
     present(lib.ObjectiveFirst, "LibQuestieDB.ObjectiveFirst"),

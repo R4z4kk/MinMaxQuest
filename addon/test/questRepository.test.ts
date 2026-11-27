@@ -13,7 +13,13 @@ const NO_HINTS = (): LibQuestieDBApi["ObjectiveFirst"] => ({
   spellObjectiveFirst: {},
 });
 
-function fakeLib(quests: Record<number, Row>, ranks: Record<number, number> = {}): LibQuestieDBApi {
+const TABLE_ZONES: QuestieDBZonePrivate = { areaIdToUiMapId: { 12: 1429, 14: 1 }, areaIdToUiMapIdOverride: { 14: 1411 } };
+
+function fakeLib(
+  quests: Record<number, Row>,
+  ranks: Record<number, number> = {},
+  zones: QuestieDBZonePrivate = TABLE_ZONES,
+): LibQuestieDBApi {
   return {
     ObjectiveFirst: NO_HINTS(),
     RequireContract: () => [true] as unknown as ReturnType<LibQuestieDBApi["RequireContract"]>,
@@ -40,10 +46,21 @@ function fakeLib(quests: Record<number, Row>, ranks: Record<number, number> = {}
       Get: ((name: string) =>
         name === "QuestXP"
           ? { db: { 33: [5, 450] } }
-          : { private: { areaIdToUiMapId: { 12: 1429 } } }) as LibQuestieDBApi["Support"]["Get"],
+          : { private: zones }) as LibQuestieDBApi["Support"]["Get"],
     },
   };
 }
+
+// Node has no Lua loadstring: this one reads "return <json>" so the string path runs here; gameLua tests decode real Lua.
+const host = globalThis as { loadstring?: (source: string) => [() => unknown] | [null, string] };
+host.loadstring = (source) => {
+  try {
+    const value: unknown = JSON.parse(source.replace(/^return /, ""));
+    return [() => value];
+  } catch (error) {
+    return [null, String(error)];
+  }
+};
 
 let reported: string[] = [];
 beforeEach(() => {
@@ -240,5 +257,35 @@ describe("createQuestRepository", () => {
 
   it("leaves the XP unknown when the quest has no QuestXP entry", () => {
     expect(repoFor(fakeLib({ 1: { name: "A", questLevel: 1 } })).get(1)?.baseXp).toBeNull();
+  });
+
+  it("applies the override on top of the table zone maps", () => {
+    const repo = repoFor(fakeLib({}));
+    expect(repo.uiMapIdForArea(12)).toBe(1429);
+    expect(repo.uiMapIdForArea(14)).toBe(1411);
+    expect(repo.uiMapIdForArea(99)).toBeNull();
+  });
+
+  it("decodes Lua source zone maps and applies the override on top", () => {
+    const repo = repoFor(
+      fakeLib({}, {}, { areaIdToUiMapId: 'return {"12": 1429, "14": 1}', areaIdToUiMapIdOverride: 'return {"14": 1411}' }),
+    );
+    expect(repo.uiMapIdForArea(12)).toBe(1429);
+    expect(repo.uiMapIdForArea(14)).toBe(1411);
+    expect(repo.lastError()).toBeNull();
+  });
+
+  it("reports a zone map that does not compile", () => {
+    const repo = repoFor(fakeLib({}, {}, { areaIdToUiMapId: "return {", areaIdToUiMapIdOverride: "return {}" }));
+    expect(repo.uiMapIdForArea(12)).toBeNull();
+    expect(repo.lastError()).toContain("ZoneDB.private.areaIdToUiMapId does not compile");
+    expect(reported).toHaveLength(1);
+    expect(reported[0]).toContain("QuestieDB read failed (ZoneDB)");
+  });
+
+  it("reports a missing zone map override", () => {
+    const repo = repoFor(fakeLib({}, {}, { areaIdToUiMapId: { 12: 1429 } } as unknown as QuestieDBZonePrivate));
+    expect(repo.uiMapIdForArea(12)).toBeNull();
+    expect(repo.lastError()).toContain("ZoneDB.private.areaIdToUiMapIdOverride is not a table");
   });
 });
