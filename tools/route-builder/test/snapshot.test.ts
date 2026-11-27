@@ -4,8 +4,8 @@ import { dropRate, hasFlag, npcInfo, snapshotLib } from "../ingest/snapshot";
 import { snapshot } from "./fixtures";
 
 const NPCS = {
-  100: { spawns: { 12: [[40, 50]] }, rank: 0, friendlyToFaction: "A", minLevel: 5, maxLevel: 5, npcFlags: 2 },
-  200: { spawns: { 12: [[45, 55]] }, rank: 1, friendlyToFaction: null, minLevel: 6, maxLevel: 7, npcFlags: 0 },
+  100: { name: "Marshal", spawns: { 12: [[40, 50]] }, rank: 0, friendlyToFaction: "A", minLevel: 5, maxLevel: 5, npcFlags: 2 },
+  200: { name: "Wolf", spawns: { 12: [[45, 55]] }, rank: 1, friendlyToFaction: null, minLevel: 6, maxLevel: 7, npcFlags: 0 },
 };
 
 describe("snapshotLib", () => {

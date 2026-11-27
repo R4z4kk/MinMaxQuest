@@ -60,6 +60,7 @@ export function world(overrides: Partial<World> = {}): World {
     capitalTaxiNode: 2,
     conversionOffsetYards: 0,
     excluded: new Map(),
+    countStats: { fromText: 0, fromCmangos: 0, bothSources: 0, disagreements: 0, noCount: 0 },
     ...overrides,
   };
 }

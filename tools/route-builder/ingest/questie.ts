@@ -8,7 +8,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { LuaFactory } from "wasmoon";
 import { QUESTIE_DB } from "../sources";
-import { cacheDir } from "./fetchQuestie";
+import { cacheDir, questieDir } from "./fetchQuestie";
 import type { QuestieSnapshot } from "./snapshot";
 
 const TOC = "QuestieDB.toc";
@@ -24,7 +24,7 @@ const HARNESS_FILES = [
 const GAME_TYPE = "forever";
 const EXPANSION = "Forever";
 
-type FieldKind = "string" | "number" | "list" | "trigger";
+type FieldKind = "string" | "number" | "list" | "strings" | "trigger";
 
 // Every field addon/src/data/questRepository.ts reads.
 const QUEST_FIELDS: Record<string, FieldKind> = {
@@ -36,6 +36,7 @@ const QUEST_FIELDS: Record<string, FieldKind> = {
   requiredRaces: "number",
   requiredClasses: "number",
   triggerEnd: "trigger",
+  objectivesText: "strings",
   objectives: "list",
   preQuestGroup: "list",
   preQuestSingle: "list",
@@ -210,6 +211,7 @@ for _, id in ipairs(itemIds) do
     addAll(npcSet, npcDrops)
     addAll(objectSet, objectDrops)
     str(tostring(id)) put(":{")
+    field("name") value(db.Item.Get(id, "name"), "item " .. id .. " name") put(",")
     field("npcDrops") ids(npcDrops, "item " .. id .. " npcDrops") put(",")
     field("objectDrops") ids(objectDrops, "item " .. id .. " objectDrops") put("}")
   end
@@ -234,7 +236,7 @@ for _, id in ipairs(sortedKeys(npcSet)) do
     local ctx = "npc " .. id
     str(tostring(id)) put(":{")
     field("spawns") spawns(db.Npc.Get(id, "spawns"), ctx .. " spawns") put(",")
-    for j, name in ipairs({ "rank", "friendlyToFaction", "minLevel", "maxLevel", "npcFlags" }) do
+    for j, name in ipairs({ "name", "rank", "friendlyToFaction", "minLevel", "maxLevel", "npcFlags" }) do
       if j > 1 then put(",") end
       field(name) value(db.Npc.Get(id, name), ctx .. " " .. name)
     end
@@ -250,6 +252,7 @@ for _, id in ipairs(sortedKeys(objectSet)) do
     if not firstObject then put(",") end
     firstObject = false
     str(tostring(id)) put(":{")
+    field("name") value(db.Object.Get(id, "name"), "object " .. id .. " name") put(",")
     field("spawns") spawns(db.Object.Get(id, "spawns"), "object " .. id .. " spawns") put("}")
   end
 end
@@ -370,6 +373,11 @@ function nullableNumber(value: unknown, label: string, what: string): number | n
   return value === null ? null : finite(value, label, what);
 }
 
+function nullableString(value: unknown, label: string, what: string): string | null {
+  if (value !== null && typeof value !== "string") fail(label, `${what} is not a string`);
+  return value;
+}
+
 function numberList(value: unknown, label: string, what: string): number[] {
   if (!Array.isArray(value)) fail(label, `${what} is not a list`);
   return (value as unknown[]).map((item, index) => finite(item, label, `${what}[${index}]`));
@@ -398,6 +406,7 @@ function questField(value: unknown, kind: FieldKind, label: string, what: string
   if (kind === "string" && typeof value !== "string") fail(label, `${what} is not a string`);
   if (kind === "number") finite(value, label, what);
   if (kind === "list" && !Array.isArray(value)) fail(label, `${what} is not a list`);
+  if (kind === "strings" && (!Array.isArray(value) || (value as unknown[]).some((line) => typeof line !== "string"))) fail(label, `${what} is not a list of strings`);
   if (kind === "trigger") {
     if (!Array.isArray(value)) fail(label, `${what} is not a list`);
     spawnMap((value as unknown[])[1] ?? null, label, `${what} spawns`);
@@ -426,6 +435,7 @@ export function validateSnapshot(raw: unknown, label: string): QuestieSnapshot {
       const faction = row.friendlyToFaction;
       if (faction !== null && typeof faction !== "string") fail(label, `npc ${id} friendlyToFaction is not a string`);
       return {
+        name: nullableString(row.name, label, `npc ${id} name`),
         spawns: spawnMap(row.spawns, label, `npc ${id} spawns`),
         rank: nullableNumber(row.rank, label, `npc ${id} rank`),
         friendlyToFaction: faction,
@@ -434,12 +444,14 @@ export function validateSnapshot(raw: unknown, label: string): QuestieSnapshot {
         npcFlags: nullableNumber(row.npcFlags, label, `npc ${id} npcFlags`),
       };
     }),
-    objects: idEntries(root.objects, label, "objects", (entry, id) => ({
-      spawns: spawnMap(record(entry, label, `object ${id}`).spawns, label, `object ${id} spawns`),
-    })),
+    objects: idEntries(root.objects, label, "objects", (entry, id) => {
+      const row = record(entry, label, `object ${id}`);
+      return { name: nullableString(row.name, label, `object ${id} name`), spawns: spawnMap(row.spawns, label, `object ${id} spawns`) };
+    }),
     items: idEntries(root.items, label, "items", (entry, id) => {
       const row = record(entry, label, `item ${id}`);
       return {
+        name: nullableString(row.name, label, `item ${id} name`),
         npcDrops: numberList(row.npcDrops, label, `item ${id} npcDrops`),
         objectDrops: numberList(row.objectDrops, label, `item ${id} objectDrops`),
       };
@@ -521,6 +533,17 @@ export function snapshotPath(): string {
   return join(cacheDir(), `snapshot-${QUESTIE_DB.tag}.json`);
 }
 
+// Fields added after the first cache format; a cache without them is regenerated.
+function staleField(raw: unknown): string | null {
+  if (!isRecord(raw)) return null;
+  const missing = (table: unknown, field: string): boolean =>
+    isRecord(table) && Object.values(table).some((row) => isRecord(row) && !(field in row));
+  if (missing(raw.quests, "objectivesText")) return "quests[].objectivesText";
+  for (const table of ["npcs", "objects", "items"]) if (missing(raw[table], "name")) return `${table}[].name`;
+  return null;
+}
+
+// Returns null when the cache is absent or stale (written before a field was added).
 export function readCachedSnapshot(): QuestieSnapshot | null {
   const path = snapshotPath();
   if (!existsSync(path)) return null;
@@ -530,6 +553,11 @@ export function readCachedSnapshot(): QuestieSnapshot | null {
   } catch (error) {
     throw new Error(`${path}: cannot parse (${error instanceof Error ? error.message : String(error)})`);
   }
+  const stale = staleField(raw);
+  if (stale != null) {
+    console.warn(`${path}: stale snapshot cache (no ${stale}), regenerating`);
+    return null;
+  }
   const snapshot = validateSnapshot(raw, path);
   if (snapshot.tag !== QUESTIE_DB.tag) fail(path, `tag ${snapshot.tag} does not match ${QUESTIE_DB.tag}`);
   return snapshot;
@@ -537,4 +565,14 @@ export function readCachedSnapshot(): QuestieSnapshot | null {
 
 export function writeCachedSnapshot(snapshot: QuestieSnapshot): void {
   writeFileSync(snapshotPath(), JSON.stringify(snapshot));
+}
+
+export async function cachedSnapshot(): Promise<QuestieSnapshot> {
+  const cached = readCachedSnapshot();
+  if (cached != null) return cached;
+  const dir = questieDir();
+  if (!existsSync(dir)) throw new Error(`QuestieDB: ${snapshotPath()} is absent or stale and ${dir} is missing (run npm run fetch:questie)`);
+  const snapshot = await loadSnapshot(dir);
+  writeCachedSnapshot(snapshot);
+  return snapshot;
 }

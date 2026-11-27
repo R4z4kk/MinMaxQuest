@@ -12,6 +12,8 @@ import { TRAVEL, type TravelData } from "../../../addon/src/data/generated/trave
 import { isFriendlyTo } from "../../../addon/src/game/positions";
 import { isAvailable, maskAllows } from "../../../addon/src/quests/availability";
 import { CLUSTER_RADIUS_YARDS, clusterSpawns, killLoop } from "../../../addon/src/targets/spawns";
+import { loadPinnedCmangosCounts, type CmangosCounts } from "../ingest/cmangos";
+import { parseCount } from "../ingest/counts";
 import { INSTANCE_PARTY, INSTANCE_PVP, INSTANCE_RAID, loadInstanceTypes } from "../ingest/instances";
 import { dropRate, hasFlag, npcInfo, snapshotLib, type QuestieSnapshot } from "../ingest/snapshot";
 import { zonePercentToWorld, type UiMapRect } from "../ingest/zones";
@@ -41,6 +43,8 @@ export interface RouteQuest {
 export interface Inn { place: Place }
 export interface Dungeon { areaId: number; name: string; entrance: Place; questIds: number[] }
 export interface StartZone { key: string; faction: "A" | "H"; raceMask: number; areaId: number; start: Place }
+// Per objective; bothSources counts objectives where text and cmangos both give a count.
+export interface CountStats { fromText: number; fromCmangos: number; bothSources: number; disagreements: number; noCount: number }
 export interface World {
   faction: "A" | "H";
   raceMask: number;
@@ -54,6 +58,7 @@ export interface World {
   capitalTaxiNode: number;
   conversionOffsetYards: number;
   excluded: Map<string, number>;
+  countStats: CountStats;
 }
 
 export type ExclusionReason =
@@ -68,6 +73,7 @@ export type ExclusionReason =
   | "unsupportedObjective"
   | "noDropRate"
   | "noMobLevel"
+  | "noCount"
   | "raidOrBattleground";
 
 // Race ids: QuestieDB src/corrections/enum/expansions.lua, Forever raceKeys ALL_ALLIANCE / ALL_HORDE.
@@ -122,6 +128,7 @@ export function buildWorld(
   faction: "A" | "H",
   travel: TravelData = TRAVEL,
   instanceTypes: Map<number, number> = loadInstanceTypes(),
+  counts: CmangosCounts = loadPinnedCmangosCounts(),
 ): World {
   const result = createQuestRepository(snapshotLib(s));
   if (!result.ok) throw new Error(`world: ${result.message}`);
@@ -251,18 +258,67 @@ export function buildWorld(
     return { mobLevel: info.maxLevel, elite: isEliteRank(s.npcs[npcId]?.rank ?? 0) };
   };
 
-  const taskOf = (o: QuestObjectiveRef): Task => {
+  const countStats: CountStats = { fromText: 0, fromCmangos: 0, bothSources: 0, disagreements: 0, noCount: 0 };
+  const single = (values: (number | null)[]): number | null => {
+    const distinct = new Set(values.filter((v): v is number => v != null));
+    return distinct.size === 1 ? [...distinct][0] : null;
+  };
+  // Kill-credit entries (objectives slot 5): {creditNpcIds, baseNpcId, text}; the repository keys them by the first credit.
+  const creditIds = (questId: number, npcId: number): number[] => {
+    const raw: unknown = s.quests[questId]?.objectives;
+    const entries: unknown = Array.isArray(raw) ? (raw as unknown[])[4] : null;
+    const ids = [npcId];
+    if (!Array.isArray(entries)) return ids;
+    for (const entry of entries as unknown[]) {
+      if (!Array.isArray(entry)) continue;
+      const [rawCredits, rawBase] = entry as unknown[];
+      const credits = Array.isArray(rawCredits) ? (rawCredits as unknown[]).filter((id): id is number => typeof id === "number") : [];
+      const base = typeof rawBase === "number" ? rawBase : null;
+      if ((credits[0] ?? base) !== npcId) continue;
+      for (const id of [...credits, ...(base == null ? [] : [base])]) if (!ids.includes(id)) ids.push(id);
+    }
+    return ids;
+  };
+  const countOf = (questId: number, o: { kind: "npc" | "object" | "item"; id: number }): number => {
+    const text: unknown = s.quests[questId]?.objectivesText;
+    const lines = Array.isArray(text) ? (text as unknown[]).filter((line): line is string => typeof line === "string") : null;
+    const ids = o.kind === "npc" ? creditIds(questId, o.id) : [o.id];
+    const nameOf = (id: number): string | null =>
+      (o.kind === "npc" ? s.npcs[id]?.name : o.kind === "object" ? s.objects[id]?.name : s.items[id]?.name) ?? null;
+    const fromText = single(ids.map((id) => {
+      const name = nameOf(id);
+      return name == null ? null : parseCount(lines, name);
+    }));
+    const fromCmangos = single(ids.map((id) => (o.kind === "item" ? counts.get(questId, "item", id) : counts.get(questId, "npcOrObject", o.kind === "object" ? -id : id))));
+    if (fromText != null && fromCmangos != null) {
+      countStats.bothSources++;
+      if (fromText !== fromCmangos) countStats.disagreements++;
+    }
+    if (fromText != null) {
+      countStats.fromText++;
+      return fromText;
+    }
+    if (fromCmangos != null) {
+      countStats.fromCmangos++;
+      return fromCmangos;
+    }
+    countStats.noCount++;
+    return exclude("noCount");
+  };
+
+  const taskOf = (questId: number, o: QuestObjectiveRef): Task => {
     if (o.kind !== "npc" && o.kind !== "object" && o.kind !== "item") exclude("unsupportedObjective");
+    const count = countOf(questId, o);
     const base = { objectiveIndex: o.index, dropChance: 1 };
     if (o.kind === "npc") {
       const places = npcPlaces(o.id);
       if (places.length === 0) exclude("noPosition");
-      return { ...base, kind: "kill", count: o.required, cluster: clusterOf(places), ...mobOf(o.id) };
+      return { ...base, kind: "kill", count, cluster: clusterOf(places), ...mobOf(o.id) };
     }
     if (o.kind === "object") {
       const places = objectPlaces(o.id);
       if (places.length === 0) exclude("noPosition");
-      return { ...base, kind: "use", count: o.required, cluster: clusterOf(places), mobLevel: 0, elite: false };
+      return { ...base, kind: "use", count, cluster: clusterOf(places), mobLevel: 0, elite: false };
     }
     const sources = repo.itemSources(o.id);
     const spawned = sources.npcs.filter((id) => npcPlaces(id).length > 0);
@@ -276,12 +332,11 @@ export function buildWorld(
       }
     }
     if (bestNpc != null) {
-      return { ...base, kind: "collect", count: o.required, cluster: clusterOf(npcPlaces(bestNpc)), ...mobOf(bestNpc), dropChance: bestRate };
+      return { ...base, kind: "collect", count, cluster: clusterOf(npcPlaces(bestNpc)), ...mobOf(bestNpc), dropChance: bestRate };
     }
     const object = sources.objects.find((id) => objectPlaces(id).length > 0);
     if (object != null) {
-      const count = Math.ceil(o.required / BUILDER.objectYield.value);
-      return { ...base, kind: "use", count, cluster: clusterOf(objectPlaces(object)), mobLevel: 0, elite: false };
+      return { ...base, kind: "use", count: Math.ceil(count / BUILDER.objectYield.value), cluster: clusterOf(objectPlaces(object)), mobLevel: 0, elite: false };
     }
     return exclude(spawned.length > 0 ? "noDropRate" : "noPosition");
   };
@@ -305,7 +360,7 @@ export function buildWorld(
     const turnin = placeOf(finishers) ?? exclude("noPosition");
     if (dungeonAreaId != null && entranceOf(dungeonAreaId) == null) exclude("noPosition");
     // A dungeon quest's objectives are done by the dungeon step.
-    const tasks = dungeonAreaId != null ? [] : q.objectives.map(taskOf);
+    const tasks = dungeonAreaId != null ? [] : q.objectives.map((o) => taskOf(q.id, o));
     if (instance != null && instanceType == null) {
       throw new Error(`world: dungeon ${instance} (${s.dungeons[instance].name}) has no instance type`);
     }
@@ -398,5 +453,5 @@ export function buildWorld(
   const repoError = repo.lastError();
   if (repoError != null) throw new Error(`world: QuestieDB read failed (${repoError})`);
   const areaUiMap = new Map(Object.entries(s.areaIdToUiMapId).map(([areaId, uiMapId]) => [Number(areaId), uiMapId]));
-  return { faction, raceMask, quests, inns, dungeons, startZones, taxiZone, taxiPlaces, areaUiMap, capitalTaxiNode, conversionOffsetYards, excluded };
+  return { faction, raceMask, quests, inns, dungeons, startZones, taxiZone, taxiPlaces, areaUiMap, capitalTaxiNode, conversionOffsetYards, excluded, countStats };
 }

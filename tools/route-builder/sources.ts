@@ -19,3 +19,13 @@ export const SPF_ZONES = {
   verifiedOn: "2026-11-27",
   expiresOn: "2026-12-27",
 } as const;
+
+export const CMANGOS_CLASSIC_DB = {
+  repo: "https://github.com/cmangos/classic-db",
+  commit: "64adf9f62008df8d530e5d88e3c89aa85e42dc38",
+  file: "Full_DB/ClassicDB_1_12_1_z2815.sql.gz",
+  source: "https://raw.githubusercontent.com/cmangos/classic-db/64adf9f62008df8d530e5d88e3c89aa85e42dc38/Full_DB/ClassicDB_1_12_1_z2815.sql.gz",
+  license: "GPL-3.0",
+  verifiedOn: "2026-11-27",
+  expiresOn: "2026-12-27",
+} as const;
