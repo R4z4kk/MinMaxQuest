@@ -12,11 +12,27 @@ calls = {}
 created = 0
 scripts = {}
 local VALUES = { GetStringWidth = 40, GetLeft = 100, GetTop = 700, GetFrameLevel = 1 }
+-- Layout state is kept per object. Set CHAR_WIDTH to a number to size GetStringWidth by text length
+-- (colour codes dropped, a |T..|t icon counts as two characters); otherwise it stays 40.
+CHAR_WIDTH = false
+layout = {}
+function textWidth(text)
+  text = string.gsub(text, "|c%x%x%x%x%x%x%x%x", "")
+  text = string.gsub(text, "|r", "")
+  text = string.gsub(text, "|T.-|t", "ii")
+  text = string.gsub(text, "[\\128-\\191]", "")
+  return #text * CHAR_WIDTH
+end
 local function fake(name)
   name = name or "anon"
   local shown = true
+  local rec = { name = name, points = {}, text = "", shown = true }
+  layout[#layout + 1] = rec
   return setmetatable({}, {
     __index = function(t, method)
+      if method == "__rec" then return rec end
+      if method == "GetWidth" then return function() return rec.width end end
+      if method == "GetStringWidth" and type(CHAR_WIDTH) == "number" then return function() return textWidth(rec.text) end end
       if method == "SetScript" then
         return function(self, event, fn) scripts[name .. "." .. event] = fn end
       end
@@ -26,6 +42,11 @@ local function fake(name)
       if VALUES[method] ~= nil then return function() return VALUES[method] end end
       return function(self, ...)
         if method == "Show" then shown = true elseif method == "Hide" then shown = false end
+        if method == "Show" or method == "Hide" then rec.shown = shown end
+        if method == "SetText" then rec.text = (...) or ""
+        elseif method == "SetWidth" then rec.width = (...)
+        elseif method == "ClearAllPoints" then rec.points = {}
+        elseif method == "SetPoint" then local point, rel, relPoint, x = ...; rec.points[#rec.points + 1] = { point, rel, relPoint, x } end
         local parts = { name, method }
         for i = 1, select("#", ...) do parts[#parts + 1] = tostring((select(i, ...))) end
         calls[#calls + 1] = table.concat(parts, "|")

@@ -607,3 +607,66 @@ it("opens at 270x262 and fits every option above the footer while Options is ope
     s.close();
   }
 });
+
+const LAYOUT_LUA = `
+local function edge(rec, side)
+  local p = rec.points[1]
+  local rel = p[2].__rec
+  local anchor
+  if rel.width == nil then
+    anchor = (p[3] == "LEFT" or p[3] == "TOPLEFT") and 0 or 300
+  else
+    local l, r = (function() local a, b = extentOf(rel) return a, b end)()
+    anchor = (p[3] == "LEFT" or p[3] == "TOPLEFT") and l or r
+  end
+  local x = anchor + p[4]
+  if p[1] == "TOPLEFT" or p[1] == "LEFT" then return x, x + rec.width end
+  return x - rec.width, x
+end
+extentOf = edge
+local function named(name)
+  for i = #layout, 1, -1 do if layout[i].name == name then return layout[i] end end
+end
+local mode, zone = named("MinMaxQuestCompletionMode"), named("MinMaxQuestCompletionZone")
+local header
+for i = #layout, 1, -1 do
+  local r = layout[i]
+  if r.name == "font" and r.width ~= nil and r.text == HEADER then header = r break end
+end
+local ml, mr = edge(mode)
+local zl, zr = edge(zone)
+local hl, hr = edge(header)
+return { ml, mr, zone.shown and 1 or 0, zl, zr, hl, hr, textWidth(header.text), header.width }
+`;
+
+const HEADERS = {
+  enUS: { proximity: "Elwynn Forest", zone: "Elwynn Forest", log: "2 quests in log" },
+  frFR: { proximity: "Elwynn Forest", zone: "Elwynn Forest", log: "2 quêtes dans le journal" },
+} as const;
+
+for (const locale of ["enUS", "frFR"] as const) {
+  for (const mode of ["proximity", "zone", "log"] as const) {
+    it(`keeps the Completion header controls apart and inside the window (${locale}, ${mode})`, async () => {
+      const setup = `CHAR_WIDTH = 6; logQuests = { 100, 101 }
+        MinMaxQuestDB = { locale = "${locale}" }
+        MinMaxQuestCharDB = { completion = { mode = "${mode}", zoneAreaId = 12 } }`;
+      const s = await ui(setup);
+      try {
+        await s.cmd("");
+        await s.click("MinMaxQuestTabcompletion");
+        const [ml, mr, zoneShown, zl, zr, hl, hr, textW, headerW] = (await s.run(
+          `HEADER = ${JSON.stringify(HEADERS[locale][mode])}
+${LAYOUT_LUA}`,
+        )) as number[];
+        const boxes = [[ml, mr], [hl, hr], ...(zoneShown === 1 ? [[zl, zr]] : [])];
+        for (const [l, r] of boxes) expect(l >= 0 && r <= 300).toBe(true);
+        boxes.sort((a, b) => a[0] - b[0]);
+        for (let i = 1; i < boxes.length; i++) expect(boxes[i - 1][1] <= boxes[i][0]).toBe(true);
+        expect(textW <= headerW).toBe(true);
+        expect(zoneShown).toBe(mode === "log" ? 0 : 1);
+      } finally {
+        s.close();
+      }
+    });
+  }
+}

@@ -30,6 +30,8 @@ const HEIGHT = 480;
 const MAX_ROWS = 10;
 const ROW_HEIGHT = 15;
 const INNER = WIDTH - 2 * PAD;
+const HEADER_WIDTH = INNER - 180;
+const MODE_GAP = 4;
 const EMPTY: ZoneProgress = { done: 0, total: 0 };
 
 interface Row {
@@ -83,6 +85,7 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
   let totals = new Map<number, ZoneProgress>();
   let totalsKey = "";
   let notified = false;
+  let laidOutMode = "";
 
   const loadTotals = (): void => {
     const snap = engine.snapshot();
@@ -142,12 +145,6 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
       }
       applyOptions();
     });
-    mode.frame.SetPoint("RIGHT", zoneButton.frame, "LEFT", -4, 0);
-    const logAnchored = (inLog: boolean): void => {
-      mode.frame.ClearAllPoints();
-      if (inLog) mode.frame.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, -7);
-      else mode.frame.SetPoint("RIGHT", zoneButton.frame, "LEFT", -4, 0);
-    };
     setLabel(label(parent, PAD, -60), t("nearestTarget"));
     const pinned = button(parent, "MinMaxQuestCompletionUnpin", `${t("pinnedTag")} · ${GLYPH.close}`, () => {
       engine.pin(null);
@@ -193,7 +190,6 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
       zonePercent: at(text(parent, SIZE.small, COLOR.sub, "RIGHT"), parent, -27, true),
       zoneBar: bar(parent, INNER, PAD, -42),
       mode,
-      logAnchored,
       zoneButton,
       pinned,
       nearestName: at(text(parent, SIZE.body, COLOR.text), parent, -76),
@@ -208,9 +204,19 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
       continent: at(text(parent, SIZE.small, COLOR.sub), parent, filterY - 22),
       total: at(text(parent, SIZE.small, COLOR.accent, "RIGHT"), parent, filterY - 22, true),
     };
-    w.zoneName.SetWidth(INNER - 180);
+    w.zoneName.SetWidth(HEADER_WIDTH);
     w.nearestName.SetWidth(INNER - 60);
-    return w;
+    const layoutHeader = (inLog: boolean): void => {
+      mode.frame.ClearAllPoints();
+      if (inLog) {
+        mode.frame.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, -7);
+        w.zoneName.SetWidth(INNER - mode.frame.GetWidth() - MODE_GAP);
+      } else {
+        mode.frame.SetPoint("RIGHT", zoneButton.frame, "LEFT", -MODE_GAP, 0);
+        w.zoneName.SetWidth(HEADER_WIDTH);
+      }
+    };
+    return { ...w, layoutHeader };
   };
 
   const draw = (): void => {
@@ -221,7 +227,6 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
     const zoneId = headerZone(options.mode, options.zoneAreaId, currentZone());
     const zone = (zoneId == null ? null : totals.get(zoneId)) ?? EMPTY;
     const inLog = options.mode === "log";
-    w.logAnchored(inLog);
     if (inLog) {
       w.zoneName.SetText(logHeader(engine.snapshot()?.state.inLog.size ?? 0));
       w.zoneCount.SetText("");
@@ -237,6 +242,10 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
       w.zoneButton.frame.Show();
     }
     w.mode.setText(modeText(options.mode));
+    if (options.mode !== laidOutMode) {
+      laidOutMode = options.mode;
+      w.layoutHeader(inLog);
+    }
     if (db.pinnedQuestId != null) w.pinned.frame.Show();
     else w.pinned.frame.Hide();
 

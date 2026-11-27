@@ -131,8 +131,7 @@ export function logHeader(n: number): string {
 }
 
 export function modeText(mode: Mode): string {
-  const tone = (on: boolean): string => colorCode(on ? COLOR.text : COLOR.sub);
-  return `${tone(mode === "proximity")}${t("modeProximity")}|r | ${tone(mode === "zone")}${t("modeZone")}|r | ${tone(mode === "log")}${t("modeLog")}|r`;
+  return t(mode === "zone" ? "modeZone" : mode === "log" ? "modeLog" : "modeProximity");
 }
 
 export function rowLines(view: CompletionView, slots: number): RowLine[] {

@@ -107,6 +107,7 @@ declare namespace C_Timer {
 interface WowRegion {
   SetSize(width: number, height: number): void;
   SetWidth(width: number): void;
+  GetWidth(): number;
   SetHeight(height: number): void;
   SetPoint(point: string, relativeTo?: WowRegion, relativePoint?: string, x?: number, y?: number): void;
   ClearAllPoints(): void;
