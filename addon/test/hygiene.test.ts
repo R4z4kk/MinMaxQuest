@@ -16,10 +16,8 @@ function collect(dir: string): string[] {
 }
 
 function stripCommentsAndStrings(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/\/\/.*$/gm, "")
-    .replace(/"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`/g, '""');
+  const token = /\/\*[\s\S]*?\*\/|\/\/.*$|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`/gm;
+  return source.replace(token, (match) => (match.startsWith("/") ? "" : '""'));
 }
 
 const files = ROOTS.flatMap(collect);

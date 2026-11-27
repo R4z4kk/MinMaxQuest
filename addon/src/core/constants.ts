@@ -20,7 +20,7 @@ export const CONSTANTS = {
   epicMountSpeed: dated(14, MOVEMENT_SPEED_SOURCE),
   taxiSpeed: dated(
     30.03,
-    "RXP direct flight times vs Forever TaxiPathNode lengths, research_notes/missing_data_sources.md",
+    "RXP direct flight times vs Forever TaxiPathNode lengths, research_notes/Optimisation des routes de leveling/missing_data_sources.md",
   ),
   detourFactor: dated(1.25, "Questwarden docs/ROUTE_OPTIMIZATION.md (unvalidated)"),
   hearthCooldownSec: dated(3600, `wago.tools SpellCooldowns ${SPELL_BUILD} spell 8690`),
