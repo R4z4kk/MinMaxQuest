@@ -31,6 +31,7 @@ export interface CompletionOptions {
   showTrivial: boolean;
   showElite: boolean;
   minLevelGap: number | null;
+  pinnedQuestId: number | null;
 }
 
 export interface CompletionInput {
@@ -100,10 +101,12 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
   };
 
   for (const q of input.quests) {
-    if (!opts.showElite && q.isElite) continue;
     const trivial = isTrivial(q, player, greenRange);
-    if (!opts.showTrivial && trivial) continue;
-    if (opts.mode === "zone" && (opts.zoneAreaId == null || q.zoneAreaId !== opts.zoneAreaId)) continue;
+    if (q.id !== opts.pinnedQuestId) {
+      if (!opts.showElite && q.isElite) continue;
+      if (!opts.showTrivial && trivial) continue;
+      if (opts.mode === "zone" && (opts.zoneAreaId == null || q.zoneAreaId !== opts.zoneAreaId)) continue;
+    }
 
     const entry = log.get(q.id);
     if (entry == null) {

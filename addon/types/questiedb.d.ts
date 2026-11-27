@@ -18,7 +18,7 @@ interface LibQuestieDBApi {
     Get(this: void, id: number, field: string): unknown;
     GetAllIds(this: void): number[];
   };
-  Npc: { Get(this: void, id: number, field: "spawns" | "rank"): unknown };
+  Npc: { Get(this: void, id: number, field: "spawns" | "rank" | "friendlyToFaction"): unknown };
   Item: { Get(this: void, id: number, field: "npcDrops" | "objectDrops"): unknown };
   Object: { Get(this: void, id: number, field: "spawns"): unknown };
   ObjectiveFirst: QuestieDBObjectiveFirst;

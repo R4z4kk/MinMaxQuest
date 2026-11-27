@@ -192,6 +192,17 @@ describe("pin", () => {
     expect(world.changes).toBeGreaterThan(before);
   });
 
+  it("recomputes the targets on pin and unpin so filters can let the pinned quest through", () => {
+    const { engine, world } = setup([target(1)]);
+    engine.refreshTargets(true);
+    world.list = [target(1), target(7)];
+    engine.pin(7);
+    expect(world.completionCalls).toBe(2);
+    expect(engine.current()?.questId).toBe(7);
+    engine.pin(null);
+    expect(world.completionCalls).toBe(3);
+  });
+
   it("makes current the best target of the pinned quest", () => {
     const { engine, db } = setup([target(1), target(7, { seconds: 2 }), target(7, { seconds: 3, kind: "turnin" })]);
     engine.refreshTargets(true);

@@ -89,7 +89,7 @@ export function createRouting(
           timeTo: (p) => travelTime(current.plan, current.graph, p, current.ctx),
           clusters,
         },
-        { mode, zoneAreaId, showTrivial, showElite, minLevelGap: db.minLevelGap },
+        { mode, zoneAreaId, showTrivial, showElite, minLevelGap: db.minLevelGap, pinnedQuestId: db.pinnedQuestId },
       );
     },
     firstHop(target) {

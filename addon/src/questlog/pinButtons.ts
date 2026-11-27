@@ -54,11 +54,15 @@ function createPin(
     });
   });
   frame.SetScript("OnEnter", () => {
-    GameTooltip.SetOwner(frame, "ANCHOR_RIGHT");
-    GameTooltip.SetText(t(pin.questId != null && isPinned(pin.questId) ? "unpinTooltip" : "pinTooltip"));
-    GameTooltip.Show();
+    guard(FEATURE, () => {
+      GameTooltip.SetOwner(frame, "ANCHOR_RIGHT");
+      GameTooltip.SetText(t(pin.questId != null && isPinned(pin.questId) ? "unpinTooltip" : "pinTooltip"));
+      GameTooltip.Show();
+    });
   });
-  frame.SetScript("OnLeave", () => GameTooltip.Hide());
+  frame.SetScript("OnLeave", () => {
+    guard(FEATURE, () => GameTooltip.Hide());
+  });
   frame.Hide();
   return pin;
 }

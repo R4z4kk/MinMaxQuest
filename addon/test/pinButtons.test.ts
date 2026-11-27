@@ -140,6 +140,18 @@ it("defers creation to PLAYER_REGEN_ENABLED while in combat and unregisters it",
   }
 });
 
+it("guards the tooltip handlers", async () => {
+  const s = await loggedIn(LOG);
+  try {
+    await s.run("GameTooltip.SetOwner = function() error('tooltip broken') end; GameTooltip.Hide = function() error('hide broken') end");
+    await s.run("pins[1].scripts.OnEnter(pins[1])");
+    await s.run("pins[1].scripts.OnLeave(pins[1])");
+    expect(await s.printed()).toContain("MinMaxQuest: pinButtons disabled:");
+  } finally {
+    s.close();
+  }
+});
+
 it("shows the unpin tooltip only for the pinned quest", async () => {
   const s = await loggedIn(LOG);
   try {

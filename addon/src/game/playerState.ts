@@ -97,7 +97,7 @@ export function hearthReady(): boolean {
   return start === 0 || start + duration <= GetTime();
 }
 
-function faction(): "A" | "H" | null {
+export function playerFaction(): "A" | "H" | null {
   const [group] = UnitFactionGroup("player");
   if (group === "Alliance") return "A";
   if (group === "Horde") return "H";
@@ -117,7 +117,7 @@ export function createPlayerState(lib: LibQuestieDBApi, db: CharDb): PlayerState
 
   return {
     read() {
-      const side = faction();
+      const side = playerFaction();
       if (side == null) return null;
       const [, , raceId] = UnitRace("player");
       const [, classToken] = UnitClass("player");

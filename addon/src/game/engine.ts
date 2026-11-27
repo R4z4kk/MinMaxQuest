@@ -226,7 +226,8 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
     },
     pin(questId) {
       db.pinnedQuestId = questId;
-      if (!apply(false, deps.readPosition())) notifyListeners();
+      // Forced: the pinned quest bypasses the completion filters.
+      if (!refreshTargets(true)) notifyListeners();
     },
     current: () => currentTarget,
     targets: () => list,

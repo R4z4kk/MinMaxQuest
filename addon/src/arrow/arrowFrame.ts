@@ -112,10 +112,18 @@ export function createArrow(db: CharDb): ArrowApi {
     frame.Show();
   }
 
+  let stopped = false;
+
   function tick(): void {
-    if (isDisabled("arrow")) return;
-    const [ok, error] = pcall(refresh);
-    if (!ok) reportOnce("arrow", t("featureDisabled").replace("{feature}", "arrow").replace("{error}", String(error)));
+    if (stopped) return;
+    if (!isDisabled("arrow")) {
+      const [ok, error] = pcall(refresh);
+      if (!ok) reportOnce("arrow", t("featureDisabled").replace("{feature}", "arrow").replace("{error}", String(error)));
+    }
+    if (!isDisabled("arrow")) return;
+    stopped = true;
+    target = null;
+    frame.Hide();
   }
 
   const driver = CreateFrame("Frame", FRAME_NAME + "Driver", UIParent);

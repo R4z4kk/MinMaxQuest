@@ -188,7 +188,7 @@ export function createCommands(ctx: CommandContext): Commands {
       else if (command === "skip") withGame((game) => skipCommand(game, arg === "confirm"));
       else if (command === "skipped") withGame(skippedCommand);
       else if (command === "unskip") withGame((game) => unskipCommand(game, arg));
-      else if (command === "pin") withGame((game) => pinCommand(game, arg));
+      else if (command === "pin") withGame((game) => pinCommand(game, arg === "" ? null : arg));
       else if (command === "unpin") withGame((game) => pinCommand(game, null));
       else if (command === "debug" && arg === "prof") withGame(profileCommand);
       else if (command === "debug" && arg.startsWith("build ")) {

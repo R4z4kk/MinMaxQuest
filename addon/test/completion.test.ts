@@ -28,7 +28,8 @@ const player = (overrides: Partial<PlayerQuestState> = {}): PlayerQuestState => 
 });
 
 const opts = (overrides: Partial<CompletionOptions> = {}): CompletionOptions => ({
-  mode: "proximity", zoneAreaId: null, showTrivial: true, showElite: true, minLevelGap: null, ...overrides,
+  mode: "proximity", zoneAreaId: null, showTrivial: true, showElite: true, minLevelGap: null, pinnedQuestId: null,
+  ...overrides,
 });
 
 type Positions = Record<string, WorldPos[]>;
@@ -171,6 +172,14 @@ describe("selectTargets", () => {
 });
 
 describe("selectTargets edge cases", () => {
+  it("keeps the pinned quest through the grey, elite and zone filters", () => {
+    const pinned = quest({ id: 1, level: 1, isElite: true, zoneAreaId: 40 });
+    const other = quest({ id: 2, level: 1, isElite: true, zoneAreaId: 40 });
+    const positions: Positions = { "1:accept:null": [at(5)], "2:accept:null": [at(6)] };
+    const strict = opts({ showTrivial: false, showElite: false, mode: "zone", zoneAreaId: 10, pinnedQuestId: 1 });
+    expect(selectTargets(input([pinned, other], positions, { player: player({ level: 30 }) }), strict).map((t) => t.questId)).toEqual([1]);
+  });
+
   it("zone mode without a zone returns nothing", () => {
     const q = quest({ id: 1, zoneAreaId: null });
     expect(selectTargets(input([q], { "1:accept:null": [at(1)] }), opts({ mode: "zone", zoneAreaId: null }))).toEqual([]);

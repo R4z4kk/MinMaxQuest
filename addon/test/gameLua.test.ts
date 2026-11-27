@@ -156,6 +156,35 @@ it("lists and re-activates skipped quests", async () => {
   }
 });
 
+it("unpins with a bare /mmq pin", async () => {
+  const s = await loggedIn();
+  try {
+    await s.cmd("pin 101");
+    await s.printed();
+    await s.cmd("pin");
+    expect(await s.printed()).toBe("MinMaxQuest: unpinned");
+    expect(await s.run("return MinMaxQuestCharDB.pinnedQuestId == nil")).toBe(true);
+  } finally {
+    s.close();
+  }
+});
+
+it("hides the arrow once the engine is disabled", async () => {
+  const s = await loggedIn();
+  try {
+    await s.clearCalls();
+    await s.run("UnitRace = function() error('race unavailable') end");
+    await s.event(`"QUEST_ACCEPTED", 101`);
+    await s.tick();
+    expect(await s.printed()).toContain("MinMaxQuest: engine disabled:");
+    expect((await s.calls()).filter((c) => c.startsWith("MinMaxQuestArrow|")).pop()).toBe("MinMaxQuestArrow|Hide");
+    await s.tick();
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
 it("prints the resolved chain", async () => {
   const s = await session();
   try {

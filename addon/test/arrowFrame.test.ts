@@ -52,6 +52,24 @@ async function session(setup = "") {
 
 const lastWith = (calls: string[], prefix: string) => calls.filter((c) => c.startsWith(prefix)).pop();
 
+it("hides itself once disabled by a failing refresh", async () => {
+  const s = await session();
+  try {
+    await s.cmd("arrow test");
+    await s.tick();
+    await s.run("GetPlayerFacing = function() error('no facing') end");
+    await s.clear();
+    await s.tick();
+    expect(await s.printed()).toContain("MinMaxQuest: arrow disabled:");
+    expect(lastWith(await s.calls(), "frame|")).toBe("frame|Hide");
+    await s.clear();
+    await s.tick();
+    expect(await s.calls()).not.toContain("frame|Show");
+  } finally {
+    s.close();
+  }
+});
+
 it("points straight up and shows the distance when the target is ahead", async () => {
   const s = await session();
   try {

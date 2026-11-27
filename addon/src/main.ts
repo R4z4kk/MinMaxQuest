@@ -1,11 +1,11 @@
 import { createArrow, playerPosition, type ArrowApi, type ArrowTarget } from "./arrow/arrowFrame";
 import { t } from "./core/l10n";
-import { guard, reportOnce } from "./core/report";
+import { guard, isDisabled, reportOnce } from "./core/report";
 import { loadCharDb, type CharDb } from "./core/storage";
 import { createQuestRepository, type QuestInfo, type QuestRepository, type RepoResult } from "./data/questRepository";
 import { createCommands } from "./game/commands";
 import { createEngine, describeTarget, sameKey, type Engine } from "./game/engine";
-import { createPlayerState, HEARTHSTONE_SPELL_ID, type PlayerStateReader } from "./game/playerState";
+import { createPlayerState, HEARTHSTONE_SPELL_ID, playerFaction, type PlayerStateReader } from "./game/playerState";
 import { createPositions, mapToWorld } from "./game/positions";
 import { createRouting } from "./game/routing";
 import { installMapPins } from "./map/pins";
@@ -75,6 +75,12 @@ function syncArrow(): void {
   guard("arrow", () => getArrow().setTarget(next));
 }
 
+function clearArrow(): void {
+  if (shownArrow == null) return;
+  shownArrow = null;
+  guard("arrow", () => getArrow().setTarget(null));
+}
+
 const ui = createUi({ db: () => getDb(), game: () => start() });
 
 const commands = createCommands({
@@ -101,7 +107,7 @@ function start(): Game | null {
   if (repo == null) return null;
   const charDb = getDb();
   const player = createPlayerState(_G.LibQuestieDB as LibQuestieDBApi, charDb);
-  const routing = createRouting(repo, charDb, createPositions(repo, mapToWorld(repo)));
+  const routing = createRouting(repo, charDb, createPositions(repo, mapToWorld(repo), () => playerFaction()));
   const engine = createEngine(
     {
       now: () => GetTime(),
@@ -157,7 +163,10 @@ function start(): Game | null {
       },
     }),
   );
-  C_Timer.NewTicker(TICK_SEC, () => guard("engine", () => tick(started)));
+  C_Timer.NewTicker(TICK_SEC, () => {
+    guard("engine", () => tick(started));
+    if (isDisabled("engine")) clearArrow();
+  });
   return started;
 }
 

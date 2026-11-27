@@ -45,6 +45,7 @@ export interface QuestRepository {
   objectSpawns(objectId: number): AreaPoint[];
   itemSources(itemId: number): { npcs: number[]; objects: number[] };
   uiMapIdForArea(areaId: number): number | null;
+  npcFriendlyTo(npcId: number): "A" | "H" | "AH" | null;
   lastError(): string | null;
 }
 
@@ -247,6 +248,11 @@ function buildRepository(lib: LibQuestieDBApi): QuestRepository {
       })),
     uiMapIdForArea: (areaId) =>
       areaToUiMap == null ? null : safe<number | null>("uiMapIdForArea", null, () => num(areaToUiMap[areaId])),
+    npcFriendlyTo: (npcId) =>
+      safe<"A" | "H" | "AH" | null>("npcFriendlyTo", null, () => {
+        const value = lib.Npc.Get(npcId, "friendlyToFaction");
+        return value === "A" || value === "H" || value === "AH" ? value : null;
+      }),
     lastError: () => firstError,
   };
 }

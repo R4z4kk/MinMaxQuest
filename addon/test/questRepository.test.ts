@@ -28,7 +28,11 @@ function fakeLib(quests: Record<number, Row>, ranks: Record<number, number> = {}
     },
     Npc: {
       Get: (id, field) =>
-        field === "rank" ? (ranks[id] ?? null) : { 12: [[10, 20], [-1, -1], [Number.NaN, 1]], 13: [[30, 40, 1]] },
+        field === "rank"
+          ? (ranks[id] ?? null)
+          : field === "friendlyToFaction"
+            ? ({ 1: "A", 2: "AH", 3: "X" } as Record<number, string>)[id] ?? null
+            : { 12: [[10, 20], [-1, -1], [Number.NaN, 1]], 13: [[30, 40, 1]] },
     },
     Item: { Get: (_id, field) => (field === "npcDrops" ? [7, 8] : null) },
     Object: { Get: () => null },
@@ -157,6 +161,11 @@ describe("createQuestRepository", () => {
     (lib as { ObjectiveFirst: unknown }).ObjectiveFirst = null;
     expect(repoFor(lib).get(1)?.objectives.length).toBe(1);
     expect(reported[0]).toContain("ObjectiveFirst");
+  });
+
+  it("reads the factions an NPC is friendly to", () => {
+    const repo = repoFor(fakeLib({}));
+    expect([1, 2, 3, 4].map((id) => repo.npcFriendlyTo(id))).toEqual(["A", "AH", null, null]);
   });
 
   it("falls back to the base NPC when the kill-credit list is empty", () => {

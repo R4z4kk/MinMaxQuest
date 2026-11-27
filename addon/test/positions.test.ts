@@ -18,6 +18,10 @@ const NPC_SPAWNS: Record<number, AreaPoint[]> = {
   11: [{ areaId: 1, x: 30, y: 40 }],
 };
 const OBJECT_SPAWNS: Record<number, AreaPoint[]> = { 50: [{ areaId: 1, x: 50, y: 60 }] };
+const FRIENDLY: Record<number, "A" | "H" | "AH"> = { 12: "H", 13: "AH" };
+NPC_SPAWNS[12] = [{ areaId: 1, x: 70, y: 0 }];
+NPC_SPAWNS[13] = [{ areaId: 1, x: 80, y: 0 }];
+NPC_SPAWNS[14] = [{ areaId: 1, x: 90, y: 0 }];
 
 function repo(calls: { items: number }): QuestRepository {
   return {
@@ -27,6 +31,7 @@ function repo(calls: { items: number }): QuestRepository {
     objectSpawns: (id) => OBJECT_SPAWNS[id] ?? [],
     itemSources: (id) => (calls.items++, id === 7 ? { npcs: [11], objects: [50] } : { npcs: [], objects: [] }),
     uiMapIdForArea: () => null,
+    npcFriendlyTo: (id) => FRIENDLY[id] ?? null,
     lastError: () => null,
   };
 }
@@ -37,7 +42,7 @@ function setup() {
     calls.convert++;
     return p.areaId === 99 ? null : { continent: 0, x: p.x, y: p.y };
   };
-  return { positionsFor: createPositions(repo(calls), toWorld), calls };
+  return { positionsFor: createPositions(repo(calls), toWorld, () => "A"), calls };
 }
 
 const xs = (points: WorldPos[]) => points.map((p) => p.x);
@@ -46,6 +51,15 @@ describe("positionsFor", () => {
   it("merges starter NPC and object spawns and drops unconvertible points", () => {
     const { positionsFor } = setup();
     expect(xs(positionsFor(quest({ starterNpcs: [10], starterObjects: [50] }), "accept", null))).toEqual([10, 50]);
+  });
+
+  it("drops starters and finishers of the other faction, like Questie", () => {
+    const { positionsFor } = setup();
+    const npcs = [11, 12, 13, 14];
+    expect(xs(positionsFor(quest({ starterNpcs: npcs }), "accept", null))).toEqual([30, 80, 90]);
+    expect(xs(positionsFor(quest({ finisherNpcs: npcs }), "turnin", null))).toEqual([30, 80, 90]);
+    const q = quest({ objectives: [{ kind: "npc", id: 12, required: 1, index: 1 }] });
+    expect(xs(positionsFor(q, "objective", 1))).toEqual([70]);
   });
 
   it("uses finishers for turn-in", () => {

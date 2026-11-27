@@ -17,7 +17,15 @@ export function mapToWorld(repo: QuestRepository): AreaToWorld {
   };
 }
 
-export function createPositions(repo: QuestRepository, toWorld: AreaToWorld): CompletionInput["positionsFor"] {
+const FRIENDLY = "friendly";
+const HOSTILE = "hostile";
+
+export function createPositions(
+  repo: QuestRepository,
+  toWorld: AreaToWorld,
+  faction: () => "A" | "H" | null,
+): CompletionInput["positionsFor"] {
+  const friendly: Record<number, string> = {};
   const npcPoints: Record<number, WorldPos[]> = {};
   const objectPoints: Record<number, WorldPos[]> = {};
   const itemSources: Record<number, { npcs: number[]; objects: number[] }> = {};
@@ -47,9 +55,24 @@ export function createPositions(repo: QuestRepository, toWorld: AreaToWorld): Co
     return out;
   };
 
+  // As Questie DistanceUtils.GetNearestFinisherOrStarter with IsFriendlyToPlayer: nil friendlyToFaction counts as friendly.
+  const friendlyNpcs = (npcs: number[]): number[] => {
+    const side = faction();
+    if (side == null) return npcs;
+    return npcs.filter((id) => {
+      let to = friendly[id];
+      if (to == null) {
+        const read = repo.npcFriendlyTo(id);
+        to = read == null || read === "AH" || read === side ? FRIENDLY : HOSTILE;
+        friendly[id] = to;
+      }
+      return to !== HOSTILE;
+    });
+  };
+
   return (q, kind, objectiveIndex) => {
-    if (kind === "accept") return collect(q.starterNpcs, q.starterObjects);
-    if (kind === "turnin") return collect(q.finisherNpcs, q.finisherObjects);
+    if (kind === "accept") return collect(friendlyNpcs(q.starterNpcs), q.starterObjects);
+    if (kind === "turnin") return collect(friendlyNpcs(q.finisherNpcs), q.finisherObjects);
     const objective = q.objectives.find((o) => o.index === objectiveIndex);
     if (objective == null) return [];
     if (objective.kind === "npc") return collect([objective.id], []);
