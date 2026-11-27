@@ -134,6 +134,10 @@ function readObjectives(
   return { refs, elite };
 }
 
+export function isEliteRank(rank: number): boolean {
+  return rank >= MIN_ELITE_RANK && rank <= MAX_ELITE_RANK;
+}
+
 function buildRepository(lib: LibQuestieDBApi): QuestRepository {
   let firstError: string | null = null;
   const failed: Record<string, true> = {};
@@ -175,7 +179,7 @@ function buildRepository(lib: LibQuestieDBApi): QuestRepository {
       rank = num(lib.Npc.Get(npcId, "rank")) ?? NO_RANK;
       ranks[npcId] = rank;
     }
-    return rank >= MIN_ELITE_RANK && rank <= MAX_ELITE_RANK;
+    return isEliteRank(rank);
   };
 
   const readQuest = (id: number): QuestInfo | null => {
@@ -218,7 +222,7 @@ function buildRepository(lib: LibQuestieDBApi): QuestRepository {
         field(id, "requiredSkill") != null ||
         field(id, "requiredMinRep") != null ||
         field(id, "requiredMaxRep") != null ||
-        field(id, "requiredSpell") != null,
+        (field(id, "requiredSpell") ?? 0) !== 0,
       isElite: objectives.elite,
       zoneAreaId: zone != null && zone > 0 ? zone : null,
     };
