@@ -72,9 +72,11 @@ function fixture(flightMasterYards = 3): QuestieSnapshot {
     16: quest("Coldridge", { requiredLevel: 1, startedBy: [[110]], finishedBy: [[110]], zoneOrSort: 1 }),
     17: quest("Shadowglen", { requiredLevel: 1, startedBy: [[111]], finishedBy: [[111]], zoneOrSort: 141 }),
     18: quest("Zephras", { requiredLevel: 1, startedBy: [[112]], finishedBy: [[112]], zoneOrSort: 16593 }),
-    19: quest("Uncounted", { objectivesText: ["Kill some Kobold Vermin."], objectives: [[[200, null, 0]]] }),
+    19: quest("Uncounted", { objectives: [[[200, null, 0]]] }),
     20: quest("Credit", { objectivesText: ["Slay 3 Defias Thugs."], objectives: [null, null, null, null, [[[201], 203, "Thugs slain"]]] }),
     21: quest("Credit from cmangos", { objectives: [null, null, null, null, [[[201], 203, "Thugs slain"]]] }),
+    22: quest("Assumed drops", { objectivesText: ["Bring 2 Odd Trinkets."], objectives: [null, null, [[504, null, 0]]] }),
+    23: quest("Singular", { objectivesText: ["Bring the Crate Goods to Marshal Dughan."], objectives: [null, null, [[502, null, 0]]] }),
     92432: quest("An Alarming Request", { requiredLevel: 30, questLevel: 33 }),
   };
   const questXp: Record<number, [number, number]> = {};
@@ -105,8 +107,9 @@ function fixture(flightMasterYards = 3): QuestieSnapshot {
       501: { name: "Wolf Fang", npcDrops: [200], objectDrops: [] },
       502: { name: "Crate Goods", npcDrops: [], objectDrops: [600] },
       503: { name: "Mixed Pelt", npcDrops: [106, 200], objectDrops: [] },
+      504: { name: "Odd Trinket", npcDrops: [200], objectDrops: [] },
     },
-    dropRates: { 501: { 200: 35 }, 503: { 106: 50, 200: 20 } },
+    dropRates: { 500: { 200: 0 }, 501: { 200: 35 }, 503: { 106: 50, 200: 20 } },
     areaIdToUiMapId: { 1: 1426, 12: 1429, 40: 1436, 141: 1438, 209: 310, 16593: 2521 },
     dungeons: {
       209: { name: "Shadowfang Keep", altAreaIds: [], parentZone: 40, entrances: [{ areaId: 40, x: 60, y: 60 }] },
@@ -150,7 +153,17 @@ describe("buildWorld", () => {
     expect(w.quests.get(20)!.tasks[0]).toMatchObject({ kind: "kill", count: 3 });
     expect(w.quests.get(20)!.tasks[0].cluster.center.npcId).toBe(201);
     expect(w.quests.get(21)!.tasks[0].count).toBe(5);
-    expect(w.countStats).toEqual({ fromText: 5, fromCmangos: 3, bothSources: 1, disagreements: 1, noCount: 1 });
+    expect(w.quests.get(23)!.tasks[0]).toMatchObject({ kind: "use", count: 1 });
+    expect(w.countStats).toEqual({
+      fromText: 6, fromTextSingular: 1, fromCmangos: 3, bothSources: 1, disagreements: 1, noCount: 1, assumedDropRate: 1,
+    });
+  });
+
+  it("marks collect tasks whose drop rate is unknown and keeps a zero rate excluded", () => {
+    expect(w.quests.get(22)!.tasks[0]).toMatchObject({ kind: "collect", count: 2, assumedDropChance: true, mobLevel: 7 });
+    expect(w.quests.get(22)!.tasks[0].cluster.center.npcId).toBe(200);
+    expect(w.quests.get(8)!.tasks[0].assumedDropChance).toBe(false);
+    expect(w.quests.has(2)).toBe(false);
   });
 
   it("excludes a quest whose objective has no count anywhere", () => {

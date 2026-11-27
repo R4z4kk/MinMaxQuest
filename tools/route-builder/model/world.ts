@@ -13,7 +13,7 @@ import { isFriendlyTo } from "../../../addon/src/game/positions";
 import { isAvailable, maskAllows } from "../../../addon/src/quests/availability";
 import { CLUSTER_RADIUS_YARDS, clusterSpawns, killLoop } from "../../../addon/src/targets/spawns";
 import { loadPinnedCmangosCounts, type CmangosCounts } from "../ingest/cmangos";
-import { parseCount } from "../ingest/counts";
+import { textCount } from "../ingest/counts";
 import { INSTANCE_PARTY, INSTANCE_PVP, INSTANCE_RAID, loadInstanceTypes } from "../ingest/instances";
 import { dropRate, hasFlag, npcInfo, snapshotLib, type QuestieSnapshot } from "../ingest/snapshot";
 import { zonePercentToWorld, type UiMapRect } from "../ingest/zones";
@@ -29,6 +29,8 @@ export interface Task {
   mobLevel: number;
   elite: boolean;
   dropChance: number;
+  // No known drop rate: the simulator uses the scenario's questDropChance; dropChance is then 0.
+  assumedDropChance: boolean;
 }
 export interface RouteQuest {
   id: number;
@@ -43,8 +45,17 @@ export interface RouteQuest {
 export interface Inn { place: Place }
 export interface Dungeon { areaId: number; name: string; entrance: Place; questIds: number[] }
 export interface StartZone { key: string; faction: "A" | "H"; raceMask: number; areaId: number; start: Place }
-// Per objective; bothSources counts objectives where text and cmangos both give a count.
-export interface CountStats { fromText: number; fromCmangos: number; bothSources: number; disagreements: number; noCount: number }
+// Per objective. fromTextSingular: name only in its singular form, no number (count 1).
+// bothSources: text and cmangos both give a count. assumedDropRate: collect tasks without a known drop rate.
+export interface CountStats {
+  fromText: number;
+  fromTextSingular: number;
+  fromCmangos: number;
+  bothSources: number;
+  disagreements: number;
+  noCount: number;
+  assumedDropRate: number;
+}
 export interface World {
   faction: "A" | "H";
   raceMask: number;
@@ -258,7 +269,7 @@ export function buildWorld(
     return { mobLevel: info.maxLevel, elite: isEliteRank(s.npcs[npcId]?.rank ?? 0) };
   };
 
-  const countStats: CountStats = { fromText: 0, fromCmangos: 0, bothSources: 0, disagreements: 0, noCount: 0 };
+  const countStats: CountStats = { fromText: 0, fromTextSingular: 0, fromCmangos: 0, bothSources: 0, disagreements: 0, noCount: 0, assumedDropRate: 0 };
   const single = (values: (number | null)[]): number | null => {
     const distinct = new Set(values.filter((v): v is number => v != null));
     return distinct.size === 1 ? [...distinct][0] : null;
@@ -285,17 +296,21 @@ export function buildWorld(
     const ids = o.kind === "npc" ? creditIds(questId, o.id) : [o.id];
     const nameOf = (id: number): string | null =>
       (o.kind === "npc" ? s.npcs[id]?.name : o.kind === "object" ? s.objects[id]?.name : s.items[id]?.name) ?? null;
-    const fromText = single(ids.map((id) => {
+    const parsed = ids.flatMap((id) => {
       const name = nameOf(id);
-      return name == null ? null : parseCount(lines, name);
-    }));
+      const found = name == null ? null : textCount(lines, name);
+      return found == null ? [] : [found];
+    });
+    const fromText = single(parsed.map((p) => p.count));
+    const singular = fromText != null && parsed.every((p) => p.singular);
     const fromCmangos = single(ids.map((id) => (o.kind === "item" ? counts.get(questId, "item", id) : counts.get(questId, "npcOrObject", o.kind === "object" ? -id : id))));
     if (fromText != null && fromCmangos != null) {
       countStats.bothSources++;
       if (fromText !== fromCmangos) countStats.disagreements++;
     }
     if (fromText != null) {
-      countStats.fromText++;
+      if (singular) countStats.fromTextSingular++;
+      else countStats.fromText++;
       return fromText;
     }
     if (fromCmangos != null) {
@@ -309,7 +324,7 @@ export function buildWorld(
   const taskOf = (questId: number, o: QuestObjectiveRef): Task => {
     if (o.kind !== "npc" && o.kind !== "object" && o.kind !== "item") exclude("unsupportedObjective");
     const count = countOf(questId, o);
-    const base = { objectiveIndex: o.index, dropChance: 1 };
+    const base = { objectiveIndex: o.index, dropChance: 1, assumedDropChance: false };
     if (o.kind === "npc") {
       const places = npcPlaces(o.id);
       if (places.length === 0) exclude("noPosition");
@@ -337,6 +352,17 @@ export function buildWorld(
     const object = sources.objects.find((id) => objectPlaces(id).length > 0);
     if (object != null) {
       return { ...base, kind: "use", count: Math.ceil(count / BUILDER.objectYield.value), cluster: clusterOf(objectPlaces(object)), mobLevel: 0, elite: false };
+    }
+    // Unknown rate (absent from the drop tables): the most spawned source, at the scenario's assumed chance.
+    let assumedNpc: number | null = null;
+    for (const id of spawned) {
+      if (dropRate(s, o.id, id) != null) continue;
+      if (assumedNpc == null || npcPlaces(id).length > npcPlaces(assumedNpc).length) assumedNpc = id;
+    }
+    if (assumedNpc != null) {
+      const task: Task = { ...base, kind: "collect", count, cluster: clusterOf(npcPlaces(assumedNpc)), ...mobOf(assumedNpc), dropChance: 0, assumedDropChance: true };
+      countStats.assumedDropRate++;
+      return task;
     }
     return exclude(spawned.length > 0 ? "noDropRate" : "noPosition");
   };

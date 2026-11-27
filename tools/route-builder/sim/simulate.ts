@@ -154,7 +154,8 @@ export function doTask(s: SimState, task: Task, scenario: Scenario): number {
     for (let i = 0; i < task.count; i++) s.seconds += BUILDER.objectUseSec.value + walkSeconds(spacing, s.level);
     return 0;
   }
-  const kills = task.kind === "kill" ? task.count : killsForItems(task.count, task.dropChance, COLLECT_QUANTILE);
+  const chance = task.assumedDropChance ? scenario.questDropChance.value : task.dropChance;
+  const kills = task.kind === "kill" ? task.count : killsForItems(task.count, chance, COLLECT_QUANTILE);
   const perKill = scenario.killSec.value * (task.elite ? scenario.eliteFactor.value : 1) + BUILDER.lootSec.value;
   let xp = 0;
   for (let i = 0; i < kills; i++) {

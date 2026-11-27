@@ -11,7 +11,7 @@ const data = travel();
 const BASE: Variant = { elites: false, dungeons: true, maxLevelGap: null };
 
 function kill(at: Place, mobLevel = 1): Task {
-  return { kind: "kill", objectiveIndex: 0, count: 1, cluster: { center: at, loop: [at] }, mobLevel, elite: false, dropChance: 1 };
+  return { kind: "kill", objectiveIndex: 0, count: 1, cluster: { center: at, loop: [at] }, mobLevel, elite: false, dropChance: 1, assumedDropChance: false };
 }
 
 function worldOf(quests: RouteQuest[], overrides: Partial<World> = {}): World {

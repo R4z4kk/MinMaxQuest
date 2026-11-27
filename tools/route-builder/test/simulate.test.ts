@@ -7,7 +7,7 @@ import { BUILDER, COLLECT_QUANTILE, SCENARIOS } from "../model/constants";
 import { killsForItems } from "../model/drops";
 import { mobXp } from "../model/mobXp";
 import type { Place, RouteQuest, Task } from "../model/world";
-import { initialState, simulate, type RouteStep, type SimOptions, type SimState } from "../sim/simulate";
+import { doTask, initialState, simulate, type RouteStep, type SimOptions, type SimState } from "../sim/simulate";
 import { info, place, quest, travel, world } from "./fixtures";
 
 const scenario = SCENARIOS[1];
@@ -50,7 +50,7 @@ function total(seconds: number[]): number {
 describe("simulate", () => {
   it("charges travel, kills and turn-in by the formula", () => {
     const loop = [place(70, 100), place(90, 100), place(90, 130)];
-    const task: Task = { kind: "kill", objectiveIndex: 0, count: 3, cluster: { center: loop[0], loop }, mobLevel: 5, elite: false, dropChance: 1 };
+    const task: Task = { kind: "kill", objectiveIndex: 0, count: 3, cluster: { center: loop[0], loop }, mobLevel: 5, elite: false, dropChance: 1, assumedDropChance: false };
     const q = quest(10, place(70), { level: 3 }, [task]);
     const steps: RouteStep[] = [accept(q), { type: "complete", place: loop[0], questId: q.id, objectiveIndex: 0 }, turnin(q)];
     const result = simulate(steps, start(), worldOf([q]), scenario, STRICT, data);
@@ -69,13 +69,25 @@ describe("simulate", () => {
     expect(total(result.outcomes.map((o) => o.seconds))).toBeCloseTo(expectedSeconds, 9);
   });
 
+  it("uses the scenario drop chance for a collect task with an assumed rate", () => {
+    const loop = [place(0, 50), place(0, 80)];
+    const task: Task = { kind: "collect", objectiveIndex: 1, count: 3, cluster: { center: loop[0], loop }, mobLevel: 1, elite: false, dropChance: 0, assumedDropChance: true };
+    const s = start();
+    doTask(s, task, scenario);
+    const kills = killsForItems(3, scenario.questDropChance.value, COLLECT_QUANTILE);
+    expect(s.seconds).toBeCloseTo(kills * (scenario.killSec.value + BUILDER.lootSec.value) + spacingWalk(loop, kills), 9);
+    const slow = start();
+    doTask(slow, task, SCENARIOS[2]);
+    expect(slow.seconds).toBeGreaterThan(s.seconds);
+  });
+
   it("applies elite factor, collect quantile, object use and dungeon time", () => {
     const loop = [place(0, 50), place(0, 80)];
     const cluster = { center: loop[0], loop };
     const tasks: Task[] = [
-      { kind: "kill", objectiveIndex: 0, count: 2, cluster, mobLevel: 1, elite: true, dropChance: 1 },
-      { kind: "collect", objectiveIndex: 1, count: 3, cluster, mobLevel: 1, elite: false, dropChance: 0.4 },
-      { kind: "use", objectiveIndex: 2, count: 4, cluster, mobLevel: 0, elite: false, dropChance: 1 },
+      { kind: "kill", objectiveIndex: 0, count: 2, cluster, mobLevel: 1, elite: true, dropChance: 1, assumedDropChance: false },
+      { kind: "collect", objectiveIndex: 1, count: 3, cluster, mobLevel: 1, elite: false, dropChance: 0.4, assumedDropChance: false },
+      { kind: "use", objectiveIndex: 2, count: 4, cluster, mobLevel: 0, elite: false, dropChance: 1, assumedDropChance: false },
     ];
     const q = quest(20, place(0), {}, tasks);
     const d = { ...quest(21, place(0)), dungeonAreaId: 99 };

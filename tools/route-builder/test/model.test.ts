@@ -32,6 +32,7 @@ describe("model", () => {
   });
   it("defines the three scenarios", () => {
     expect(SCENARIOS.map((s) => s.name)).toEqual(["fast", "medium", "slow"]);
+    expect(SCENARIOS.map((s) => s.questDropChance.value)).toEqual([0.6, 0.4, 0.25]);
   });
   it("has no expired builder value today", () => {
     expect(expiredBuilderValues(new Date().toISOString().slice(0, 10))).toEqual([]);
@@ -43,5 +44,6 @@ describe("model", () => {
     expect(expired).toContain("QUESTIE_DB");
     expect(expired).toContain("WAGO_DB2");
     expect(expired).toContain("CMANGOS_CLASSIC_DB");
+    expect(expired).toContain("slow.questDropChance");
   });
 });
