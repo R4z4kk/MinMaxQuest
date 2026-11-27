@@ -71,7 +71,7 @@
 - **Access chains:** tracked access chains are inserted into the route.
 - **Dungeons:** a named list with one checkbox per dungeon that has a return trip. Tick one to add its return trip to the route. All are unticked by default.
 - **Active mode:** the arrow follows whichever of the Quest or Completion tabs you opened last.
-- Options: auto-fly and Blizzard map waypoint.
+- **Options** (variants, auto-fly, Blizzard map waypoint) and **Dungeons** are sections you open with a click, closed by default. The window grows while one is open.
 - **Route finished** shows at level 60, with a button to open the Completion tab.
 - If the route files are missing or can't be read, a message says so and offers a button to open the Completion tab.
 

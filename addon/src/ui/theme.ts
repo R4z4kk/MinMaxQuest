@@ -33,7 +33,7 @@ export const GLYPH = {
   dropdown: "|TInterface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up:12|t",
 };
 const CHECK_TEXTURE = "Interface\\Buttons\\UI-CheckBox-Check";
-const BUTTON_HEIGHT = 16;
+export const BUTTON_HEIGHT = 16;
 const BUTTON_PADDING = 12;
 const BAR_HEIGHT = 3;
 

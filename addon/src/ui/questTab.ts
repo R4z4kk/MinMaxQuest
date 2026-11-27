@@ -6,7 +6,7 @@ import type { QuestRepository } from "../data/questRepository";
 import type { Engine } from "../game/engine";
 import type { RouteFollower, RouteView } from "../route/follower";
 import { skipStepOrQuest } from "./completionTab";
-import { bar, button, checkbox, COLOR, GLYPH, hline, label, PAD, setLabel, SIZE, text, UI_FEATURE, type Button, type Bar, type Checkbox } from "./theme";
+import { bar, button, BUTTON_HEIGHT, checkbox, COLOR, GLYPH, hline, label, PAD, setLabel, SIZE, text, UI_FEATURE, type Button, type Bar, type Checkbox } from "./theme";
 import { formatCount } from "./viewModel";
 import { CONTENT_TOP, type TabView } from "./window";
 
@@ -33,6 +33,8 @@ const SECTION_Y = -154;
 const LINE = 16;
 const CHECK_HEIGHT = 14;
 const FOOTER_ROOM = 26;
+const GAP_ROW_Y = SECTION_Y - 4 * LINE - 20;
+const OPTIONS_HEIGHT = CONTENT_TOP - GAP_ROW_Y + BUTTON_HEIGHT + FOOTER_ROOM;
 const SECONDS_PER_HOUR = 3600;
 
 type Section = "options" | "dungeons";
@@ -44,7 +46,8 @@ function remainingText(seconds: number): string {
 export function createQuestTab(deps: QuestDeps): TabView {
   const { db, follower } = deps;
   let root: WowFrame | null = null;
-  let open: Section = "options";
+  // Both sections start closed so the tab opens at its 270 x 262 size.
+  let open: Section | null = null;
   const checks: Checkbox[] = [];
   const gapButtons: Button[] = [];
   const optionWidgets: WowRegion[] = [];
@@ -138,8 +141,8 @@ export function createQuestTab(deps: QuestDeps): TabView {
 
   const section = (parent: WowFrame, which: Section, name: string, x: number): Button => {
     const toggle = button(parent, name, "", () => {
-      open = which;
-      view.height = open === "dungeons" ? dungeonsHeight : HEIGHT;
+      open = open === which ? null : which;
+      view.height = open === "dungeons" ? dungeonsHeight : open === "options" ? OPTIONS_HEIGHT : HEIGHT;
       deps.resize(view.height);
       draw();
     });
@@ -229,7 +232,7 @@ export function createQuestTab(deps: QuestDeps): TabView {
         deps.refreshPins();
       });
       const gapLabel = text(parent, SIZE.small, COLOR.sub);
-      gapLabel.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, SECTION_Y - 4 * LINE - 4);
+      gapLabel.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, GAP_ROW_Y + 16);
       gapLabel.SetText(t("maxQuestLevel"));
       optionWidgets.push(gapLabel);
       let previous: WowFrame | null = null;
@@ -239,7 +242,7 @@ export function createQuestTab(deps: QuestDeps): TabView {
           deps.refreshTargets();
           draw();
         });
-        if (previous == null) gapButton.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, SECTION_Y - 4 * LINE - 20);
+        if (previous == null) gapButton.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, GAP_ROW_Y);
         else gapButton.frame.SetPoint("LEFT", previous, "RIGHT", 4, 0);
         previous = gapButton.frame;
         gapButtons.push(gapButton);

@@ -479,12 +479,46 @@ it("fits eleven dungeons in the window and grows it only while the list is open"
       expect(50 - y + boxHeight).toBeLessThanOrEqual(height);
     }
     expect(height).toBeGreaterThan(262);
-    await s.click("MinMaxQuestSectionOptions");
+    await s.click("MinMaxQuestSectionDungeons");
     expect(await s.last("MinMaxQuestWindow|SetHeight|")).toBe("MinMaxQuestWindow|SetHeight|262");
     await s.click("MinMaxQuestSectionDungeons");
     await s.click("MinMaxQuestTabcompletion");
     await s.click("MinMaxQuestTabquest");
     expect(await s.last("MinMaxQuestWindow|SetSize|")).toBe(`MinMaxQuestWindow|SetSize|270|${height}`);
+  } finally {
+    s.close();
+  }
+});
+
+it("opens at 270x262 and fits every option above the footer while Options is open", async () => {
+  const s = await routeTab();
+  const FOOTER_TOP = 9 + 11;
+  try {
+    expect(await s.last("MinMaxQuestWindow|SetSize|")).toBe("MinMaxQuestWindow|SetSize|270|262");
+    await s.click("MinMaxQuestSectionOptions");
+    const height = Number((await s.last("MinMaxQuestWindow|SetHeight|"))?.split("|")[2]);
+    const calls = await s.calls();
+    const lastCall = (prefix: string) => calls.filter((c) => c.startsWith(prefix)).pop()?.split("|") ?? [];
+    const inside = (x: number, y: number, width: number, boxHeight: number) => {
+      expect(x + width).toBeLessThanOrEqual(270);
+      expect(50 - y + boxHeight).toBeLessThanOrEqual(height - FOOTER_TOP);
+    };
+    for (const name of ["MinMaxQuestRouteElites", "MinMaxQuestRouteDungeons", "MinMaxQuestAutoFly", "MinMaxQuestNativeWaypoint"]) {
+      const point = lastCall(`${name}|SetPoint|`);
+      const size = lastCall(`${name}|SetSize|`);
+      inside(Number(point[5]), Number(point[6]), Number(size[2]), Number(size[3]));
+    }
+    const first = lastCall("MinMaxQuestGap0|SetPoint|");
+    const y = Number(first[6]);
+    let x = Number(first[5]);
+    for (const gap of [0, 1, 2, 3]) {
+      const width = Number(lastCall(`MinMaxQuestGap${gap}|SetWidth|`)[2]);
+      const buttonHeight = Number(lastCall(`MinMaxQuestGap${gap}|SetHeight|`)[2]);
+      inside(x, y, width, buttonHeight);
+      x += width + 4;
+    }
+    await s.click("MinMaxQuestSectionOptions");
+    expect(await s.last("MinMaxQuestWindow|SetHeight|")).toBe("MinMaxQuestWindow|SetHeight|262");
   } finally {
     s.close();
   }
