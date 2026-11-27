@@ -68,3 +68,28 @@ it("decodes in compiled Lua what Node encoded", async () => {
     lua.global.close();
   }
 });
+
+it("rejects non-finite coordinates when encoding, naming step and field", () => {
+  expect(() => encodeSteps([{ ...steps[3], x: NaN }])).toThrow(/step 1 x/);
+  expect(() => encodeSteps([steps[3], { ...steps[3], y: Infinity }])).toThrow(/step 2 y/);
+  expect(() => encodeSteps([{ ...steps[1], loop: [[1, 2], [NaN, 3]] }])).toThrow(/step 1 loop/);
+});
+
+it("rejects non-finite and non-integer values when decoding", () => {
+  const good = encodeSteps([steps[3]]);
+  expect(() => decodeSteps(good.replace(";1.00;", ";Infinity;"))).toThrow(/line 1.*x/);
+  expect(() => decodeSteps(good.replace(";1;", ";1.5;"))).toThrow(/line 1.*uiMapId/);
+  expect(() => decodeSteps(good.replace(";6;", ";6.5;"))).toThrow(/line 1.*taxiNodeId/);
+});
+
+it("fails in compiled Lua on a non-numeric field", async () => {
+  const lua = await new LuaFactory().createEngine();
+  try {
+    await lua.doString(`function loadFormat() ${luaCode}\nend`);
+    lua.global.set("bad", encodeSteps([steps[3]]).replace(";1;", ";x;"));
+    const message = await lua.doString("local ok, err = pcall(function() return loadFormat().decodeSteps(bad) end) return tostring(ok) .. '|' .. tostring(err)");
+    expect(message).toMatch(/^false\|.*line 1.*uiMapId/);
+  } finally {
+    lua.global.close();
+  }
+});
