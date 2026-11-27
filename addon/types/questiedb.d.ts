@@ -3,6 +3,12 @@
 type QuestieDBIdMap<T> = { [id: number]: T };
 type QuestieDBSpawnList = QuestieDBIdMap<[number, number, number?][]>;
 type QuestieDBPair = [number, number];
+// Lua source "return {...}" in QuestieDB Forever support/Forever/Zones/areaIdToUiMapId.lua; a table is accepted too.
+type QuestieDBEncodedMap = string | QuestieDBIdMap<number>;
+type QuestieDBZonePrivate = {
+  areaIdToUiMapId: QuestieDBEncodedMap;
+  areaIdToUiMapIdOverride: QuestieDBEncodedMap;
+};
 type QuestieDBObjectiveFirst = {
   killCreditObjectiveFirst: QuestieDBIdMap<boolean>;
   objectObjectiveFirst: QuestieDBIdMap<boolean>;
@@ -24,6 +30,6 @@ interface LibQuestieDBApi {
   ObjectiveFirst: QuestieDBObjectiveFirst;
   Support: {
     Get(this: void, name: "QuestXP"): { db: QuestieDBIdMap<QuestieDBPair> };
-    Get(this: void, name: "ZoneDB"): { private: { areaIdToUiMapId: QuestieDBIdMap<number> } };
+    Get(this: void, name: "ZoneDB"): { private: QuestieDBZonePrivate };
   };
 }

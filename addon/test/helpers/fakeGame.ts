@@ -80,6 +80,10 @@ quests = {
   [102] = { name = "Later", questLevel = 11, requiredLevel = 11, startedBy = { { 501 } } },
 }
 spawns = { [500] = { [12] = { { 10, 20 } } }, [501] = { [12] = { { 90, 90 } } } }
+zonePrivate = {
+  areaIdToUiMapId = "return { [12] = 1429, [14] = 1 }",
+  areaIdToUiMapIdOverride = "return { [0] = 0, [14] = 1411 }",
+}
 LibQuestieDB = {
   RequireContract = function() return true end,
   Enum = { raceMaskById = { [1] = 1 }, classKeys = { WARRIOR = 1 } },
@@ -94,7 +98,7 @@ LibQuestieDB = {
   Support = {
     Get = function(name)
       if name == "QuestXP" then return { db = {} } end
-      return { private = { areaIdToUiMapId = { [12] = 1429 } } }
+      return { private = zonePrivate }
     end,
   },
 }
