@@ -1,0 +1,281 @@
+import { describe, expect, it } from "vitest";
+import { CONSTANTS, XP_PER_LEVEL } from "../../../addon/src/core/constants";
+import { distance } from "../../../addon/src/core/geometry";
+import { questXp } from "../../../addon/src/core/questXp";
+import type { QuestInfo } from "../../../addon/src/data/questRepository";
+import { travelSpeed } from "../../../addon/src/game/routing";
+import { BUILDER, COLLECT_QUANTILE, SCENARIOS } from "../model/constants";
+import { killsForItems } from "../model/drops";
+import { mobXp } from "../model/mobXp";
+import type { Place, RouteQuest, Task } from "../model/world";
+import { initialState, simulate, type RouteStep, type SimOptions, type SimState } from "../sim/simulate";
+import { travel, world } from "./fixtures";
+
+const scenario = SCENARIOS[1];
+const NPC = BUILDER.npcInteractSec.value;
+const STRICT: SimOptions = { maxLevelGap: null, tolerant: false, raceMask: 0 };
+const TOLERANT: SimOptions = { ...STRICT, tolerant: true };
+const RUN = CONSTANTS.runSpeed.value;
+const data = travel();
+
+function place(x: number, y = 0): Place {
+  return { pos: { continent: 0, x, y }, uiMapId: 1429, x: 0, y: 0, npcId: null, objectId: null };
+}
+
+function walk(a: Place, b: Place, speed = RUN): number {
+  return (distance(a.pos, b.pos) * CONSTANTS.detourFactor.value) / speed;
+}
+
+function loopWalk(loop: Place[], speed = RUN): number {
+  let total = 0;
+  for (let i = 1; i < loop.length; i++) total += walk(loop[i - 1], loop[i], speed);
+  return total;
+}
+
+function info(id: number, overrides: Partial<QuestInfo> = {}): QuestInfo {
+  return {
+    id,
+    name: `Quest ${id}`,
+    level: 1,
+    requiredLevel: 1,
+    requiredMaxLevel: null,
+    races: 0,
+    classes: 0,
+    preGroup: [],
+    preSingle: [],
+    exclusiveTo: [],
+    nextInChain: null,
+    children: [],
+    starterNpcs: [1],
+    starterObjects: [],
+    finisherNpcs: [1],
+    finisherObjects: [],
+    objectives: [],
+    baseXp: 100,
+    hasUnsupportedRequirement: false,
+    isElite: false,
+    zoneAreaId: null,
+    ...overrides,
+  };
+}
+
+function quest(id: number, at: Place, overrides: Partial<QuestInfo> = {}, tasks: Task[] = []): RouteQuest {
+  const objectives = tasks.map((t) => ({ index: t.objectiveIndex, kind: "npc" as const, id: 1, required: t.count }));
+  return {
+    id,
+    info: info(id, { objectives, ...overrides }),
+    accept: at,
+    turnin: at,
+    tasks,
+    dungeonAreaId: null,
+    accessChain: false,
+    returnVisit: false,
+  };
+}
+
+function worldOf(quests: RouteQuest[]) {
+  return world({ quests: new Map(quests.map((q) => [q.id, q])) });
+}
+
+function start(level = 1): SimState {
+  return initialState(place(0), level, [], null);
+}
+
+function accept(q: RouteQuest): RouteStep {
+  return { type: "accept", place: q.accept, questId: q.id };
+}
+
+function turnin(q: RouteQuest): RouteStep {
+  return { type: "turnin", place: q.turnin, questId: q.id };
+}
+
+function total(seconds: number[]): number {
+  return seconds.reduce((a, b) => a + b, 0);
+}
+
+describe("simulate", () => {
+  it("charges travel, kills and turn-in by the formula", () => {
+    const loop = [place(70, 100), place(90, 100), place(90, 130)];
+    const task: Task = { kind: "kill", objectiveIndex: 0, count: 3, cluster: { center: loop[0], loop }, mobLevel: 5, elite: false, dropChance: 1 };
+    const q = quest(10, place(70), { level: 3 }, [task]);
+    const steps: RouteStep[] = [accept(q), { type: "complete", place: loop[0], questId: q.id, objectiveIndex: 0 }, turnin(q)];
+    const result = simulate(steps, start(), worldOf([q]), scenario, STRICT, data);
+
+    const perKill = scenario.killSec.value + BUILDER.lootSec.value;
+    const expectedSeconds =
+      walk(place(0), q.accept) + NPC + walk(q.accept, loop[0]) + 3 * perKill + loopWalk(loop) + walk(loop[0], q.turnin) + NPC;
+    const expectedXp = 3 * mobXp(1, 5, false) + questXp(100, 3, 1, 60);
+    expect(expectedXp).toBeLessThan(XP_PER_LEVEL.values[0]);
+    expect(result.violations).toEqual([]);
+    expect(result.state.seconds).toBeCloseTo(expectedSeconds, 9);
+    expect(result.state.xp).toBe(expectedXp);
+    expect(result.state.level).toBe(1);
+    expect(result.state.completed.has(q.id)).toBe(true);
+    expect(result.state.inLog.has(q.id)).toBe(false);
+    expect(total(result.outcomes.map((o) => o.seconds))).toBeCloseTo(expectedSeconds, 9);
+  });
+
+  it("applies elite factor, collect quantile, object use and dungeon time", () => {
+    const loop = [place(0, 50), place(0, 80)];
+    const cluster = { center: loop[0], loop };
+    const tasks: Task[] = [
+      { kind: "kill", objectiveIndex: 0, count: 2, cluster, mobLevel: 1, elite: true, dropChance: 1 },
+      { kind: "collect", objectiveIndex: 1, count: 3, cluster, mobLevel: 1, elite: false, dropChance: 0.4 },
+      { kind: "use", objectiveIndex: 2, count: 4, cluster, mobLevel: 0, elite: false, dropChance: 1 },
+    ];
+    const q = quest(20, place(0), {}, tasks);
+    const d = { ...quest(21, place(0)), dungeonAreaId: 99 };
+    d.info = info(21, { objectives: [{ index: 0, kind: "npc", id: 1, required: 1 }] });
+    const w = world({
+      quests: new Map([[q.id, q], [d.id, d]]),
+      dungeons: [{ areaId: 99, name: "Test", entrance: place(0), questIds: [21] }],
+    });
+    const steps: RouteStep[] = [
+      accept(q),
+      accept(d),
+      ...tasks.map((t): RouteStep => ({ type: "complete", place: loop[0], questId: q.id, objectiveIndex: t.objectiveIndex })),
+      { type: "dungeon", place: place(0), dungeonAreaId: 99 },
+      turnin(q),
+      turnin(d),
+    ];
+    const result = simulate(steps, start(), w, scenario, STRICT, data);
+    expect(result.violations).toEqual([]);
+    const killSec = scenario.killSec.value;
+    const loot = BUILDER.lootSec.value;
+    const [kill, collect, use, dungeon] = result.outcomes.slice(2, 6);
+    expect(kill.seconds).toBeCloseTo(walk(place(0), loop[0]) + 2 * (killSec * scenario.eliteFactor.value + loot) + loopWalk(loop), 9);
+    expect(kill.xp).toBe(2 * mobXp(1, 1, true));
+    const kills = killsForItems(3, 0.4, COLLECT_QUANTILE);
+    expect(collect.seconds).toBeCloseTo(kills * (killSec + loot) + loopWalk(loop), 9);
+    expect(use.seconds).toBeCloseTo(4 * BUILDER.objectUseSec.value + loopWalk(loop), 9);
+    expect(use.xp).toBe(0);
+    expect(dungeon.seconds).toBeCloseTo(walk(loop[0], place(0)) + scenario.dungeonSec.value, 9);
+    expect(dungeon.xp).toBe(0);
+    expect(result.state.completed).toEqual(new Set([20, 21]));
+  });
+
+  it("uses the mount speed after levelling to 40 mid-route", () => {
+    const a = quest(30, place(0), { level: 39 });
+    const b = quest(31, place(70), { level: 39, requiredLevel: 30 });
+    const s = start(39);
+    s.xp = XP_PER_LEVEL.values[38] - 1;
+    const result = simulate([accept(a), turnin(a), accept(b)], s, worldOf([a, b]), scenario, STRICT, data);
+    expect(result.state.level).toBe(40);
+    expect(travelSpeed(40)).toBe(CONSTANTS.mountSpeed.value);
+    expect(result.outcomes[2].seconds).toBeCloseTo(walk(place(0), place(70), CONSTANTS.mountSpeed.value) + NPC, 9);
+  });
+
+  it("rejects an accept below the required level, strictly or tolerantly", () => {
+    const q = quest(40, place(0), { requiredLevel: 5 });
+    const steps = [accept(q), turnin(q)];
+    const strict = simulate(steps, start(), worldOf([q]), scenario, STRICT, data);
+    expect(strict.violations).toHaveLength(2);
+    expect(strict.violations[0]).toContain("accept 40");
+    expect(strict.state.inLog.size).toBe(0);
+    expect(strict.state.completed.size).toBe(0);
+
+    const tolerant = simulate(steps, start(), worldOf([q]), scenario, TOLERANT, data);
+    expect(tolerant.violations).toEqual([]);
+    expect(tolerant.outcomes).toEqual([
+      { seconds: 0, xp: 0, violation: null },
+      { seconds: 0, xp: 0, violation: null },
+    ]);
+    expect(tolerant.state.skipped).toEqual(new Set([40]));
+    expect(tolerant.state.completed.size).toBe(0);
+  });
+
+  it("reports logFull on the 21st accept", () => {
+    const quests = Array.from({ length: 21 }, (_, i) => quest(100 + i, place(0)));
+    const result = simulate(quests.map(accept), start(), worldOf(quests), scenario, STRICT, data);
+    expect(result.violations).toHaveLength(1);
+    expect(result.violations[0]).toContain("logFull");
+    expect(result.state.inLog.size).toBe(20);
+  });
+
+  it("rejects the second of two exclusive quests", () => {
+    const a = quest(50, place(0), { exclusiveTo: [51] });
+    const b = quest(51, place(0), { exclusiveTo: [50] });
+    const result = simulate([accept(a), accept(b)], start(), worldOf([a, b]), scenario, STRICT, data);
+    expect(result.violations).toHaveLength(1);
+    expect(result.violations[0]).toContain("accept 51");
+    expect(result.state.inLog).toEqual(new Set([50]));
+  });
+
+  it("applies the max level gap option", () => {
+    const nine = quest(60, place(0), { level: 9 });
+    const eight = quest(61, place(0), { level: 8 });
+    const opts: SimOptions = { ...STRICT, maxLevelGap: 2 };
+    const result = simulate([accept(nine), accept(eight)], start(10), worldOf([nine, eight]), scenario, opts, data);
+    expect(result.violations).toHaveLength(1);
+    expect(result.violations[0]).toContain("accept 60");
+    expect(result.state.inLog).toEqual(new Set([61]));
+  });
+
+  it("hearths when the stone is ready and walks during the cooldown", () => {
+    const a = place(0);
+    const b = place(3000);
+    const steps: RouteStep[] = [
+      { type: "setHearth", place: a },
+      { type: "getFlightPath", place: b, taxiNodeId: 7 },
+      { type: "hearth", place: a },
+      { type: "setHearth", place: a },
+      { type: "getFlightPath", place: b, taxiNodeId: 7 },
+      { type: "hearth", place: a },
+      { type: "setHearth", place: a },
+    ];
+    const result = simulate(steps, start(), worldOf([]), scenario, STRICT, data);
+    const o = result.outcomes.map((x) => x.seconds);
+    expect(o[1]).toBeCloseTo(walk(a, b) + NPC, 9);
+    expect(o[2] + o[3]).toBeCloseTo(CONSTANTS.hearthCastSec.value + NPC, 9);
+    expect(result.state.hearth.readyAt).toBeCloseTo(NPC + o[1] + CONSTANTS.hearthCooldownSec.value, 9);
+    expect(o[5]).toBe(0);
+    expect(o[6]).toBeCloseTo(walk(b, a) + NPC, 9);
+    expect(result.state.knownTaxi).toEqual(new Set([7]));
+  });
+
+  it("grinds to the target level with per-level XP", () => {
+    const result = simulate([{ type: "grind", place: place(0), grindToLevel: 3, grindMobLevel: 2 }], start(), worldOf([]), scenario, STRICT, data);
+    let level = 1;
+    let xp = 0;
+    let gained = 0;
+    let kills = 0;
+    while (level < 3) {
+      const k = mobXp(level, 2, false);
+      xp += k;
+      gained += k;
+      kills += 1;
+      while (level < 3 && xp >= XP_PER_LEVEL.values[level - 1]) {
+        xp -= XP_PER_LEVEL.values[level - 1];
+        level += 1;
+      }
+    }
+    const loop = (10 * 20 * CONSTANTS.detourFactor.value) / RUN;
+    expect(result.state.level).toBe(3);
+    expect(result.state.xp).toBe(xp);
+    expect(result.outcomes[0].xp).toBe(gained);
+    expect(result.outcomes[0].seconds).toBeCloseTo(kills * (scenario.killSec.value + BUILDER.lootSec.value) + 2 * loop, 9);
+  });
+
+  it("stops XP at level 60", () => {
+    const q = quest(70, place(0), { level: 60 });
+    const s = start(60);
+    const result = simulate([accept(q), turnin(q)], s, worldOf([q]), scenario, STRICT, data);
+    expect(result.state.level).toBe(60);
+    expect(result.state.xp).toBe(0);
+    expect(result.outcomes[1].xp).toBe(0);
+  });
+
+  it("names the step and quest of an unknown quest id", () => {
+    expect(() => simulate([{ type: "accept", place: place(0), questId: 999 }], start(), worldOf([]), scenario, STRICT, data)).toThrow(
+      /step 0.*999/,
+    );
+  });
+
+  it("does not mutate the start state", () => {
+    const q = quest(80, place(70));
+    const s = start();
+    simulate([accept(q)], s, worldOf([q]), scenario, STRICT, data);
+    expect(s.seconds).toBe(0);
+    expect(s.inLog.size).toBe(0);
+  });
+});
