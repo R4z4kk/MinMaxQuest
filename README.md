@@ -59,13 +59,21 @@
 
 ### Quest tab
 - Precomputed routes from level 1 to 60, by faction and starting zone. The arrow follows your current route step.
+- **Current step:** what to do now, with the objective progress (for example 6/10) and a **Skip** button.
+- **Next:** the following step with its distance, plus the two steps after it.
+- **Footer:** your level, the step number out of the route total, and the estimated time left.
 - **Variants:** include elite quests, include dungeons, and a max quest level (only quests at least X levels below yours, off by default).
 - **Done steps are skipped:** quests you already did or turned in never show up.
+- **Closer steps first:** when the current step is more than 2 minutes away and one of the next 15 steps is at least 1 minute closer, or when the current step can't be done yet (level too low, quest log full), the arrow points to that closer step. The current step stays the same and the route picks up again once it is done.
 - **Off-route banner:** if your level is far from what the route expects, a banner says so and a **Re-sync** button puts you back on the right step.
-- **Access chains and dungeon returns:** tracked access chains are inserted into the route, and a dungeon you tick adds its return trip.
+- **Steps your character can't do** (wrong race or class, exclusive quest already taken, missing prerequisite) are removed, with a single chat line saying how many.
+- **Skipped travel and grind steps** stay skipped: `/mmq unskip` only brings back quests.
+- **Access chains:** tracked access chains are inserted into the route.
+- **Dungeons:** a named list with one checkbox per dungeon that has a return trip. Tick one to add its return trip to the route. All are unticked by default.
 - **Active mode:** the arrow follows whichever of the Quest or Completion tabs you opened last.
 - Options: auto-fly and Blizzard map waypoint.
-- If the route files are missing, a message says so and sends you to the Completion tab.
+- **Route finished** shows at level 60, with a button to open the Completion tab.
+- If the route files are missing or can't be read, a message says so and offers a button to open the Completion tab.
 
 ### Quest log pin
 - A small pin button next to each quest in the Blizzard quest log.
