@@ -1,4 +1,5 @@
 import { createArrow, playerPosition, type ArrowApi, type ArrowTarget } from "./arrow/arrowFrame";
+import { corpseTarget, type CorpseDeps } from "./arrow/corpse";
 import { t } from "./core/l10n";
 import { guard, isDisabled, reportOnce } from "./core/report";
 import { loadCharDb, type CharDb } from "./core/storage";
@@ -24,6 +25,9 @@ const FORCING_EVENTS = [
   "QUEST_TURNED_IN",
   "ZONE_CHANGED_NEW_AREA",
   "PLAYER_LEVEL_UP",
+  "PLAYER_DEAD",
+  "PLAYER_ALIVE",
+  "PLAYER_UNGHOST",
 ];
 const EVENTS = ["PLAYER_LOGIN", "QUEST_LOG_UPDATE", "HEARTHSTONE_BOUND", "PLAYER_REGEN_ENABLED", ...FORCING_EVENTS];
 
@@ -71,9 +75,27 @@ let forcePending = true;
 let logDirty = true;
 let lastMode: CharDb["activeMode"] | null = null;
 
+const corpseDeps: CorpseDeps = {
+  isDead: () => UnitIsDeadOrGhost("player") === true,
+  corpseOnMap: (uiMapId) => C_DeathInfo?.GetCorpseMapPosition?.(uiMapId) ?? null,
+  playerMap: () => C_Map.GetBestMapForUnit("player"),
+  parentMap: (uiMapId) => C_Map.GetMapInfo(uiMapId)?.parentMapID ?? null,
+  toWorld: (uiMapId, x, y) => uiMapToWorld(uiMapId, x, y),
+};
+
+function currentTarget(current: Game): ArrowTarget | null {
+  const corpse = guard("corpseArrow", () => corpseTarget(corpseDeps, t("corpse")));
+  if (corpse?.kind === "corpse") return corpse.target;
+  if (corpse?.kind === "unknown") {
+    reportOnce("corpse", t("corpseUnknown"));
+    return null;
+  }
+  return current.engine.arrowTarget();
+}
+
 function syncArrow(): void {
   if (game == null) return;
-  const next = UnitOnTaxi("player") === true ? null : game.engine.arrowTarget();
+  const next = UnitOnTaxi("player") === true ? null : currentTarget(game);
   if (next === shownArrow) return;
   shownArrow = next;
   guard("arrow", () => getArrow().setTarget(next));

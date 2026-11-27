@@ -45,6 +45,7 @@ profileMs = 0
 debugprofilestop = function() return profileMs end
 onTaxi = false
 UnitOnTaxi = function() return onTaxi end
+UnitIsDeadOrGhost = function() return false end
 hearthCount = 1
 C_Item = { GetItemCount = function() return hearthCount end }
 player = { 1000, 2000 }

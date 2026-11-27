@@ -100,7 +100,9 @@ export type L10nKey =
   | "routeChainUnplaceable"
   | "routeReturnUnreadable"
   | "routeChainUnknown"
-  | "bannerRoutesBuild";
+  | "bannerRoutesBuild"
+  | "corpse"
+  | "corpseUnknown";
 
 const EN: Record<L10nKey, string> = {
   questieMissing: "QuestieDB is required",
@@ -205,6 +207,8 @@ const EN: Record<L10nKey, string> = {
   routeReturnUnreadable: "Dungeon return #{id} could not be read and is left out of the route",
   routeChainUnknown: "tracked chain {id} is unknown",
   bannerRoutesBuild: "Routes built for build {build}",
+  corpse: "Your corpse",
+  corpseUnknown: "corpse position unknown",
 };
 
 const FR: Record<L10nKey, string> = {
@@ -310,6 +314,8 @@ const FR: Record<L10nKey, string> = {
   routeReturnUnreadable: "Le retour en donjon #{id} est illisible et reste hors de la route",
   routeChainUnknown: "chaîne suivie {id} inconnue",
   bannerRoutesBuild: "Routes générées pour le build {build}",
+  corpse: "Ton corps",
+  corpseUnknown: "position du corps inconnue",
 };
 
 let french: boolean | null = null;
