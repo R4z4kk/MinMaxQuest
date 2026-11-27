@@ -11,7 +11,8 @@
     "test": "vitest run",
     "gen:arrow": "tsx tools/make-arrow-tga.ts",
     "gen:travel": "tsx tools/gen-travel/main.ts",
-    "typecheck:tools": "tsc -p tools/route-builder/tsconfig.json"
+    "typecheck:tools": "tsc -p tools/route-builder/tsconfig.json",
+    "fetch:questie": "tsx tools/route-builder/ingest/fetchQuestie.ts"
   },
   "keywords": [],
   "author": "",
