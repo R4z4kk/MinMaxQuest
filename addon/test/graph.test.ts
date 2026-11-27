@@ -100,8 +100,15 @@ describe("travel graph", () => {
   it("uses a ready hearthstone when home is next to the target", () => {
     const ctx = context({ hearth: { ready: true, pos: pos(5000, 5000) } });
     const { time, hop } = evaluate(data({}), ctx, pos(0, 0), pos(5030, 5040));
-    expect(time).toBeCloseTo(CONSTANTS.hearthCastSec.value + 50 * WALK);
+    expect(time).toBeCloseTo(CONSTANTS.hearthCastSec.value + CONSTANTS.hearthPenaltySec.value + 50 * WALK);
     expect(hop?.kind).toBe("hearth");
+  });
+
+  it("walks a short trip even when the inn is next to the target", () => {
+    const ctx = context({ hearth: { ready: true, pos: pos(100, 0) } });
+    const { time, hop } = evaluate(data({}), ctx, pos(0, 0), pos(126, 0));
+    expect(time).toBeCloseTo(126 * WALK);
+    expect(hop?.kind).toBe("walk");
   });
 
   it("ignores the hearthstone while it is on cooldown", () => {

@@ -238,7 +238,7 @@ export function solveFrom(graph: TravelGraph, origin: WorldPos, ctx: TravelConte
       }
     }
     if (current === originSlot && graph.hearthSlot >= 0 && ctx.hearth.ready) {
-      relax(graph, current, graph.hearthSlot, CONSTANTS.hearthCastSec.value, HEARTH);
+      relax(graph, current, graph.hearthSlot, CONSTANTS.hearthCastSec.value + CONSTANTS.hearthPenaltySec.value, HEARTH);
     }
   }
 

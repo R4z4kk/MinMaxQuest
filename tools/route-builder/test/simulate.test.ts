@@ -199,6 +199,14 @@ describe("simulate", () => {
     expect(result.state.knownTaxi).toEqual(new Set([7]));
   });
 
+  it("does not charge the hearth penalty as simulated time", () => {
+    const a = place(0);
+    const b = place(3000);
+    const steps: RouteStep[] = [{ type: "setHearth", place: a }, { type: "getFlightPath", place: b, taxiNodeId: 7 }, { type: "hearth", place: a }];
+    const o = simulate(steps, start(), worldOf([]), scenario, STRICT, data).outcomes.map((x) => x.seconds);
+    expect(o[2]).toBeCloseTo(CONSTANTS.hearthCastSec.value, 9);
+  });
+
   function grindSeconds(from: number, xpStart: number, to: number, mobLevel: number, spacing: number) {
     let level = from;
     let xp = xpStart;

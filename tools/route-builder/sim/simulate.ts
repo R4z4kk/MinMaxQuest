@@ -132,9 +132,13 @@ export function travelView(s: SimState, world: World, travel: TravelData = TRAVE
 function travelTo(s: SimState, target: Place, world: World, travel: TravelData): void {
   if (distance(s.pos, target.pos) === 0) return;
   const { graph, plan, ctx } = travelView(s, world, travel);
-  const seconds = travelTime(plan, graph, target.pos, ctx);
-  if (!Number.isFinite(seconds)) throw new Error(`place ${posLabel(target.pos)} unreachable from ${posLabel(s.pos)}`);
-  if (firstHop(plan, graph, target.pos, ctx)?.kind === "hearth") s.hearth.readyAt = s.seconds + CONSTANTS.hearthCooldownSec.value;
+  const planned = travelTime(plan, graph, target.pos, ctx);
+  if (!Number.isFinite(planned)) throw new Error(`place ${posLabel(target.pos)} unreachable from ${posLabel(s.pos)}`);
+  let seconds = planned;
+  if (firstHop(plan, graph, target.pos, ctx)?.kind === "hearth") {
+    s.hearth.readyAt = s.seconds + CONSTANTS.hearthCooldownSec.value;
+    seconds -= CONSTANTS.hearthPenaltySec.value;
+  }
   s.seconds += seconds;
   s.pos = target.pos;
 }

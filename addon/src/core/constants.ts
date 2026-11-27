@@ -31,6 +31,7 @@ export const CONSTANTS = {
   detourFactor: dated(1.25, "Questwarden docs/ROUTE_OPTIMIZATION.md (unvalidated)"),
   hearthCooldownSec: dated(3600, `wago.tools SpellCooldowns ${SPELL_BUILD} spell 8690`),
   hearthCastSec: dated(10, `wago.tools SpellCastTimes ${SPELL_BUILD}`),
+  hearthPenaltySec: dated(300, "MinMaxQuest design choice: keep the Hearthstone for real zone changes (loading screen, 60 min cooldown)"),
 };
 
 export const XP_PER_LEVEL = {
