@@ -12,6 +12,7 @@ export interface Evaluated {
   secondsByScenario: Record<Scenario["name"], number>;
   average: number;
   worstRace: { raceMask: number; seconds: number; skipped: number };
+  discardedCandidates: { scenario: Scenario["name"]; violation: string }[];
 }
 export interface FactionRoutes {
   faction: "A" | "H";
@@ -101,6 +102,16 @@ function mean(values: number[]): number {
   return values.reduce((a, b) => a + b, 0) / values.length;
 }
 
+export function pickWinner(label: string, valid: Evaluated[], discarded: Evaluated["discardedCandidates"]): Evaluated {
+  let best: Evaluated | null = null;
+  for (const candidate of valid) if (best == null || candidate.average < best.average) best = candidate;
+  if (best == null) {
+    const all = discarded.map((d) => `${d.scenario} route, ${d.violation}`).join("; ");
+    throw new Error(`buildFaction: ${label} has no candidate valid under all scenarios: ${all}`);
+  }
+  return best;
+}
+
 function evaluate(
   world: World,
   seg: Segment,
@@ -112,7 +123,8 @@ function evaluate(
   const start = (): SimState => initialState(seg.start, seg.level, seg.knownTaxi, seg.hearth?.pos ?? null);
   const strict: SimOptions = { maxLevelGap: variant.maxLevelGap, tolerant: false, raceMask: world.raceMask };
   const tag = `[${world.faction}] ${seg.name} ${key}`;
-  let best: Evaluated | null = null;
+  const valid: Evaluated[] = [];
+  const discarded: Evaluated["discardedCandidates"] = [];
 
   for (const built of SCENARIOS) {
     let steps: RouteStep[];
@@ -123,17 +135,22 @@ function evaluate(
       throw new Error(`buildFaction: ${seg.name} ${key} ${built.name}: ${message}`, { cause: error });
     }
     const secondsByScenario = {} as Record<Scenario["name"], number>;
+    let violation: string | null = null;
     for (const s of SCENARIOS) {
       const result = simulate(steps, start(), world, s, strict, travel);
-      if (result.violations.length > 0) throw new Error(`buildFaction: ${seg.name} ${key} ${built.name} route, scenario ${s.name}: ${result.violations[0]}`);
+      if (violation == null && result.violations.length > 0) violation = `scenario ${s.name}: ${result.violations[0]}`;
       secondsByScenario[s.name] = result.state.seconds;
+    }
+    if (violation != null) {
+      console.error(`${tag} ${built.name} candidate discarded, ${violation}`);
+      discarded.push({ scenario: built.name, violation });
+      continue;
     }
     const average = mean(SCENARIOS.map((s) => secondsByScenario[s.name]));
     console.error(`${tag} ${built.name} candidate average ${average.toFixed(0)}s`);
-    if (best == null || average < best.average) best = { steps, secondsByScenario, average, worstRace: { raceMask: 0, seconds: 0, skipped: 0 } };
+    valid.push({ steps, secondsByScenario, average, worstRace: { raceMask: 0, seconds: 0, skipped: 0 }, discardedCandidates: discarded });
   }
-  if (best == null) throw new Error(`buildFaction: ${seg.name} ${key} has no scenario`);
-
+  const best = pickWinner(`${seg.name} ${key}`, valid, discarded);
   const checked = SCENARIOS.find((s) => s.name === RACE_CHECK_SCENARIO);
   if (checked == null) throw new Error(`buildFaction: scenario ${RACE_CHECK_SCENARIO} missing`);
   if (seg.raceMasks.length === 0) {

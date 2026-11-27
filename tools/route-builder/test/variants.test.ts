@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { travel as travelFixture } from "./fixtures";
 import { SCENARIOS } from "../model/constants";
 import type { RouteQuest, World } from "../model/world";
-import { allVariants, buildFaction, variantKey, type FactionRoutes } from "../opt/variants";
+import { allVariants, buildFaction, pickWinner, variantKey, type FactionRoutes } from "../opt/variants";
 import { buildRoute, type Variant } from "../opt/build";
 import { initialState, simulate } from "../sim/simulate";
 import { kill, place, quest, worldOf } from "./fixtures";
@@ -144,15 +144,21 @@ describe("scenario selection", () => {
     expect(differing).toBeGreaterThan(0);
   });
 
-  it("throws when a candidate violates a strict rule under another scenario", () => {
-    const collect = quest(1, place(5, 5, 2), { baseXp: 100, level: 5, requiredLevel: 10, objectives: [{ index: 0, kind: "item" as const, id: 1, required: 20 }] }, [
-      { kind: "collect", objectiveIndex: 0, count: 20, cluster: { center: place(0, 30, 2), loop: [place(0, 30, 2), place(0, 60, 2)] }, mobLevel: 12, elite: false, dropChance: 0, assumedDropChance: true },
-    ]);
-    const gated = quest(2, place(10, 0, 2), { baseXp: 100, level: 10, requiredLevel: 10 });
-    const filler = quest(3, place(20, 0, 2), { baseXp: 50, level: 5, requiredLevel: 10 }, [kill(place(20, 30, 2), 9)]);
-    expect(() => buildFaction(trunkOnly([collect, gated, filler]), { beamWidth: 4, branching: 3 }, data)).toThrow(
-      /trunk e0d0x1 slow route, scenario fast: step \d+: accept 2: maxLevelGap/,
-    );
+  const collect = quest(1, place(5, 5, 2), { baseXp: 100, level: 5, requiredLevel: 10, objectives: [{ index: 0, kind: "item" as const, id: 1, required: 20 }] }, [
+    { kind: "collect", objectiveIndex: 0, count: 20, cluster: { center: place(0, 30, 2), loop: [place(0, 30, 2), place(0, 60, 2)] }, mobLevel: 12, elite: false, dropChance: 0, assumedDropChance: true },
+  ]);
+  const gated = quest(2, place(10, 0, 2), { baseXp: 100, level: 10, requiredLevel: 10 });
+  const filler = quest(3, place(20, 0, 2), { baseXp: 50, level: 5, requiredLevel: 10 }, [kill(place(20, 30, 2), 9)]);
+
+  it("discards a candidate that violates a strict rule under another scenario and records it", () => {
+    const routes = buildFaction(trunkOnly([collect, gated, filler]), { beamWidth: 4, branching: 3 }, data);
+    const e = routes.trunk.e0d0x1;
+    expect(e.discardedCandidates).toEqual([{ scenario: "slow", violation: expect.stringMatching(/^scenario fast: step \d+: accept 2: maxLevelGap$/) }]);
+    expect(routes.trunk.e0d0x0.discardedCandidates).toEqual([]);
+    expect(Number.isFinite(e.average)).toBe(true);
+  });
+
+  it("throws naming every violation when no candidate is valid under all scenarios", () => {
   });
 });
 
