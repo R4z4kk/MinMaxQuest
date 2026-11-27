@@ -25,8 +25,11 @@ const KINDS: AccessEntry = {
     { id: 5, kind: "item", ref: 56, follows: [4], origin: "attune" },
     { id: 6, kind: "kill", ref: 123, follows: [5], origin: "attune" },
     { id: 7, kind: "interact", ref: 0, follows: [6], origin: "attune" },
-    { id: 8, kind: "click", ref: 7, follows: [7], origin: "attune" },
-    { id: 9, kind: "rep", ref: 529, follows: [8], origin: "attune", count: 9000 },
+    { id: 75, kind: "click", ref: 0, follows: [7], origin: "attune" },
+    { id: 8, kind: "click", ref: 7, follows: [75], origin: "attune" },
+    { id: 85, kind: "interact", ref: 124, follows: [8], origin: "attune" },
+    { id: 86, kind: "click", ref: 8, follows: [85], origin: "attune" },
+    { id: 9, kind: "rep", ref: 529, follows: [86], origin: "attune", count: 9000 },
     { id: 10, kind: "prof", ref: 4, follows: [9], origin: "attune" },
     { id: 11, kind: "end", ref: 0, follows: [10], origin: "attune" },
   ],
@@ -49,6 +52,8 @@ const base = {
   questTitle: (id: number) => (id === 2 ? "Client Key" : null),
   itemName: (id: number) => (id === 55 ? "Pearl" : null),
   factionName: (id: number) => (id === 529 ? "Argent Dawn" : null),
+  npcName: (id: number) => (id === 123 ? "Hogger" : null),
+  objectName: (id: number) => (id === 8 ? "Altar" : null),
   itemCount: () => 0,
   repEarned: () => null,
   zoneName: (areaId: number) => (areaId === 5 ? "Alterac" : null),
@@ -98,17 +103,20 @@ describe("accessView", () => {
       "#9",
       "Pearl ×3",
       "#56",
-      "Kill #123",
-      "Talk to",
+      "Kill Hogger",
+      "Talk to the NPC",
+      "Use the object",
       "Use #7",
+      "Talk to #124",
+      "Use Altar",
       "Argent Dawn: 9000 reputation",
       "Profession #4",
       "Access unlocked",
     ]);
     setLocale("frFR");
     const [fr] = accessView([KINDS], { ...base, level: 1, expanded: "kinds" });
-    expect(fr.steps.map((step) => step.text).slice(0, 1)).toEqual(["Atteindre le niveau 20"]);
-    expect(fr.steps[5].text).toBe("Tuer #123");
+    expect(fr.steps.map((step) => step.text).slice(0, 1)).toEqual(["Atteins le niveau 20"]);
+    expect(fr.steps.slice(5, 8).map((step) => step.text)).toEqual(["Tue Hogger", "Parle au PNJ", "Utilise l'objet"]);
   });
 });
 

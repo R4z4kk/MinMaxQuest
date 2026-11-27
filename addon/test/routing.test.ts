@@ -29,6 +29,8 @@ const repo: QuestRepository = {
   itemSources: () => ({ npcs: [], objects: [] }),
   uiMapIdForArea: () => null,
   npcFriendlyTo: () => null,
+  npcName: () => null,
+  objectName: () => null,
   lastError: () => null,
 };
 

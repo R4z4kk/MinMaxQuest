@@ -34,6 +34,8 @@ export interface AccessContext extends Omit<ProgressContext, "knownQuest"> {
   questTitle(id: number): string | null;
   itemName(id: number): string | null;
   factionName(id: number): string | null;
+  npcName(id: number): string | null;
+  objectName(id: number): string | null;
   zoneName(areaId: number): string | null;
   expanded: string | null;
   tracked: string[];
@@ -42,8 +44,8 @@ export interface AccessContext extends Omit<ProgressContext, "knownQuest"> {
 export const GROUP_ORDER: AccessGroup[] = ["dungeon", "raid", "key", "misc"];
 const GROUP_LABEL: Record<AccessGroup, L10nKey> = { dungeon: "dungeons", raid: "groupRaid", key: "groupKey", misc: "groupMisc" };
 
-function withName(key: L10nKey, ref: number): string {
-  return t(key).replace("{name}", ref > 0 ? `#${ref}` : "").trim();
+function withName(key: L10nKey, ref: number, name: string | null): string {
+  return t(key).replace("{name}", name ?? `#${ref}`);
 }
 
 function stepText(step: AccessStep, ctx: AccessContext): string {
@@ -58,15 +60,15 @@ function stepText(step: AccessStep, ctx: AccessContext): string {
     case "level":
       return t("stepLevel").replace("{n}", String(step.ref));
     case "kill":
-      return withName("stepKill", step.ref) + times;
+      return withName("stepKill", step.ref, ctx.npcName(step.ref)) + times;
     case "interact":
-      return withName("stepTalk", step.ref);
+      return step.ref > 0 ? withName("stepTalk", step.ref, ctx.npcName(step.ref)) : t("stepTalkAny");
     case "click":
-      return withName("stepUse", step.ref);
+      return step.ref > 0 ? withName("stepUse", step.ref, ctx.objectName(step.ref)) : t("stepUseAny");
     case "rep":
       return t("stepRep").replace("{faction}", ctx.factionName(step.ref) ?? `#${step.ref}`).replace("{n}", String(step.count ?? 0));
     case "prof":
-      return withName("stepProf", step.ref);
+      return withName("stepProf", step.ref, null);
     case "end":
       return t("stepEnd");
   }

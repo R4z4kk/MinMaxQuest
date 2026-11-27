@@ -45,6 +45,7 @@ interface Row {
 
 export function createAccessTab(deps: AccessDeps): TabView {
   const { db, engine, repo } = deps;
+  let content: WowFrame | null = null;
   let root: WowFrame | null = null;
   const rows: Row[] = [];
   let thumb: WowTexture | null = null;
@@ -165,6 +166,8 @@ export function createAccessTab(deps: AccessDeps): TabView {
       questTitle: (id) => clientQuestTitle(id),
       itemName: (id) => clientItemName(id),
       factionName: (id) => clientFactionName(id),
+      npcName: (id) => repo.npcName(id),
+      objectName: (id) => repo.objectName(id),
       zoneName: (areaId) => deps.areaName(areaId),
       expanded: db.expandedChain,
       tracked: db.trackedChains,
@@ -216,7 +219,7 @@ export function createAccessTab(deps: AccessDeps): TabView {
   };
 
   const refresh = (): void => {
-    if (root != null && root.IsVisible()) draw();
+    if (content != null && content.IsVisible()) draw();
   };
   engine.onChange(() => guard(UI_FEATURE, refresh));
 
@@ -224,6 +227,7 @@ export function createAccessTab(deps: AccessDeps): TabView {
     width: WIDTH,
     height: HEIGHT,
     render(parent) {
+      content = parent;
       const list = CreateFrame("Frame", "MinMaxQuestAccessList", parent);
       list.SetSize(WIDTH, LIST_HEIGHT);
       list.SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0);

@@ -236,6 +236,32 @@ it("stores a tracked access entry and refreshes the targets", async () => {
   }
 });
 
+it("redraws a visible Access tab on the next tick once an item name is received", async () => {
+  const s = await accessTab(`itemNames = {}; C_Item.GetItemNameByID = function(id) return itemNames[id] end`);
+  const named = async () => (await s.texts()).some((line) => line.startsWith("Ancient Rune"));
+  try {
+    expect(await s.calls()).toContain("MinMaxQuestEvents|RegisterEvent|GET_ITEM_INFO_RECEIVED");
+    await s.click("MinMaxQuestAccessRow1");
+    await s.click("MinMaxQuestAccessRow2");
+    expect(await s.texts()).toContain("#274286");
+    await s.run("itemNames[274286] = 'Ancient Rune'");
+    await s.clearCalls();
+    await s.event(`"GET_ITEM_INFO_RECEIVED", 274286, true`);
+    expect(await named()).toBe(false);
+    await s.tick();
+    expect(await named()).toBe(true);
+    await s.click("MinMaxQuestTabquest");
+    await s.run("itemNames[274286] = 'Ancient Rune 2'");
+    await s.clearCalls();
+    await s.event(`"GET_ITEM_INFO_RECEIVED", 274286, true`);
+    await s.tick();
+    expect(await named()).toBe(false);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
 it("opens the group of a tracked entry and keeps the others collapsed", async () => {
   const s = await accessTab(`MinMaxQuestCharDB = { trackedChains = { "154" } }`);
   try {

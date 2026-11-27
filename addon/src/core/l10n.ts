@@ -119,6 +119,8 @@ export type L10nKey =
   | "stepKill"
   | "stepTalk"
   | "stepUse"
+  | "stepTalkAny"
+  | "stepUseAny"
   | "stepRep"
   | "stepProf"
   | "stepEnd";
@@ -242,6 +244,8 @@ const EN: Record<L10nKey, string> = {
   stepKill: "Kill {name}",
   stepTalk: "Talk to {name}",
   stepUse: "Use {name}",
+  stepTalkAny: "Talk to the NPC",
+  stepUseAny: "Use the object",
   stepRep: "{faction}: {n} reputation",
   stepProf: "Profession {name}",
   stepEnd: "Access unlocked",
@@ -362,10 +366,12 @@ const FR: Record<L10nKey, string> = {
   groupRaid: "Raids",
   groupKey: "Clés",
   groupMisc: "Divers",
-  stepLevel: "Atteindre le niveau {n}",
-  stepKill: "Tuer {name}",
-  stepTalk: "Parler à {name}",
-  stepUse: "Utiliser {name}",
+  stepLevel: "Atteins le niveau {n}",
+  stepKill: "Tue {name}",
+  stepTalk: "Parle à {name}",
+  stepUse: "Utilise {name}",
+  stepTalkAny: "Parle au PNJ",
+  stepUseAny: "Utilise l'objet",
   stepRep: "{faction} : réputation {n}",
   stepProf: "Métier {name}",
   stepEnd: "Accès débloqué",

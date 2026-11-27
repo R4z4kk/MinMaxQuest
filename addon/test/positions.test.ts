@@ -32,6 +32,8 @@ function repo(calls: { items: number }): QuestRepository {
     itemSources: (id) => (calls.items++, id === 7 ? { npcs: [11], objects: [50] } : { npcs: [], objects: [] }),
     uiMapIdForArea: () => null,
     npcFriendlyTo: (id) => FRIENDLY[id] ?? null,
+    npcName: () => null,
+    objectName: () => null,
     lastError: () => null,
   };
 }
