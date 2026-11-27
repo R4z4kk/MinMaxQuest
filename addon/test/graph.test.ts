@@ -119,4 +119,67 @@ describe("travel graph", () => {
     expect(travelTime(first, graph, pos(10050, 0), ctx)).toBeCloseTo(100 * WALK + 60 + 50 * WALK);
     expect(travelTime(second, graph, pos(10050, 0), ctx)).toBeCloseTo(50 * WALK);
   });
+
+  it("rejects a non-positive or non-finite speed", () => {
+    for (const speed of [0, -1, NaN, Infinity]) {
+      const ctx = context({ speed });
+      expect(() => buildGraph(data({}), ctx)).toThrow(/speed/);
+      const graph = buildGraph(data({}), context());
+      expect(() => solveFrom(graph, pos(0, 0), ctx)).toThrow(/speed/);
+    }
+  });
+
+  it("starts with the boat when the path is boat, taxi, walk", () => {
+    const travel = data({
+      taxiNodes: [
+        { id: 1, name: "A", pos: pos(0, 0, 1), faction: "AH" },
+        { id: 2, name: "B", pos: pos(20000, 0, 1), faction: "AH" },
+      ],
+      taxiEdges: [{ from: 1, to: 2, seconds: 60 }],
+      transports: [{ fromDock: pos(0, 0), toDock: pos(0, 0, 1), seconds: 100, periodSec: 200 }],
+    });
+    const ctx = context({ knownTaxiNodes: new Set([1, 2]) });
+    const { time, hop } = evaluate(travel, ctx, pos(0, 0), pos(20050, 0, 1));
+    expect(time).toBeCloseTo(100 + 100 + 60 + 50 * WALK);
+    expect(hop).toEqual({ kind: "boat", pos: pos(0, 0), taxiNodeId: null });
+  });
+
+  it("starts at the first node of a taxi chain", () => {
+    const travel = data({
+      taxiNodes: [
+        { id: 1, name: "A", pos: pos(0, 0), faction: "AH" },
+        { id: 2, name: "B", pos: pos(20000, 0), faction: "AH" },
+        { id: 3, name: "C", pos: pos(40000, 0), faction: "AH" },
+      ],
+      taxiEdges: [
+        { from: 1, to: 2, seconds: 60 },
+        { from: 2, to: 3, seconds: 60 },
+      ],
+    });
+    const ctx = context({ knownTaxiNodes: new Set([1, 2, 3]) });
+    const { time, hop } = evaluate(travel, ctx, pos(0, 0), pos(40000, 0));
+    expect(time).toBeCloseTo(120);
+    expect(hop).toEqual({ kind: "taxi", pos: pos(0, 0), taxiNodeId: 1 });
+  });
+
+  it("only considers the 3 nearest graph nodes to the target", () => {
+    const travel = data({
+      taxiNodes: [
+        { id: 1, name: "A", pos: pos(0, 0), faction: "AH" },
+        { id: 2, name: "B", pos: pos(20000, 3000), faction: "AH" },
+        { id: 3, name: "C", pos: pos(20000, 4000), faction: "AH" },
+        { id: 4, name: "D", pos: pos(20000, 5000), faction: "AH" },
+        { id: 5, name: "E", pos: pos(20000, -6000), faction: "AH" },
+      ],
+      taxiEdges: [
+        { from: 1, to: 2, seconds: 600 },
+        { from: 1, to: 3, seconds: 600 },
+        { from: 1, to: 4, seconds: 600 },
+        { from: 1, to: 5, seconds: 1 },
+      ],
+    });
+    const ctx = context({ knownTaxiNodes: new Set([1, 2, 3, 4, 5]) });
+    const { time } = evaluate(travel, ctx, pos(0, 0), pos(20000, 0));
+    expect(time).toBeCloseTo(600 + 3000 * WALK);
+  });
 });

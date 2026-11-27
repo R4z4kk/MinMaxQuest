@@ -125,6 +125,8 @@ export async function generateTravel(vendorDir: string): Promise<TravelData> {
     if (!TRANSPORT_KINDS.includes(str(route[1], "route kind"))) continue;
     const label = str(route[2], "route faction");
     const periodMs = num(route[3], "route period");
+    const routeFaction = factionOf(label);
+    if (periodMs <= 0) throw new Error(`gen-travel: invalid period on route ${String(route[0])}`);
     const stops = asRows(route[4], "route stops");
     for (let i = 0; i < stops.length; i++) {
       const current = stops[i];
@@ -133,13 +135,14 @@ export async function generateTravel(vendorDir: string): Promise<TravelData> {
       const fromDock = docks.get(num(current[0], "dock"));
       const toDock = docks.get(num(next[0], "dock"));
       if (fromDock == null || toDock == null) throw new Error(`gen-travel: unknown dock on route ${String(route[0])}`);
+      if (seconds(ride) <= 0) throw new Error(`gen-travel: invalid ride on route ${String(route[0])}`);
       const leg: TravelData["transports"][number] = {
         fromDock,
         toDock,
         seconds: seconds(ride),
         periodSec: seconds(periodMs),
       };
-      if (label !== "") leg.faction = label === "Alliance" ? "A" : "H";
+      if (routeFaction !== "AH") leg.faction = routeFaction;
       transports.push(leg);
     }
   }

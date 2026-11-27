@@ -55,6 +55,12 @@ function factionAllowed(allowed: "A" | "H" | "AH" | null, faction: "A" | "H"): b
   return allowed == null || allowed === "AH" || allowed === faction;
 }
 
+function assertSpeed(ctx: TravelContext): void {
+  if (!Number.isFinite(ctx.speed) || ctx.speed <= 0) {
+    throw new Error(`travel graph: speed must be a finite number > 0, got ${ctx.speed}`);
+  }
+}
+
 function walkSeconds(yards: number, ctx: TravelContext): number {
   return (yards * CONSTANTS.detourFactor.value) / ctx.speed;
 }
@@ -66,6 +72,7 @@ function filled(length: number, value: number): number[] {
 }
 
 export function buildGraph(data: TravelData, ctx: TravelContext): TravelGraph {
+  assertSpeed(ctx);
   const ids: number[] = [];
   const positions: WorldPos[] = [];
   const edgeTo: number[][] = [];
@@ -194,6 +201,7 @@ function popMin(graph: TravelGraph): number {
 }
 
 export function solveFrom(graph: TravelGraph, origin: WorldPos, ctx: TravelContext): TravelPlan {
+  assertSpeed(ctx);
   const originSlot = graph.slotCount - 1;
   graph.positions[originSlot] = origin;
   for (let slot = 0; slot < graph.slotCount; slot++) {
