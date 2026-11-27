@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { entriesFor } from "../src/access/chains";
+import { entriesFor, visibleSteps } from "../src/access/chains";
 import { loggedIn, QUEST_MODE } from "./helpers/fakeGame";
 
 const UI_FAKES = `
@@ -64,7 +64,7 @@ it("switches the three tabs, resizing the window and saving the tab", async () =
     expect(texts).toContain("Eastern Kingdoms · 0 / 2");
     await s.click("MinMaxQuestTabaccess");
     expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|320|420");
-    expect(await s.texts()).toContain("Dalaran Sewer Key");
+    expect((await s.texts()).some((line) => line.startsWith("KEYS · "))).toBe(true);
     await s.click("MinMaxQuestTabquest");
     expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|270|262");
     expect(await s.run("return MinMaxQuestCharDB.tab")).toBe("quest");
@@ -147,20 +147,101 @@ it("changes Completion mode, zone and filters and unpins from the window", async
   }
 });
 
-it("expands a chain and tracks it from the Access tab", async () => {
-  const s = await ui();
+const ALLIANCE_DUNGEONS = entriesFor("A").filter((entry) => entry.group === "dungeon");
+const ROW_POOL = 17;
+
+async function accessTab(setup = "") {
+  const s = await ui(setup);
+  await s.cmd("");
+  await s.click("MinMaxQuestTabaccess");
+  return s;
+}
+
+it("lists the access groups with counts for an Alliance character and no Horde-only entry", async () => {
+  const s = await accessTab();
   try {
-    await s.cmd("");
-    await s.click("MinMaxQuestTabaccess");
-    await s.click("MinMaxQuestChain1");
-    const first = entriesFor("A")[0].id;
-    expect(await s.run("return MinMaxQuestCharDB.expandedChain")).toBe(first);
-    await s.click("MinMaxQuestChain1Track");
-    expect(await s.run("return MinMaxQuestCharDB.trackedChains[1]")).toBe(first);
-    expect(await s.texts()).toContain("1 chain tracked");
-    await s.click("MinMaxQuestChain1");
+    const headers = (await s.texts()).map((line) => /^([A-Z]+) · \d+\/(\d+) /.exec(line)).filter((match) => match != null);
+    const total = (group: string) => entriesFor("A").filter((entry) => entry.group === group).length;
+    expect(headers.map((match) => match[1])).toEqual(["DUNGEONS", "RAIDS", "KEYS", "MISC"]);
+    expect(headers.map((match) => Number(match[2]))).toEqual([total("dungeon"), total("raid"), total("key"), total("misc")]);
+    expect(await s.texts()).not.toContain(ALLIANCE_DUNGEONS[0].name.enUS);
+    await s.click("MinMaxQuestAccessRow1");
+    const texts = await s.texts();
+    expect(texts).toContain(ALLIANCE_DUNGEONS[0].name.enUS);
+    expect(texts).not.toContain("Ragefire Chasm");
+    expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|320|420");
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("expands an access entry with its step states and collapses it again", async () => {
+  const s = await accessTab(`C_QuestLog.GetTitleForQuestID = function(id) return "Client " .. id end`);
+  try {
+    await s.click("MinMaxQuestAccessRow1");
+    await s.clearCalls();
+    await s.click("MinMaxQuestAccessRow2");
+    expect(await s.run("return MinMaxQuestCharDB.expandedChain")).toBe(ALLIANCE_DUNGEONS[0].id);
+    const texts = await s.texts();
+    expect(texts).toContain("Reach level 10");
+    expect(texts.some((line) => line.endsWith(`Client ${ALLIANCE_DUNGEONS[0].steps[1].ref}`))).toBe(true);
+    expect(texts.filter((line) => line.startsWith("» "))).toHaveLength(1);
+    expect(texts.some((line) => /^1\/\d+ steps$/.test(line))).toBe(true);
+    await s.click("MinMaxQuestAccessRow2");
     expect(await s.run("return MinMaxQuestCharDB.expandedChain == nil")).toBe(true);
     expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("scrolls the access list without creating frames", async () => {
+  const s = await accessTab();
+  const created = async () => (await s.run("return created")) as number;
+  const last = ALLIANCE_DUNGEONS[ALLIANCE_DUNGEONS.length - 1].name.enUS;
+  try {
+    await s.click("MinMaxQuestAccessRow1");
+    expect(await s.texts()).not.toContain(last);
+    const before = await created();
+    await s.clearCalls();
+    for (let i = 0; i < 20; i++) await s.run(`scripts["MinMaxQuestAccessList.OnMouseWheel"](nil, -1)`);
+    expect(await s.texts()).toContain(last);
+    expect(await created()).toBe(before);
+    expect(await s.run(`return scripts["MinMaxQuestAccessRow${ROW_POOL + 1}.OnClick"] == nil`)).toBe(true);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("stores a tracked access entry and refreshes the targets", async () => {
+  const s = await accessTab(QUEST_MODE);
+  const reads = async () => (await s.run("return raceCalls")) as number;
+  const track = `MinMaxQuestAccessRow${2 + visibleSteps(ALLIANCE_DUNGEONS[0], 1).length + 1}Track`;
+  try {
+    await s.click("MinMaxQuestAccessRow1");
+    await s.click("MinMaxQuestAccessRow2");
+    expect(await s.visibilityOf(track)).toBe(`${track}|Show`);
+    const before = await reads();
+    await s.click(track);
+    expect(await s.run("return MinMaxQuestCharDB.trackedChains[1]")).toBe(ALLIANCE_DUNGEONS[0].id);
+    expect(await reads()).toBe(before + 1);
+    expect(await s.texts()).toContain("1 chain tracked");
+    await s.click(track);
+    expect(await s.run("return #MinMaxQuestCharDB.trackedChains")).toBe(0);
+    expect(await reads()).toBe(before + 2);
+  } finally {
+    s.close();
+  }
+});
+
+it("opens the group of a tracked entry and keeps the others collapsed", async () => {
+  const s = await accessTab(`MinMaxQuestCharDB = { trackedChains = { "154" } }`);
+  try {
+    const texts = await s.texts();
+    expect(texts).toContain("Dalaran Sewer Key");
+    expect(texts).not.toContain(ALLIANCE_DUNGEONS[0].name.enUS);
   } finally {
     s.close();
   }
@@ -353,23 +434,6 @@ it("drives the arrow from the last of the Quest and Completion tabs", async () =
     await s.click("MinMaxQuestTabquest");
     await s.tick();
     expect(await firstTarget()).toBe("MinMaxQuest: [33] Wolves Across the Border · pick up · <1 min");
-  } finally {
-    s.close();
-  }
-});
-
-it("refreshes the targets when a chain is tracked or untracked", async () => {
-  const s = await ui(QUEST_MODE);
-  const reads = async () => (await s.run("return raceCalls")) as number;
-  try {
-    await s.cmd("");
-    await s.click("MinMaxQuestTabaccess");
-    await s.click("MinMaxQuestChain1");
-    const before = await reads();
-    await s.click("MinMaxQuestChain1Track");
-    expect(await reads()).toBe(before + 1);
-    await s.click("MinMaxQuestChain1Track");
-    expect(await reads()).toBe(before + 2);
   } finally {
     s.close();
   }

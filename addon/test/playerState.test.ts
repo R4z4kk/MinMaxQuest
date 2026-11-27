@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { hearthReady, readCompleted, readLog, repEarned } from "../src/game/playerState";
+import { clientFactionName, clientItemName, clientQuestTitle, hearthReady, readCompleted, readLog, repEarned } from "../src/game/playerState";
 
 type Objective = { finished: boolean };
 const globals = globalThis as Record<string, unknown>;
@@ -53,6 +53,22 @@ describe("hearthReady", () => {
     globals.GetItemCount = null;
     globals.GetItemCooldown = () => [0, 0, 1];
     expect(() => hearthReady()).toThrow("no item-count API");
+  });
+});
+
+describe("client names", () => {
+  it("reads the client and returns null when uncached, empty or without the API", () => {
+    globals.C_QuestLog = { GetTitleForQuestID: (id: number) => (id === 1 ? "Title" : "") };
+    globals.C_Item = { GetItemNameByID: (id: number) => (id === 2 ? "Pearl" : null) };
+    globals.C_Reputation = { GetFactionDataByID: (id: number) => (id === 3 ? { name: "Dawn", currentStanding: 0 } : null) };
+    expect([clientQuestTitle(1), clientQuestTitle(9), clientItemName(2), clientItemName(9), clientFactionName(3), clientFactionName(9)]).toEqual([
+      "Title", null, "Pearl", null, "Dawn", null,
+    ]);
+    globals.C_QuestLog = {};
+    globals.C_Item = null;
+    globals.C_Reputation = null;
+    globals.GetFactionInfoByID = () => ["Old Dawn", null, null, null, null, 0];
+    expect([clientQuestTitle(1), clientItemName(2), clientFactionName(3)]).toEqual([null, null, "Old Dawn"]);
   });
 });
 

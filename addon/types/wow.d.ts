@@ -39,8 +39,10 @@ declare const C_Item: {
   GetItemCount: WowItemCount | null;
   GetItemSpell: WowItemSpell | null;
   GetItemIconByID: ((this: void, itemId: number) => number | null) | null;
+  GetItemNameByID: ((this: void, itemId: number) => string | null) | null;
 } | null;
 interface WowFactionData {
+  name: string | null;
   currentStanding: number;
 }
 declare const C_Reputation: { GetFactionDataByID: ((this: void, factionId: number) => WowFactionData | null) | null } | null;
@@ -114,6 +116,7 @@ declare namespace C_QuestLog {
   const IsComplete: ((this: void, questId: number) => boolean) | null;
   const GetTrivialRange: ((this: void) => number) | null;
   const GetAllCompletedQuestIDs: ((this: void) => number[]) | null;
+  const GetTitleForQuestID: ((this: void, questId: number) => string | null) | null;
 }
 
 declare namespace C_Timer {

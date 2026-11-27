@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { setLocale } from "../src/core/l10n";
 import type { AccessEntry } from "../src/data/generated/access";
 import type { QuestInfo } from "../src/data/questRepository";
-import { accessView, trackedText } from "../src/ui/accessModel";
+import { accessLines, accessView, trackedGroups, trackedText } from "../src/ui/accessModel";
 
 const ENTRY: AccessEntry = {
   id: "sewers", group: "key", faction: "A", levels: [28, 33],
@@ -13,8 +13,24 @@ const ENTRY: AccessEntry = {
     { id: 30, kind: "quest", ref: 3, follows: [20], origin: "attune" },
   ],
 };
-const HORDE: AccessEntry = { ...ENTRY, id: "horde", faction: "H" };
 const NO_LEVELS: AccessEntry = { ...ENTRY, id: "free", levels: null };
+const KINDS: AccessEntry = {
+  id: "kinds", group: "raid", faction: "AH", levels: null,
+  name: { enUS: "Kinds", frFR: "Types" },
+  steps: [
+    { id: 1, kind: "level", ref: 20, follows: [], origin: "attune" },
+    { id: 2, kind: "quest", ref: 2, follows: [1], origin: "attune" },
+    { id: 3, kind: "quest", ref: 9, follows: [2], origin: "attune" },
+    { id: 4, kind: "item", ref: 55, follows: [3], origin: "attune", count: 3 },
+    { id: 5, kind: "item", ref: 56, follows: [4], origin: "attune" },
+    { id: 6, kind: "kill", ref: 123, follows: [5], origin: "attune" },
+    { id: 7, kind: "interact", ref: 0, follows: [6], origin: "attune" },
+    { id: 8, kind: "click", ref: 7, follows: [7], origin: "attune" },
+    { id: 9, kind: "rep", ref: 529, follows: [8], origin: "attune", count: 9000 },
+    { id: 10, kind: "prof", ref: 4, follows: [9], origin: "attune" },
+    { id: 11, kind: "end", ref: 0, follows: [10], origin: "attune" },
+  ],
+};
 
 const QUESTS: Record<number, Partial<QuestInfo>> = {
   1: { name: "Message", zoneAreaId: 5 },
@@ -25,12 +41,14 @@ const getQuest = (id: number): QuestInfo | null =>
   QUESTS[id] == null ? null : ({ id, ...QUESTS[id] } as QuestInfo);
 
 const base = {
-  faction: "A" as const,
   level: 30,
   raceMask: 1,
   completed: new Set([1]),
   inLog: new Set([2]),
   getQuest,
+  questTitle: (id: number) => (id === 2 ? "Client Key" : null),
+  itemName: (id: number) => (id === 55 ? "Pearl" : null),
+  factionName: (id: number) => (id === 529 ? "Argent Dawn" : null),
   itemCount: () => 0,
   repEarned: () => null,
   zoneName: (areaId: number) => (areaId === 5 ? "Alterac" : null),
@@ -46,27 +64,77 @@ describe("accessView", () => {
     const [row] = accessView([ENTRY], { ...base, expanded: "sewers", tracked: ["sewers"] });
     expect(row).toEqual({
       id: "sewers",
+      group: "key",
       name: "Sewers",
       range: "28-33",
       fraction: 1 / 3,
       expanded: true,
       tracked: true,
+      complete: false,
       count: "1/3 steps",
       steps: [
         { text: "Message", state: "done" },
-        { text: "Key · Alterac", state: "current" },
+        { text: "Client Key · Alterac", state: "current" },
         { text: "Tome", state: "todo" },
       ],
     });
   });
 
-  it("uses the localized name, filters by faction and leaves the range empty without levels", () => {
+  it("uses the localized name, keeps every given entry and has no range without levels", () => {
     setLocale("frFR");
-    const rows = accessView([ENTRY, HORDE, NO_LEVELS], base);
-    expect(rows.map((r) => r.id)).toEqual(["sewers", "free"]);
+    const rows = accessView([ENTRY, { ...ENTRY, id: "horde", faction: "H" }, NO_LEVELS], base);
+    expect(rows.map((r) => r.id)).toEqual(["sewers", "horde", "free"]);
     expect(rows[0].name).toBe("Égouts");
-    expect(rows[1].range).toBe("");
+    expect(rows[2].range).toBeNull();
     expect(rows[0].steps).toEqual([]);
+  });
+
+  it("labels every step kind from client names, falling back to QuestieDB and ids", () => {
+    setLocale("enUS");
+    const [row] = accessView([KINDS], { ...base, level: 1, completed: new Set<number>(), inLog: new Set<number>(), expanded: "kinds" });
+    expect(row.steps.map((step) => step.text)).toEqual([
+      "Reach level 20",
+      "Client Key",
+      "#9",
+      "Pearl ×3",
+      "#56",
+      "Kill #123",
+      "Talk to",
+      "Use #7",
+      "Argent Dawn: 9000 reputation",
+      "Profession #4",
+      "Access unlocked",
+    ]);
+    setLocale("frFR");
+    const [fr] = accessView([KINDS], { ...base, level: 1, expanded: "kinds" });
+    expect(fr.steps.map((step) => step.text).slice(0, 1)).toEqual(["Atteindre le niveau 20"]);
+    expect(fr.steps[5].text).toBe("Tuer #123");
+  });
+});
+
+describe("accessLines", () => {
+  const views = (expanded: string | null) =>
+    accessView([ENTRY, NO_LEVELS, KINDS], { ...base, expanded, tracked: ["free"] });
+
+  it("orders the groups, counts complete entries and lists only open groups", () => {
+    setLocale("enUS");
+    const lines = accessLines(views(null), new Set(["key"]));
+    expect(lines.map((line) => (line.kind === "group" ? `${line.text}:${line.open}` : line.kind))).toEqual([
+      "RAIDS · 0/1:false",
+      "KEYS · 0/2:true",
+      "entry",
+      "entry",
+    ]);
+  });
+
+  it("puts the steps and the track line under the expanded entry", () => {
+    setLocale("enUS");
+    const lines = accessLines(views("sewers"), new Set(["key"]));
+    expect(lines.map((line) => line.kind)).toEqual(["group", "group", "entry", "step", "step", "step", "track", "entry"]);
+  });
+
+  it("opens the groups holding a tracked entry", () => {
+    expect([...trackedGroups(views(null))]).toEqual(["key"]);
   });
 
   it("counts tracked chains", () => {

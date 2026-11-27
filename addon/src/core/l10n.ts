@@ -111,7 +111,17 @@ export type L10nKey =
   | "corpseUnknown"
   | "language"
   | "languageAuto"
-  | "reload";
+  | "reload"
+  | "groupRaid"
+  | "groupKey"
+  | "groupMisc"
+  | "stepLevel"
+  | "stepKill"
+  | "stepTalk"
+  | "stepUse"
+  | "stepRep"
+  | "stepProf"
+  | "stepEnd";
 
 const EN: Record<L10nKey, string> = {
   questieMissing: "QuestieDB is required",
@@ -225,6 +235,16 @@ const EN: Record<L10nKey, string> = {
   language: "Language",
   languageAuto: "Auto",
   reload: "Reload",
+  groupRaid: "Raids",
+  groupKey: "Keys",
+  groupMisc: "Misc",
+  stepLevel: "Reach level {n}",
+  stepKill: "Kill {name}",
+  stepTalk: "Talk to {name}",
+  stepUse: "Use {name}",
+  stepRep: "{faction}: {n} reputation",
+  stepProf: "Profession {name}",
+  stepEnd: "Access unlocked",
 };
 
 const FR: Record<L10nKey, string> = {
@@ -339,6 +359,16 @@ const FR: Record<L10nKey, string> = {
   language: "Langue",
   languageAuto: "Auto",
   reload: "Recharger",
+  groupRaid: "Raids",
+  groupKey: "Clés",
+  groupMisc: "Divers",
+  stepLevel: "Atteindre le niveau {n}",
+  stepKill: "Tuer {name}",
+  stepTalk: "Parler à {name}",
+  stepUse: "Utiliser {name}",
+  stepRep: "{faction} : réputation {n}",
+  stepProf: "Métier {name}",
+  stepEnd: "Accès débloqué",
 };
 
 let french: boolean | null = null;
