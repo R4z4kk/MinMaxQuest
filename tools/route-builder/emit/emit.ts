@@ -185,7 +185,7 @@ export function emitReport(all: FactionRoutes[], worlds: World[], meta: EmitMeta
     for (const zone of sortedKeys(routes.segments)) out.push(...reportTable(`${faction} ${zone}`, zone, routes.segments[zone], world, travel));
     out.push(`## ${faction} excluded quests`, "", "| Reason | Count |", "| --- | --- |");
     for (const [reason, count] of [...world.excluded].sort((a, b) => a[0].localeCompare(b[0]))) out.push(`| ${reason} | ${count} |`);
-    out.push("", `Zone conversion check: median offset ${world.conversionOffsetYards} yards.`, "");
+    out.push("", `Zone conversion check: median offset ${world.conversionOffsetYards.toFixed(2)} yards.`, "");
   }
   return out.join("\n");
 }
