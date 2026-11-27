@@ -2,6 +2,7 @@ import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { TRAVEL } from "../../addon/src/data/generated/travel";
 import { emitFaction, emitReport, type EmitMeta } from "./emit/emit";
+import { outputDir } from "./emit/outputDir";
 import { loadPinnedCmangosCounts } from "./ingest/cmangos";
 import { fetchQuestie } from "./ingest/fetchQuestie";
 import { loadInstanceTypes } from "./ingest/instances";
@@ -15,15 +16,14 @@ import { QUESTIE_DB, WAGO_DB2 } from "./sources";
 
 type Faction = "A" | "H";
 
-const OUT_DIR = join("data", "routes");
 const FACTION_FILES: Record<Faction, string> = { A: "Alliance.lua", H: "Horde.lua" };
 const REPORT_FILE = "report.md";
 const USAGE = "usage: gen:routes [--faction A|H] [--variant <key>]";
 
-interface Args { factions: Faction[]; variants: Variant[] }
+interface Args { factions: Faction[]; variants: Variant[]; partial: boolean }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { factions: ["A", "H"], variants: allVariants() };
+  const args: Args = { factions: ["A", "H"], variants: allVariants(), partial: false };
   for (let i = 0; i < argv.length; i += 2) {
     const flag = argv[i];
     const value = argv[i + 1];
@@ -31,10 +31,12 @@ function parseArgs(argv: string[]): Args {
     if (flag === "--faction") {
       if (value !== "A" && value !== "H") throw new Error(`gen:routes: --faction ${value} is not A or H`);
       args.factions = [value];
+      args.partial = true;
     } else if (flag === "--variant") {
       const variant = allVariants().find((v) => variantKey(v) === value);
       if (variant == null) throw new Error(`gen:routes: --variant ${value} is not one of ${allVariants().map(variantKey).join(", ")}`);
       args.variants = [variant];
+      args.partial = true;
     } else {
       throw new Error(`gen:routes: unknown argument ${flag} (${USAGE})`);
     }
@@ -56,8 +58,8 @@ function constants(): Record<string, number> {
 
 const elapsed = (since: number): string => `${((Date.now() - since) / 1000).toFixed(1)}s`;
 
-function write(file: string, content: string): void {
-  const path = join(OUT_DIR, file);
+function write(dir: string, file: string, content: string): void {
+  const path = join(dir, file);
   writeFileSync(path, content);
   console.log(`wrote ${path} (${statSync(path).size} bytes)`);
 }
@@ -91,13 +93,15 @@ async function main(): Promise<void> {
   }
 
   const meta: EmitMeta = { build: WAGO_DB2.build, questieDb: QUESTIE_DB.tag, generatedOn: today, constants: constants() };
-  mkdirSync(OUT_DIR, { recursive: true });
+  const dir = outputDir(args.partial);
+  if (args.partial) console.log(`gen:routes: partial run, writing to ${dir}`);
+  mkdirSync(dir, { recursive: true });
   for (const routes of all) {
     const world = worlds.find((w) => w.faction === routes.faction);
     if (world == null) throw new Error(`gen:routes: no world for faction ${routes.faction}`);
-    write(FACTION_FILES[routes.faction], emitFaction(routes, world, meta));
+    write(dir, FACTION_FILES[routes.faction], emitFaction(routes, world, meta));
   }
-  write(REPORT_FILE, emitReport(all, worlds, meta));
+  write(dir, REPORT_FILE, emitReport(all, worlds, meta));
   console.log(`gen:routes: done in ${elapsed(started)}`);
 }
 
