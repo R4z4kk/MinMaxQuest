@@ -34,6 +34,7 @@ function questSteps(q: QuestInfo, place: PlaceFor): EmittedStep[] | null {
   };
   if (!add("accept", "accept", null)) return null;
   for (const objective of q.objectives) {
+    if (objective.kind !== "npc" && objective.kind !== "object" && objective.kind !== "item") continue;
     if (!add("complete", "objective", objective.index)) return null;
   }
   if (!add("turnin", "turnin", null)) return null;
@@ -80,7 +81,8 @@ function bestPosition(route: EmittedStep[], from: number, block: InsertBlock, to
       const nextPos = worldOf(route[p], toWorld);
       if (nextPos == null) continue;
       const direct = distance(prevPos, nextPos);
-      cost += distance(last, nextPos) - (direct === Infinity ? 0 : direct);
+      if (direct !== Infinity) cost += distance(last, nextPos) - direct;
+      else if (distance(prevPos, last) === Infinity) cost += distance(last, nextPos);
     }
     if (cost < bestCost) {
       bestCost = cost;

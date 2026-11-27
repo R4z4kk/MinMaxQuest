@@ -62,6 +62,23 @@ describe("insertBlocks", () => {
     expect(out[4].targetLevel).toBe(10);
   });
 
+  it("picks the earliest position on a tie", () => {
+    const flat = [at(0, { questId: 1 }), at(10, { questId: 2 }), at(20, { questId: 3 })];
+    const out = insertBlocks(flat, 0, [{ steps: [at(10, { questId: 50 })], minLevel: 1 }], toWorld);
+    expect(ids(out)).toEqual([1, 50, 2, 3]);
+  });
+
+  it("allows insertion right after from", () => {
+    const out = insertBlocks(route, 0, [block(0, 1, 50)], toWorld);
+    expect(ids(out)).toEqual([1, 50, 50, 2, 3, 4]);
+  });
+
+  it("lands before leaving the continent", () => {
+    const hop = [at(0, { uiMapId: 1, questId: 1 }), at(100, { uiMapId: 1, questId: 2 }), at(0, { uiMapId: 2, questId: 3 })];
+    const out = insertBlocks(hop, 0, [block(105, 1, 50)], toWorld);
+    expect(ids(out)).toEqual([1, 2, 50, 50, 3]);
+  });
+
   it("does not mutate its inputs", () => {
     const b = block(12, 1, 50);
     insertBlocks(route, 0, [b], toWorld);
@@ -73,7 +90,7 @@ describe("insertBlocks", () => {
 describe("chainBlock", () => {
   const place: PlaceFor = (q, kind, index) => ({ uiMapId: 1, x: q.id * 10 + (index ?? 0), y: 0 + (kind === "turnin" ? 1 : 0) });
   const quests = new Map<number, QuestInfo>([
-    [1, info(1, { requiredLevel: 20, objectives: [{ kind: "npc", id: 5, required: 1, index: 0 }, { kind: "item", id: 6, required: 1, index: 1 }] })],
+    [1, info(1, { requiredLevel: 20, objectives: [{ kind: "npc", id: 5, required: 1, index: 1 }, { kind: "item", id: 6, required: 1, index: 2 }] })],
     [2, info(2, { requiredLevel: 25 })],
     [3, info(3)],
   ]);
@@ -82,8 +99,15 @@ describe("chainBlock", () => {
   it("emits accept, one complete per objective, turnin, in chain order", () => {
     const r = chainBlock([1, 2], get, place);
     expect(r.unplaceable).toBe(0);
-    expect(r.block.steps.map((s) => s.type + (s.objectiveIndex ?? ""))).toEqual(["accept", "complete0", "complete1", "turnin", "accept", "turnin"]);
+    expect(r.block.steps.map((s) => s.type + (s.objectiveIndex ?? ""))).toEqual(["accept", "complete1", "complete2", "turnin", "accept", "turnin"]);
     expect(r.block.minLevel).toBe(20);
+  });
+
+  it("emits no complete step for non-placeable objectives", () => {
+    const mixed = new Map(quests).set(4, info(4, { objectives: [{ kind: "npc", id: 5, required: 1, index: 1 }, { kind: "event", index: 2 }] }));
+    const r = chainBlock([4], (id) => mixed.get(id) ?? null, place);
+    expect(r.unplaceable).toBe(0);
+    expect(r.block.steps.map((s) => s.type + (s.objectiveIndex ?? ""))).toEqual(["accept", "complete1", "turnin"]);
   });
 
   it("skips quests already in the route", () => {
@@ -93,7 +117,7 @@ describe("chainBlock", () => {
   });
 
   it("drops a quest with an unplaceable objective and counts it", () => {
-    const r = chainBlock([1, 2], get, (q, kind, i) => (q.id === 1 && kind === "objective" && i === 1 ? null : place(q, kind, i)));
+    const r = chainBlock([1, 2], get, (q, kind, i) => (q.id === 1 && kind === "objective" && i === 2 ? null : place(q, kind, i)));
     expect(ids(r.block.steps)).toEqual([2, 2]);
     expect(r.unplaceable).toBe(1);
   });
