@@ -50,6 +50,7 @@ export function world(overrides: Partial<World> = {}): World {
   return {
     faction: "A",
     raceMask: 0,
+    raceMasks: [],
     quests: new Map(),
     inns: [],
     dungeons: [],
@@ -108,4 +109,12 @@ export function quest(id: number, at: Place, overrides: Partial<QuestInfo> = {},
     accessChain: false,
     returnVisit: false,
   };
+}
+
+export function kill(at: Place, mobLevel = 1): Task {
+  return { kind: "kill", objectiveIndex: 0, count: 1, cluster: { center: at, loop: [at] }, mobLevel, elite: false, dropChance: 1, assumedDropChance: false };
+}
+
+export function worldOf(quests: RouteQuest[], overrides: Partial<World> = {}): World {
+  return world({ quests: new Map(quests.map((q) => [q.id, q])), ...overrides });
 }

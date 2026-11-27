@@ -59,6 +59,7 @@ export interface CountStats {
 export interface World {
   faction: "A" | "H";
   raceMask: number;
+  raceMasks: number[];
   quests: Map<number, RouteQuest>;
   inns: Inn[];
   dungeons: Dungeon[];
@@ -145,6 +146,7 @@ export function buildWorld(
   if (!result.ok) throw new Error(`world: ${result.message}`);
   const repo: QuestRepository = result.repo;
   const raceMask = raceUnion(s, FACTION_RACES[faction]);
+  const raceMasks = FACTION_RACES[faction].map((race) => raceUnion(s, [race]));
   const excluded = new Map<string, number>();
 
   const toPlace = (p: AreaPoint, npcId: number | null, objectId: number | null): Place | null => {
@@ -479,5 +481,5 @@ export function buildWorld(
   const repoError = repo.lastError();
   if (repoError != null) throw new Error(`world: QuestieDB read failed (${repoError})`);
   const areaUiMap = new Map(Object.entries(s.areaIdToUiMapId).map(([areaId, uiMapId]) => [Number(areaId), uiMapId]));
-  return { faction, raceMask, quests, inns, dungeons, startZones, taxiZone, taxiPlaces, areaUiMap, capitalTaxiNode, conversionOffsetYards, excluded, countStats };
+  return { faction, raceMask, raceMasks, quests, inns, dungeons, startZones, taxiZone, taxiPlaces, areaUiMap, capitalTaxiNode, conversionOffsetYards, excluded, countStats };
 }

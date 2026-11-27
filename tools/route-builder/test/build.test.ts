@@ -1,22 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { BUILDER, SCENARIOS } from "../model/constants";
 import { mobXp } from "../model/mobXp";
-import type { Place, RouteQuest, Task, World } from "../model/world";
+import type { RouteQuest, World } from "../model/world";
 import { buildRoute, grindRate, type BuildRequest, type BuiltRoute, type Variant } from "../opt/build";
 import { applyStep, cloneState, initialState, simulate, type RouteStep, type SimOptions, type SimState } from "../sim/simulate";
-import { place, quest, travel, world } from "./fixtures";
+import { kill, place, quest, travel, worldOf } from "./fixtures";
 
 const scenario = SCENARIOS[1];
 const data = travel();
 const BASE: Variant = { elites: false, dungeons: true, maxLevelGap: null };
-
-function kill(at: Place, mobLevel = 1): Task {
-  return { kind: "kill", objectiveIndex: 0, count: 1, cluster: { center: at, loop: [at] }, mobLevel, elite: false, dropChance: 1, assumedDropChance: false };
-}
-
-function worldOf(quests: RouteQuest[], overrides: Partial<World> = {}): World {
-  return world({ quests: new Map(quests.map((q) => [q.id, q])), ...overrides });
-}
 
 function start(level = 1, at = place(0, 0, 1)): SimState {
   return initialState(at, level, [], null);
