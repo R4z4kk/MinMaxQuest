@@ -353,6 +353,7 @@ it("shows Routes not installed without a routes global", async () => {
   try {
     await s.cmd("");
     expect(await s.texts()).toContain("Routes not installed - use Completion meanwhile");
+    expect(await s.run("return table.concat(routeNotices, \"|\")")).toContain("Routes not installed - use Completion meanwhile (Route data missing");
     expect(await s.visibilityOf("MinMaxQuestOpenCompletion")).not.toBe("MinMaxQuestOpenCompletion|Hide");
   } finally {
     s.close();

@@ -158,10 +158,11 @@ it("is unavailable, reported once, without segmentEndLevel", () => {
   expect(f.unavailable()).toBe("meta.constants.segmentEndLevel missing");
 });
 
-it("is unavailable and silent when no route file is loaded", () => {
+it("reports once when no route file is loaded", () => {
   const f = follower(loadCharDb(null));
   expect(f.targets(snapshot(1))).toBeNull();
-  expect(reports).toEqual([]);
+  expect(f.targets(snapshot(1))).toBeNull();
+  expect(reports).toEqual(["MinMaxQuest: Routes not installed - use Completion meanwhile (Route data missing: MinMaxQuestRoutes is not loaded (Alliance))"]);
   expect(f.routesBuild()).toBeNull();
 });
 

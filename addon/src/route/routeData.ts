@@ -74,11 +74,6 @@ function parseRoutes(faction: "A" | "H", raw: unknown): RoutesResult {
   };
 }
 
-// False when no route file is loaded at all, as opposed to a loaded but invalid one.
-export function routesInstalled(): boolean {
-  return isTable((globalThis as unknown as Record<string, unknown>).MinMaxQuestRoutes);
-}
-
 export function readRoutes(faction: "A" | "H"): RoutesResult {
   const all = (globalThis as unknown as Record<string, unknown>).MinMaxQuestRoutes;
   if (!isTable(all)) return { ok: false, message: "Route data missing: MinMaxQuestRoutes is not loaded (" + FACTION_TABLES[faction] + ")" };

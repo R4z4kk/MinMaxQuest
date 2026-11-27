@@ -33,3 +33,13 @@ it("source has no any type and no undefined token", () => {
   }
   expect(offenders).toEqual([]);
 });
+
+it("ships the route files and not the route report", () => {
+  const toc = readFileSync("MinMaxQuest_Camelot.toc", "utf8").split(/\r?\n/);
+  expect(toc).toContain("data\\routes\\Alliance.lua");
+  expect(toc).toContain("data\\routes\\Horde.lua");
+  for (const file of ["data/routes/Alliance.lua", "data/routes/Horde.lua"]) expect(existsSync(file)).toBe(true);
+  const ignored = readFileSync(".pkgmeta", "utf8").split(/\r?\n/).map((line) => line.replace(/^\s*-\s*/, "").trim());
+  expect(ignored).toContain("data/routes/report.md");
+  expect(ignored).not.toContain("data");
+});

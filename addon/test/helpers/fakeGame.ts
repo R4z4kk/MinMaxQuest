@@ -4,7 +4,10 @@ import { createLuaWithWowStubs } from "./wowStubs";
 export const GAME_FAKES = `
 math.atan2 = math.atan2 or math.atan
 printed = {}
-print = function(line) table.insert(printed, line) end
+routeNotices = {}
+print = function(line)
+  if string.find(line, "Routes not installed", 1, true) then table.insert(routeNotices, line) else table.insert(printed, line) end
+end
 calls = {}
 created = 0
 scripts = {}

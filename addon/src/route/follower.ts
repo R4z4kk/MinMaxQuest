@@ -14,7 +14,7 @@ import { follow, type FollowView } from "./follow";
 import type { EmittedStep } from "./format";
 import { chainBlock, insertBlocks, type InsertBlock, type PlaceFor } from "./insert";
 import { advance, resyncIndex, type ObjectiveCount, type ProgressContext, type RouteCursor } from "./progress";
-import { composeRoute, decodeReturnBlock, readRoutes, routesInstalled, variantKey, type FactionRoutes, type RouteOptions } from "./routeData";
+import { composeRoute, decodeReturnBlock, readRoutes, variantKey, type FactionRoutes, type RouteOptions } from "./routeData";
 
 export const QUEST_LOG_SIZE = 20;
 
@@ -284,8 +284,7 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
   const targets = (snap: PlayerSnapshot): Target[] | null => {
     const r = load();
     if (r == null) {
-      // Not installed at all is shown by the Quest tab; only broken data is reported.
-      if (unavailable != null && routesInstalled()) reportOnce("routeData", `${t("routesMissing")} (${unavailable})`);
+      if (unavailable != null) reportOnce("routeData", `${t("routesMissing")} (${unavailable})`);
       return null;
     }
     const key = wantedKey();
