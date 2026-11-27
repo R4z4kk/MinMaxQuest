@@ -44,6 +44,7 @@ describe("model", () => {
     expect(expired).toContain("QUESTIE_DB");
     expect(expired).toContain("WAGO_DB2");
     expect(expired).toContain("CMANGOS_CLASSIC_DB");
+    expect(expired).toContain("ATTUNE");
     expect(expired).toContain("slow.questDropChance");
   });
 });

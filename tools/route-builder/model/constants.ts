@@ -1,5 +1,5 @@
 import { expiredConstants, expiredRecords, type DatedValue } from "../../../addon/src/core/constants";
-import { CMANGOS_CLASSIC_DB, QUESTIE_DB, SPF_ZONES, WAGO_DB2 } from "../sources";
+import { ATTUNE, CMANGOS_CLASSIC_DB, QUESTIE_DB, SPF_ZONES, WAGO_DB2 } from "../sources";
 
 const VERIFIED_ON = "2026-11-27";
 const EXPIRES_ON = "2026-12-27";
@@ -56,7 +56,7 @@ export function expiredBuilderValues(today: string): string[] {
     scenarioRecords[`${s.name}.questDropChance`] = s.questDropChance;
   }
   return [
-    ...expiredRecords({ ...BUILDER, ...scenarioRecords, QUESTIE_DB, SPF_ZONES, WAGO_DB2, CMANGOS_CLASSIC_DB }, today),
+    ...expiredRecords({ ...BUILDER, ...scenarioRecords, QUESTIE_DB, SPF_ZONES, WAGO_DB2, CMANGOS_CLASSIC_DB, ATTUNE }, today),
     ...expiredConstants(today),
   ];
 }
