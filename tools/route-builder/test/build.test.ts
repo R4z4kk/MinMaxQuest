@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { questXp } from "../../../addon/src/core/questXp";
 import { BUILDER, SCENARIOS } from "../model/constants";
 import { mobXp } from "../model/mobXp";
-import type { RouteQuest, World } from "../model/world";
+import type { RouteQuest, Task, World } from "../model/world";
 import { buildRoute, grindRate, type BuildRequest, type BuiltRoute, type Variant } from "../opt/build";
-import { applyStep, cloneState, initialState, simulate, type RouteStep, type SimOptions, type SimState } from "../sim/simulate";
+import { applyStep, cloneState, grindSecondsPerKill, initialState, MAX_LEVEL, simulate, type RouteStep, type SimOptions, type SimState } from "../sim/simulate";
 import { kill, place, quest, travel, worldOf } from "./fixtures";
 
 const scenario = SCENARIOS[1];
@@ -45,8 +46,10 @@ function accepted(route: BuiltRoute, ids: number[]): number[] {
 }
 
 describe("grindRate", () => {
-  it("is equal-level mob XP per kill and loot second", () => {
-    expect(grindRate(7, scenario)).toBe(mobXp(7, 7, false) / (scenario.killSec.value + BUILDER.lootSec.value));
+  it("is equal-level mob XP per simulated grind second, walking included", () => {
+    const s = start(7);
+    expect(grindRate(s, 30, scenario)).toBe(mobXp(7, 7, false) / grindSecondsPerKill(s, 30, scenario));
+    expect(grindRate(s, 30, scenario)).toBeLessThan(grindRate(s, 0, scenario));
   });
 });
 
@@ -153,6 +156,21 @@ describe("buildRoute", () => {
     const route = build({ ...request(worldOf([...dead, ...good]), start(), 4), branching: 2 });
     for (const q of good) expect(route.end.completed.has(q.id)).toBe(true);
     for (const q of dead) expect(route.end.completed.has(q.id)).toBe(false);
+  });
+
+  it("accepts a quest that beats the simulated grind but not the walk-free rate", () => {
+    const at = place(0, 0, 1);
+    const spread: Task = { ...kill(at), count: 5, cluster: { center: at, loop: [at, place(100, 0, 1)] } };
+    const q = quest(800, at, { baseXp: 50 }, [spread]);
+    const s = start();
+    const walkFree = mobXp(1, 1, false) / (scenario.killSec.value + BUILDER.lootSec.value);
+    const taskSeconds = spread.count * grindSecondsPerKill(s, 100, scenario);
+    const xp = questXp(50, 1, 1, MAX_LEVEL) + spread.count * mobXp(1, 1, false);
+    expect(xp).toBeLessThan(walkFree * taskSeconds);
+    expect(xp).toBeGreaterThanOrEqual(grindRate(s, 100, scenario) * taskSeconds);
+    const route = build(request(worldOf([q]), s, 2));
+    expect(accepted(route, [800])).toEqual([800]);
+    expect(route.end.completed.has(800)).toBe(true);
   });
 
   it("learns the zone flight path and marks the flight", () => {

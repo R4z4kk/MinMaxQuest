@@ -7,7 +7,7 @@ import { BUILDER, COLLECT_QUANTILE, SCENARIOS } from "../model/constants";
 import { killsForItems } from "../model/drops";
 import { mobXp } from "../model/mobXp";
 import type { Place, RouteQuest, Task } from "../model/world";
-import { doTask, initialState, simulate, type RouteStep, type SimOptions, type SimState } from "../sim/simulate";
+import { doTask, grindSecondsPerKill, initialState, simulate, type RouteStep, type SimOptions, type SimState } from "../sim/simulate";
 import { info, place, quest, travel, world } from "./fixtures";
 
 const scenario = SCENARIOS[1];
@@ -216,6 +216,13 @@ describe("simulate", () => {
     }
     return { xp, gained, seconds };
   }
+
+  it("prices one grind kill as kill, loot and the walk of the spacing", () => {
+    const s = start();
+    const walking = (40 * CONSTANTS.detourFactor.value) / travelSpeed(s.level);
+    expect(grindSecondsPerKill(s, 40, scenario)).toBeCloseTo(scenario.killSec.value + BUILDER.lootSec.value + walking, 9);
+    expect(grindSecondsPerKill(s, 0, scenario)).toBe(scenario.killSec.value + BUILDER.lootSec.value);
+  });
 
   it("grinds to the target level with per-level XP and walks the spacing per kill", () => {
     const step: RouteStep = { type: "grind", place: place(0), grindToLevel: 3, grindMobLevel: 2, grindSpacingYards: 15 };

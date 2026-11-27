@@ -4,13 +4,14 @@ import { questXp } from "../../../addon/src/core/questXp";
 import { TRAVEL, type TravelData } from "../../../addon/src/data/generated/travel";
 import { isAvailable, passesMaxLevelOption } from "../../../addon/src/quests/availability";
 import { firstHop, taxiDestination, travelTime } from "../../../addon/src/travel/graph";
-import { BUILDER, type Scenario } from "../model/constants";
+import type { Scenario } from "../model/constants";
 import { mobXp } from "../model/mobXp";
 import { median, type Dungeon, type Place, type RouteQuest, type Task, type World } from "../model/world";
 import {
   applyStep,
   cloneState,
   doTask,
+  grindSecondsPerKill,
   loopSpacing,
   MAX_LEVEL,
   objectiveKey,
@@ -64,8 +65,8 @@ interface Context {
   taxiByMap: Map<number, number[]>;
 }
 
-export function grindRate(level: number, scenario: Scenario): number {
-  return mobXp(level, level, false) / (scenario.killSec.value + BUILDER.lootSec.value);
+export function grindRate(s: SimState, spacingYards: number, scenario: Scenario): number {
+  return mobXp(s.level, s.level, false) / grindSecondsPerKill(s, spacingYards, scenario);
 }
 
 function remainingXp(s: SimState, targetLevel: number): number {
@@ -248,7 +249,22 @@ function emit(c: Context, d: Draft, step: RouteStep): void {
   apply(c, d, step);
 }
 
-function worthIt(c: Context, s: SimState, q: RouteQuest, from: TravelView): boolean {
+function grindTask(c: Context, s: SimState): { task: Task; mobLevel: number } | null {
+  const level = s.level;
+  const near = c.kills.filter((t) => t.mobLevel >= level - 2 && t.mobLevel <= level + 1 && mobXp(level, t.mobLevel, false) > 0);
+  const pool = near.length > 0 ? near : c.kills;
+  const task = nearest(c, s, pool, (t) => t.cluster.center.pos);
+  if (task == null) return null;
+  return { task, mobLevel: near.length > 0 ? task.mobLevel : level };
+}
+
+// Priced on the cluster grindChild would pick; with no kill cluster at all, the walk-free lower bound.
+function grindEstimate(c: Context, s: SimState): number {
+  const pick = grindTask(c, s);
+  return grindRate(s, pick == null ? 0 : loopSpacing(pick.task.cluster.loop), c.req.scenario);
+}
+
+function worthIt(c: Context, s: SimState, q: RouteQuest, from: TravelView, rate: number): boolean {
   if (q.info.baseXp == null) throw new Error(`buildRoute: quest ${q.id} has no baseXp`);
   const away = (pos: WorldPos): number => travelTime(from.plan, from.graph, pos, from.ctx);
   let xp = questXp(q.info.baseXp, q.info.level, s.level, MAX_LEVEL);
@@ -260,13 +276,14 @@ function worthIt(c: Context, s: SimState, q: RouteQuest, from: TravelView): bool
     seconds += probe.seconds - s.seconds;
     detour = Math.max(detour, away(t.cluster.center.pos));
   }
-  return xp >= grindRate(s.level, c.req.scenario) * (seconds + 2 * detour);
+  return xp >= rate * (seconds + 2 * detour);
 }
 
 function acceptQuests(c: Context, d: Draft, b: Block, filtered: boolean): void {
   const from = filtered ? travelView(d.state, c.req.world, c.travel, b.centroid) : null;
   while (d.state.inLog.size < QUEST_LOG_SIZE) {
-    const open = b.quests.filter((q) => acceptable(c, d.state, q) && (from == null || worthIt(c, d.state, q, from)));
+    const rate = from == null ? 0 : grindEstimate(c, d.state);
+    const open = b.quests.filter((q) => acceptable(c, d.state, q) && (from == null || worthIt(c, d.state, q, from, rate)));
     const q = nearest(c, d.state, open, (x) => x.accept.pos);
     if (q == null) return;
     emit(c, d, { type: "accept", place: q.accept, questId: q.id });
@@ -300,7 +317,8 @@ function draft(node: Node): Draft {
 }
 
 function finish(c: Context, d: Draft): Node {
-  return { ...d, score: d.state.seconds + remainingXp(d.state, c.req.targetLevel) / grindRate(d.state.level, c.req.scenario) };
+  const xp = remainingXp(d.state, c.req.targetLevel);
+  return { ...d, score: d.state.seconds + (xp === 0 ? 0 : xp / grindEstimate(c, d.state)) };
 }
 
 function fillZone(c: Context, node: Node, b: Block, inn: Place | null): Node | null {
@@ -336,17 +354,14 @@ function fillDungeon(c: Context, node: Node, b: Block, dungeon: Dungeon): Node |
 }
 
 function grindChild(c: Context, node: Node): Node | null {
-  const level = node.state.level;
-  const near = c.kills.filter((t) => t.mobLevel >= level - 2 && t.mobLevel <= level + 1 && mobXp(level, t.mobLevel, false) > 0);
-  const pool = near.length > 0 ? near : c.kills;
-  const task = nearest(c, node.state, pool, (t) => t.cluster.center.pos);
-  if (task == null) return null;
+  const pick = grindTask(c, node.state);
+  if (pick == null) return null;
+  const { task, mobLevel } = pick;
   const d = draft(node);
-  const mobLevel = near.length > 0 ? task.mobLevel : level;
   const step: RouteStep = {
     type: "grind",
     place: task.cluster.center,
-    grindToLevel: level + 1,
+    grindToLevel: node.state.level + 1,
     grindMobLevel: mobLevel,
     grindSpacingYards: loopSpacing(task.cluster.loop),
   };

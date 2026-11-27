@@ -165,13 +165,16 @@ export function doTask(s: SimState, task: Task, scenario: Scenario): number {
   return xp;
 }
 
+export function grindSecondsPerKill(s: SimState, spacingYards: number, scenario: Scenario): number {
+  return scenario.killSec.value + BUILDER.lootSec.value + walkSeconds(spacingYards, s.level);
+}
+
 function grind(s: SimState, toLevel: number, mobLevel: number, spacing: number, scenario: Scenario): number {
-  const perKill = scenario.killSec.value + BUILDER.lootSec.value;
   let xp = 0;
   while (s.level < toLevel) {
     const gain = mobXp(s.level, mobLevel, false);
     if (gain <= 0) throw new Error(`grind: mob level ${mobLevel} gives no XP at level ${s.level}`);
-    s.seconds += perKill + walkSeconds(spacing, s.level);
+    s.seconds += grindSecondsPerKill(s, spacing, scenario);
     xp += gainXp(s, gain);
   }
   return xp;
