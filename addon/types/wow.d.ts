@@ -27,7 +27,9 @@ declare const GetQuestsCompleted: ((this: void) => Record<number, boolean>) | nu
 type WowItemCooldown = (this: void, itemId: number) => LuaMultiReturn<[number, number, number | boolean]>;
 declare const GetItemCooldown: WowItemCooldown | null;
 declare const C_Container: { GetItemCooldown: WowItemCooldown | null } | null;
-declare const C_Item: { GetItemCooldown: WowItemCooldown | null } | null;
+declare const C_Item: { GetItemCooldown: WowItemCooldown | null; GetItemCount: WowItemCount | null } | null;
+type WowItemCount = (this: void, itemId: number) => number;
+declare const GetItemCount: WowItemCount | null;
 
 interface WowUserWaypoint {
   uiMapID: number;

@@ -41,7 +41,7 @@ debugprofilestop = function() return profileMs end
 onTaxi = false
 UnitOnTaxi = function() return onTaxi end
 hearthCount = 1
-GetItemCount = function() return hearthCount end
+C_Item = { GetItemCount = function() return hearthCount end }
 player = { 1000, 2000 }
 UnitPosition = function() return player[1], player[2], 0, 0 end
 GetPlayerFacing = function() return 0 end
