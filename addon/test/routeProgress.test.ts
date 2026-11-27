@@ -45,7 +45,7 @@ function player(c: ProgressContext, extra: Partial<PlayerQuestState> = {}): Play
 
 const entry = (complete: boolean, done: number[] = []): { complete: boolean; objectivesDone: Set<number> } => ({ complete, objectivesDone: new Set(done) });
 const QUESTS = lookup(info(1), info(2), info(3));
-const status = (steps: EmittedStep[], i: number, c: ProgressContext, quests = QUESTS): string => stepStatus(steps, i, c, quests, player(c));
+const status = (steps: EmittedStep[], i: number, c: ProgressContext, quests = QUESTS, startIndex = 0): string => stepStatus(steps, i, c, quests, player(c), startIndex);
 
 describe("own conditions", () => {
   it("accept: in the log or completed", () => {
@@ -145,7 +145,7 @@ describe("impossible steps", () => {
 
   it("a prerequisite still to do stays todo, an impossible one makes it impossible", () => {
     const quests = lookup(info(1), info(2, { preGroup: [1] }), info(3, { preSingle: [4] }));
-    expect(status([q("accept", 2)], 0, context(), quests)).toBe("todo");
+    expect(status([q("accept", 1), q("accept", 2)], 1, context(), quests)).toBe("todo");
     expect(status([q("accept", 3)], 0, context(), quests)).toBe("impossible");
   });
 
@@ -197,11 +197,50 @@ describe("advance", () => {
     const quests = lookup(info(1, { requiredMaxLevel: 5 }), info(2));
     const steps = [q("accept", 1), q("turnin", 1, { unlocks: [2] }), q("accept", 2)];
     const over = context({ level: 6 });
-    expect(stepStatus(steps, 0, over, quests, player(over))).toBe("impossible");
+    expect(stepStatus(steps, 0, over, quests, player(over), 0)).toBe("impossible");
     expect(advance(steps, 0, none, none, over, quests, player(over))).toEqual({ current: 3, removed: new Set([0, 1, 2]) });
     const at5 = context({ level: 5 });
-    expect(stepStatus(steps, 0, at5, quests, player(at5))).toBe("todo");
+    expect(stepStatus(steps, 0, at5, quests, player(at5), 0)).toBe("todo");
     expect(advance(steps, 0, none, none, at5, quests, player(at5))).toEqual({ current: 0, removed: new Set() });
+  });
+
+  it("passes over complete and turnin steps whose accept lies before the start index", () => {
+    const quests = lookup(info(1), info(2), info(3));
+    const steps = [q("accept", 1), q("accept", 2), q("turnin", 1), q("complete", 2), q("turnin", 2), q("accept", 3)];
+    const c = context();
+    expect(advance(steps, 2, none, none, c, quests, player(c))).toEqual({ current: 5, removed: new Set() });
+    expect(stepStatus(steps, 2, c, quests, player(c), 2)).toBe("done");
+    expect(stepStatus(steps, 2, c, quests, player(c), 0)).toBe("todo");
+  });
+
+  it("passes over a turnin with no accept step in the route", () => {
+    const steps = [q("turnin", 1), q("accept", 2)];
+    const c = context();
+    expect(advance(steps, 0, none, none, c, QUESTS, player(c))).toEqual({ current: 1, removed: new Set() });
+  });
+
+  it("removes a quest whose prerequisite can no longer be accepted on the remaining route, with its unlocks", () => {
+    const quests = lookup(info(1), info(2, { preGroup: [1] }), info(3), info(4));
+    const steps = [q("accept", 1), q("turnin", 1), q("accept", 2), q("turnin", 2, { unlocks: [3] }), q("accept", 3), q("accept", 4)];
+    const c = context();
+    expect(advance(steps, 2, none, none, c, quests, player(c))).toEqual({ current: 5, removed: new Set([2, 3, 4]) });
+  });
+
+  it("keeps a prerequisite in the log as obtainable", () => {
+    const quests = lookup(info(1), info(2, { preGroup: [1] }));
+    const steps = [q("accept", 1), q("accept", 2), q("turnin", 1)];
+    const c = context({ log: new Map([[1, entry(true)]]) });
+    expect(advance(steps, 1, none, none, c, quests, player(c))).toEqual({ current: 1, removed: new Set() });
+  });
+
+  it("behaves as before when the accept is at or after the start index", () => {
+    const quests = lookup(info(9), info(1), info(2, { preGroup: [1] }));
+    const steps = [q("accept", 9), q("accept", 1), q("complete", 1), q("turnin", 1), q("accept", 2)];
+    const c = context();
+    expect(advance(steps, 1, none, none, c, quests, player(c))).toEqual({ current: 1, removed: new Set() });
+    expect(stepStatus(steps, 4, c, quests, player(c), 1)).toBe("todo");
+    const accepted = context({ log: new Map([[1, entry(false)]]) });
+    expect(advance(steps, 1, none, none, accepted, quests, player(accepted)).current).toBe(2);
   });
 
   it("keeps a level-locked accept as current", () => {

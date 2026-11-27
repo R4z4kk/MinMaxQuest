@@ -22,6 +22,7 @@ export type StepStatus = "done" | "todo" | "impossible";
 export interface RouteCursor { current: number; removed: Set<number> }
 export type QuestLookup = (id: number) => QuestInfo | null;
 type Dropped = (id: number) => boolean;
+type Reachable = Set<number>;
 
 const NEAR_YARDS = 150;
 const NONE = new Set<number>();
@@ -80,49 +81,64 @@ function ownDone(steps: EmittedStep[], i: number, ctx: ProgressContext, dropped:
   }
 }
 
-function statusAt(steps: EmittedStep[], i: number, ctx: ProgressContext, dropped: Dropped, laterTurninDone: boolean): StepStatus {
+// Quests with an accept step the player can still reach from the start index.
+function reachableAccepts(steps: EmittedStep[], startIndex: number): Reachable {
+  const out = new Set<number>();
+  for (let i = Math.max(0, startIndex); i < steps.length; i++) {
+    const id = steps[i].questId;
+    if (steps[i].type === "accept" && id != null) out.add(id);
+  }
+  return out;
+}
+
+function statusAt(steps: EmittedStep[], i: number, ctx: ProgressContext, dropped: Dropped, reachable: Reachable, laterTurninDone: boolean): StepStatus {
   const s = steps[i];
   if (ownDone(steps, i, ctx, dropped)) return "done";
-  if (isQuestStep(s)) return s.questId == null || dropped(s.questId) ? "impossible" : "todo";
-  return laterTurninDone ? "done" : "todo";
+  if (!isQuestStep(s)) return laterTurninDone ? "done" : "todo";
+  const id = s.questId;
+  if (id == null || dropped(id)) return "impossible";
+  // Design 3.6: steps before the start index count as done, so an unreachable accept passes its quest over.
+  return s.type !== "accept" && !ctx.log.has(id) && !reachable.has(id) ? "done" : "todo";
 }
 
 // Only reasons that never go away (the level never decreases); anything else isAvailable rejects is "not yet".
-function impossibleForGood(id: number, quest: QuestLookup, p: PlayerQuestState, dropped: Dropped): boolean {
+function impossibleForGood(id: number, quest: QuestLookup, p: PlayerQuestState, dropped: Dropped, reachable: Reachable): boolean {
   const q = quest(id);
   if (q == null) return true;
   if (p.completed.has(id) || p.inLog.has(id) || isAvailable(q, p)) return false;
   const taken = (other: number): boolean => p.completed.has(other) || p.inLog.has(other);
-  const lost = (pre: number): boolean => !p.completed.has(pre) && dropped(pre);
+  const lost = (pre: number): boolean => !p.completed.has(pre) && (dropped(pre) || (!p.inLog.has(pre) && !reachable.has(pre)));
   return (q.requiredMaxLevel != null && p.level > q.requiredMaxLevel) || !maskAllows(q.races, p.raceMask) || !maskAllows(q.classes, p.classMask) || q.exclusiveTo.some((other) => taken(other))
     || q.preGroup.some((pre) => lost(pre)) || (q.preSingle.length > 0 && q.preSingle.every((pre) => lost(pre)));
 }
 
-function droppedQuests(quest: QuestLookup, p: PlayerQuestState, removedQuests: Set<number>): Dropped {
+function droppedQuests(quest: QuestLookup, p: PlayerQuestState, removedQuests: Set<number>, reachable: Reachable): Dropped {
   const memo = new Map<number, boolean>();
   const dropped = (id: number): boolean => {
     if (removedQuests.has(id)) return true;
     const known = memo.get(id);
     if (known != null) return known;
     memo.set(id, false);
-    const result = impossibleForGood(id, quest, p, dropped);
+    const result = impossibleForGood(id, quest, p, dropped, reachable);
     memo.set(id, result);
     return result;
   };
   return dropped;
 }
 
-export function stepStatus(steps: EmittedStep[], i: number, ctx: ProgressContext, quest: QuestLookup, player: PlayerQuestState): StepStatus {
+export function stepStatus(steps: EmittedStep[], i: number, ctx: ProgressContext, quest: QuestLookup, player: PlayerQuestState, startIndex: number): StepStatus {
   let laterTurninDone = false;
   for (let j = i + 1; j < steps.length && !laterTurninDone; j++) {
     const id = steps[j].questId;
     laterTurninDone = steps[j].type === "turnin" && id != null && ctx.completed.has(id);
   }
-  return statusAt(steps, i, ctx, droppedQuests(quest, player, NONE), laterTurninDone);
+  const reachable = reachableAccepts(steps, startIndex);
+  return statusAt(steps, i, ctx, droppedQuests(quest, player, NONE, reachable), reachable, laterTurninDone);
 }
 
 export function advance(steps: EmittedStep[], startIndex: number, skipped: Set<number>, removedQuests: Set<number>, ctx: ProgressContext, quest: QuestLookup, player: PlayerQuestState): RouteCursor {
-  const dropped = droppedQuests(quest, player, removedQuests);
+  const reachable = reachableAccepts(steps, startIndex);
+  const dropped = droppedQuests(quest, player, removedQuests, reachable);
   const unlocksOf = new Map<number, number[]>();
   const lost = new Set<number>();
   const queue: number[] = [];
@@ -153,7 +169,7 @@ export function advance(steps: EmittedStep[], startIndex: number, skipped: Set<n
   const isLost = (id: number): boolean => lost.has(id);
   for (let i = Math.max(0, startIndex); i < steps.length; i++) {
     if (skipped.has(i) || removed.has(i)) continue;
-    if (statusAt(steps, i, ctx, isLost, i < lastDoneTurnin) === "todo") return { current: i, removed };
+    if (statusAt(steps, i, ctx, isLost, reachable, i < lastDoneTurnin) === "todo") return { current: i, removed };
   }
   return { current: steps.length, removed };
 }
