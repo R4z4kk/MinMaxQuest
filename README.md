@@ -36,7 +36,7 @@
 - **Objectives:** it follows them in quest log order, honouring QuestieDB ordering hints.
 - **Moving it:** drag it with the left mouse button while it is unlocked (the default on a new character). The position is saved. Tick **Lock arrow** in the Options (or `/mmq arrow lock`) to freeze it; a locked arrow lets clicks through. `/mmq arrow move` unlocks it.
 - **Quest item button:** when the arrow's quest has a usable item in your bags (the item the quest giver hands you, then the items the quest requires), a square button with its icon, count, cooldown and tooltip appears to the right of the arrow. Click it to use the item. Works in the Quest and Completion tabs. It is movable on its own: drag it by its thin gold border while the arrow is unlocked, out of combat; its position is saved per character. **Lock arrow** locks it too. A change asked for in combat (new item, lock) is applied when combat ends.
-- **Corpse run:** when you are dead or a ghost, it points to your corpse, overriding every other target. If the corpse position is unknown it hides and says so once.
+- **Corpse run:** while dead at your body the arrow hides, silently. Once you release as a ghost it points to your corpse, overriding every other target. If the corpse position is unknown it hides and says so once.
 - **When it hides:** in instances, during flights, and when there is no target.
 - **Performance:** at most 30 updates per second. Route refreshes are batched: at most one every 2 seconds, skipped while standing still or flying, and immediate when an objective changes.
 

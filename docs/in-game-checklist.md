@@ -11,6 +11,7 @@ Prérequis : `npm test` (construit `build/MinMaxQuest.lua`), puis lancer WoW For
 - [ ] `/mmq` ouvre/ferme la fenêtre ; onglets Quête | Accès | Complétion, la taille change par onglet ; position et onglet gardés après `/reload`.
 - [ ] Rendu : fond noir, accent doré, Arial Narrow ; les petits symboles (✓, », ×, flèche ▾) s'affichent (pas de carrés). Vérifier aussi le tiret « — » quand une cible est injoignable.
 - [ ] Textes en français sur client frFR (accents en majuscules : « RESTANT À PROXIMITÉ »).
+- [ ] Option Langue (Auto / English / Français) : le texte change ; un bouton « Recharger » apparaît si nécessaire et recharge l'interface ; les noms de quêtes, PNJ et zones suivent toujours la langue du client.
 
 ## Complétion
 - [ ] Liste triée par « ~temps » ; la flèche suit la première cible.
@@ -18,12 +19,18 @@ Prérequis : `npm test` (construit `build/MinMaxQuest.lua`), puis lancer WoW For
 - [ ] Filtres Grises / Élites ; aucune quête bloquée n'apparaît.
 - [ ] Les objectifs « tuer X » : la flèche parcourt les points du groupe de mobs et passe au suivant à ~25 m.
 - [ ] Les donneurs de l'autre faction ne sont pas proposés.
+- [ ] Mode Journal : seules les quêtes du journal sont ciblées (objectifs puis remises) ; filtres Grises/Élites et zone ignorés ; en-tête sans chevauchement, en frFR comme en enUS.
 
 ## Flèche
 - [ ] `/mmq arrow test` : pointe vers le haut face au nord, tourne dans le bon sens quand on pivote (si elle tourne à l'envers, le signe de rotation est inversé).
 - [ ] Cachée en instance, cachée en vol (griffon), réapparaît à l'atterrissage.
 - [ ] `/mmq arrow move` → glisser → `/mmq arrow lock` ; position gardée après `/reload`.
 - [ ] `/framerate` stable fenêtre ouverte.
+- [ ] Glisser la flèche au clic gauche quand elle est déverrouillée ; case « Verrouiller la flèche » (ou `/mmq arrow lock`) → clics traversants ; le libellé de la flèche est blanc ; position gardée après `/reload`.
+- [ ] Mort au corps : flèche cachée sans message ; après libération (fantôme) : elle pointe vers le cadavre, quelle que soit la cible ; position inconnue : cachée avec un message unique.
+- [ ] Bouton d'objet de quête : visible à droite de la flèche quand la quête visée a un objet utilisable ; un clic = une utilisation ; icône, compteur, recharge et info-bulle corrects ; fonctionne en modes Quête et Complétion.
+- [ ] Bouton d'objet : glisser par la fine bordure dorée (flèche déverrouillée, hors combat) ; position gardée après `/reload` ; « Verrouiller la flèche » le verrouille aussi.
+- [ ] Bouton d'objet : changer d'objet ou verrouiller en combat n'est appliqué qu'à la fin du combat (aucune erreur de taint).
 
 ## Passer / épingler
 - [ ] « Passer » sur une quête avec suites → dialogue avec la liste et l'XP perdue ; sans suite → passée directement.
