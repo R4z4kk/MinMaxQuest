@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { LuaFactory } from "wasmoon";
 import { afterAll, afterEach, beforeAll, expect, it } from "vitest";
-import { encodeSteps, type EmittedStep } from "../src/route/format";
+import { decodeSteps, encodeSteps, type EmittedStep } from "../src/route/format";
 import { composeRoute, decodeReturnBlock, readRoutes, variantKey, type FactionRoutes, type RouteOptions } from "../src/route/routeData";
 
 const step = (questId: number, extra: Partial<EmittedStep> = {}): EmittedStep => ({
@@ -134,6 +134,40 @@ it("composes the real Alliance route in compiled Lua", async () => {
     expect(key).toBe("elwynn-forest");
     expect(Number(count)).toBeGreaterThan(100);
     expect(Number(segment)).toBeGreaterThan(0);
+  } finally {
+    lua.global.close();
+  }
+});
+
+it("decodes every variant and return block of the shipped routes", async () => {
+  const lua = await new LuaFactory().createEngine();
+  try {
+    for (const file of ["data/routes/Alliance.lua", "data/routes/Horde.lua"]) await lua.doString(readFileSync(file, "utf8"));
+    const flat = (await lua.doString(`
+      local out = {}
+      local function add(name, text) out[#out + 1] = name; out[#out + 1] = text end
+      for faction, r in pairs(MinMaxQuestRoutes) do
+        for variant, text in pairs(r.trunk) do add(faction .. " trunk " .. variant, text) end
+        for key, variants in pairs(r.segments) do
+          for variant, text in pairs(variants) do add(faction .. " segment " .. key .. " " .. variant, text) end
+        end
+        for areaId, text in pairs(r.returnBlocks) do add(faction .. " return " .. areaId, text) end
+      end
+      return out
+    `)) as string[];
+    const counts = new Map<string, number>();
+    for (let i = 0; i < flat.length; i += 2) {
+      const [faction, kind] = flat[i].split(" ");
+      counts.set(`${faction} ${kind}`, (counts.get(`${faction} ${kind}`) ?? 0) + 1);
+      let steps: EmittedStep[] = [];
+      expect(() => { steps = decodeSteps(flat[i + 1]); }, flat[i]).not.toThrow();
+      expect(steps.length, flat[i]).toBeGreaterThan(0);
+    }
+    for (const faction of ["Alliance", "Horde"]) {
+      expect(counts.get(`${faction} trunk`)).toBe(16);
+      expect(counts.get(`${faction} segment`) ?? 0).toBeGreaterThanOrEqual(16);
+      expect(counts.get(`${faction} return`) ?? 0).toBeGreaterThan(0);
+    }
   } finally {
     lua.global.close();
   }
