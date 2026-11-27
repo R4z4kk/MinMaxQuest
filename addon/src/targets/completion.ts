@@ -45,6 +45,7 @@ export interface CompletionOptions {
   showElite: boolean;
   minLevelGap: number | null;
   pinnedQuestId: number | null;
+  maxLevel: number;
   // Proximity only: ui maps allowed; absent means no restriction.
   nearbyMaps?: Set<number>;
 }
@@ -140,6 +141,7 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
 
     if (entry == null) {
       if (!isAvailable(q, player) || !passesMaxLevelOption(q, player, opts.minLevelGap)) continue;
+      if (q.clothDonation && player.level >= opts.maxLevel) continue;
       const pos = nearest(positionsFor(q, "accept", null));
       if (pos != null) push(q, trivial, "accept", null, pos, null, 0);
     } else if (entry.complete) {

@@ -91,7 +91,7 @@ export function info(id: number, overrides: Partial<QuestInfo> = {}): QuestInfo 
     finisherObjects: [],
     objectives: [],
     baseXp: 100,
-    hasUnsupportedRequirement: false,
+    hasUnsupportedRequirement: false, repeatable: false, seasonal: false, clothDonation: false,
     isElite: false,
     zoneAreaId: null,
     sourceItemId: null,

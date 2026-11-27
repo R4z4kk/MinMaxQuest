@@ -1057,9 +1057,10 @@ export const ACCESS: AccessData = {
       {"id":1506,"kind":"quest","ref":4132,"follows":[],"origin":"attune","optional":true},
       {"id":1508,"kind":"quest","ref":3982,"follows":[],"origin":"attune","optional":true},
       {"id":1100,"kind":"end","ref":0,"follows":[1340,1230,1040,950,850,680,540,440,340,10,1400,1501,1502,1503,1504,1506,1508],"origin":"attune"},
-      {"id":1509,"kind":"quest","ref":4122,"follows":[],"origin":"questiedb"},
-      {"id":1510,"kind":"quest","ref":4133,"follows":[],"origin":"questiedb"},
-      {"id":1511,"kind":"quest","ref":4324,"follows":[],"origin":"questiedb"},
+      {"id":1509,"kind":"quest","ref":4121,"follows":[],"origin":"questiedb"},
+      {"id":1510,"kind":"quest","ref":4122,"follows":[],"origin":"questiedb"},
+      {"id":1511,"kind":"quest","ref":4133,"follows":[],"origin":"questiedb"},
+      {"id":1512,"kind":"quest","ref":4324,"follows":[],"origin":"questiedb"},
     ]},
     {"id":"340","group":"dungeon","faction":"A","levels":[55,60],"name":{"enUS":"Dire Maul","frFR":"Hache-tripes"},"steps":[
       {"id":10,"kind":"level","ref":54,"follows":[],"origin":"attune"},

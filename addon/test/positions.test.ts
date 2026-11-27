@@ -8,7 +8,7 @@ function quest(over: Partial<QuestInfo>): QuestInfo {
     id: 1, name: "Q", level: 10, requiredLevel: 1, requiredMaxLevel: null, races: 0, classes: 0,
     preGroup: [], preSingle: [], exclusiveTo: [], nextInChain: null, children: [],
     starterNpcs: [], starterObjects: [], finisherNpcs: [], finisherObjects: [],
-    objectives: [], baseXp: 0, hasUnsupportedRequirement: false, isElite: false, zoneAreaId: null,
+    objectives: [], baseXp: 0, hasUnsupportedRequirement: false, repeatable: false, seasonal: false, clothDonation: false, isElite: false, zoneAreaId: null,
     ...over,
   };
 }

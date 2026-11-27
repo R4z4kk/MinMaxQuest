@@ -34,10 +34,32 @@ export interface QuestInfo {
   objectives: QuestObjectiveRef[];
   baseXp: number | null;
   hasUnsupportedRequirement: boolean;
+  repeatable: boolean;
+  // Holiday or event quest: only there while the event runs.
+  seasonal: boolean;
+  // Only cloth to hand in: worth nothing at max level.
+  clothDonation: boolean;
   isElite: boolean;
   zoneAreaId: number | null;
   sourceItemId: number | null;
   requiredSourceItems: number[];
+}
+
+// QuestieDB v1.1.6 questKeys specialFlags: 1 = Repeatable. Bit 2 also marks escorts, so events come from the sort.
+const REPEATABLE_FLAG = 1;
+// zoneOrSort of holidays and events: QuestieDB v1.1.6 src/corrections/enum/quests.lua
+// (-284 Special only holds Children's Week tours on Forever, plus CLUCK!).
+const EVENT_SORTS = new Set([-404, -402, -378, -376, -375, -374, -370, -369, -366, -364, -284, -41, -22, -21]);
+// Linen, Wool, Silk, Mageweave, Runecloth: QuestieDB v1.1.6 data/Classic/classicItemDB.lua.
+const CLOTH_ITEMS = new Set([2589, 2592, 4306, 4338, 14047]);
+
+// Lua 5.1 has no bitwise operators.
+export function hasFlag(flags: number, bit: number): boolean {
+  return Math.floor(flags / bit) % 2 === 1;
+}
+
+export function isClothDonation(objectives: QuestObjectiveRef[]): boolean {
+  return objectives.length > 0 && objectives.every((o) => o.kind === "item" && CLOTH_ITEMS.has(o.id));
 }
 
 export interface QuestRepository {
@@ -234,6 +256,7 @@ function buildRepository(lib: LibQuestieDBApi): QuestRepository {
     const nextInChain = num(field(id, "nextQuestInChain"));
     const maxLevel = num(field(id, "requiredMaxLevel"));
     const zone = num(field(id, "zoneOrSort"));
+    const flags = num(field(id, "specialFlags")) ?? 0;
     const sourceItem = num(field(id, "sourceItemId"));
 
     return {
@@ -260,6 +283,9 @@ function buildRepository(lib: LibQuestieDBApi): QuestRepository {
         field(id, "requiredMinRep") != null ||
         field(id, "requiredMaxRep") != null ||
         (field(id, "requiredSpell") ?? 0) !== 0,
+      repeatable: hasFlag(flags, REPEATABLE_FLAG),
+      seasonal: zone != null && EVENT_SORTS.has(zone),
+      clothDonation: isClothDonation(objectives.refs),
       isElite: objectives.elite,
       zoneAreaId: zone != null && zone > 0 ? zone : null,
       sourceItemId: sourceItem != null && sourceItem > 0 ? sourceItem : null,

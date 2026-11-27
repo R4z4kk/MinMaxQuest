@@ -7,13 +7,13 @@ Review this report with the diff of `addon/src/data/generated/access.ts` before 
 
 | Group | A | H | AH | Entries | Steps |
 |---|---|---|---|---|---|
-| dungeon | 27 | 27 | 0 | 54 | 1340 |
+| dungeon | 27 | 27 | 0 | 54 | 1341 |
 | raid | 1 | 1 | 3 | 5 | 88 |
 | key | 2 | 2 | 3 | 7 | 66 |
 | misc | 1 | 1 | 2 | 4 | 128 |
-| all | 31 | 31 | 8 | 70 | 1622 |
+| all | 31 | 31 | 8 | 70 | 1623 |
 
-Completions: 0 dungeon entries and 44 dungeon quests added from QuestieDB.
+Completions: 0 dungeon entries and 45 dungeon quests added from QuestieDB.
 
 ## Attune quest ids absent from QuestieDB
 
@@ -124,6 +124,7 @@ None of their quests has a party dungeon as `zoneOrSort`; no quest was added to 
 - 346 Lower Blackrock Spire (H): quest 8995 Mea Culpa, Lord Valthalak
 - 346 Lower Blackrock Spire (H): quest 98325 Blood and Thunder
 - 390 Blackrock Depths (A): quest 4324 Yuka Screwspigot
+- 400 Blackrock Depths (H): quest 4121 Precarious Predicament
 - 400 Blackrock Depths (H): quest 4122 Grark Lorkrub
 - 400 Blackrock Depths (H): quest 4133 Vivian Lagrave
 - 400 Blackrock Depths (H): quest 4324 Yuka Screwspigot
@@ -167,15 +168,14 @@ None of their quests has a party dungeon as `zoneOrSort`; no quest was added to 
 - 2557 Dire Maul: quest 7507 Nostro's Compendium
 - 2557 Dire Maul: quest 7508 The Forging of Quel'Serrar
 
-## Repeatable and event dungeon quests not added
+## Repeatable dungeon quests not added
 
-QuestieDB `specialFlags` bit 1 (repeatable) or 2 (needs event).
+QuestieDB `specialFlags` bit 1 (repeatable).
 
 - 721 Gnomeregan: quest 2953 More Sparklematic Action (repeatable)
 - 721 Gnomeregan: quest 4603 More Sparklematic Action (repeatable)
 - 721 Gnomeregan: quest 4604 More Sparklematic Action (repeatable)
 - 1337 Uldaman: quest 3375 Replacement Phial (repeatable)
-- 1584 Blackrock Depths: quest 4121 Precarious Predicament (event)
 - 2017 Stratholme: quest 5122 The Medallion of Faith (repeatable)
 - 2557 Dire Maul: quest 7483 Libram of Rapidity (repeatable)
 - 2557 Dire Maul: quest 7484 Libram of Focus (repeatable)
