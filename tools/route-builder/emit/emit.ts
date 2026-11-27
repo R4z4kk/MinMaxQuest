@@ -133,6 +133,11 @@ export function emitFaction(routes: FactionRoutes, world: World, meta: EmitMeta,
     return `[${luaString(key)}] = ${value}`;
   });
   const zones = sortedKeys(routes.segments).map((zone) => `    [${luaString(zone)}] = ${luaVariants(world, zone, routes.segments[zone], travel, "    ")},`);
+  const races = sortedKeys(routes.segments).map((zone) => {
+    const start = world.startZones.find((s) => s.key === zone);
+    if (start == null) throw new Error(`emitFaction: no start zone for segment ${zone}`);
+    return `    [${luaString(zone)}] = ${start.raceMask},`;
+  });
   const blocks = Object.keys(routes.returnBlocks)
     .map(Number)
     .sort((a, b) => a - b)
@@ -142,6 +147,7 @@ export function emitFaction(routes: FactionRoutes, world: World, meta: EmitMeta,
     `MinMaxQuestRoutes.${FACTION_NAMES[routes.faction]} = {`,
     `  meta = { build = ${luaString(meta.build)}, questieDb = ${luaString(meta.questieDb)}, generatedOn = ${luaString(meta.generatedOn)}, constants = { ${constants.join(", ")} } },`,
     `  segments = {\n${zones.join("\n")}\n  },`,
+    `  segmentRaces = {\n${races.join("\n")}\n  },`,
     `  trunk = ${luaVariants(world, "trunk", routes.trunk, travel, "  ")},`,
     `  returnBlocks = {\n${blocks.join("\n")}\n  },`,
     "}",

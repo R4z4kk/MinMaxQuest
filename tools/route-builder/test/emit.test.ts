@@ -115,6 +115,15 @@ describe("emitFaction", () => {
     }
   });
 
+  it("emits the start-zone race mask of every segment", async () => {
+    const g = await evalLua(lua);
+    try {
+      expect(await g.run("MinMaxQuestRoutes.Alliance.segmentRaces['start-zone']")).toBe(RACE);
+    } finally {
+      g.close();
+    }
+  });
+
   it("fails naming the segment when a winner breaks a strict rule", () => {
     const broken: FactionRoutes = { ...routes, trunk: { ...routes.trunk, e0d0x0: evaluated([turnin(t100)], 1) } };
     expect(() => emitFaction(broken, w, meta, data)).toThrow(/trunk e0d0x0.*turnin 100/);
