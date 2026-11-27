@@ -154,6 +154,33 @@ describe("selectTargets", () => {
   });
 });
 
+describe("selectTargets edge cases", () => {
+  it("zone mode without a zone returns nothing", () => {
+    const q = quest({ id: 1, zoneAreaId: null });
+    expect(selectTargets(input([q], { "1:accept:null": [at(1)] }), opts({ mode: "zone", zoneAreaId: null }))).toEqual([]);
+  });
+
+  it("accept uses the nearest starter", () => {
+    const targets = selectTargets(input([quest({ id: 1 })], { "1:accept:null": [at(80), at(15), at(40)] }), opts());
+    expect(targets[0].pos).toEqual(at(15));
+  });
+
+  it("objective picks the finite cluster over a NaN-time one", () => {
+    const q = quest({ id: 1, objectives: [objective(1)] });
+    const positions: Positions = { "1:objective:1": [at(1000), at(30)] };
+    const timeTo = (p: WorldPos): number => (p.x === 1000 ? NaN : p.x);
+    const targets = selectTargets(input([q], positions, { log: new Map([[1, logged(false)]]), timeTo }), opts());
+    expect(targets[0].pos).toEqual(at(30));
+    expect(targets[0].seconds).toBe(30);
+  });
+
+  it("calls timeTo once per position", () => {
+    let calls = 0;
+    selectTargets(input([quest({ id: 1 })], { "1:accept:null": [at(5), at(9)] }, { timeTo: (p) => (calls++, p.x) }), opts());
+    expect(calls).toBe(2);
+  });
+});
+
 describe("zoneProgress", () => {
   it("counts completed over zone quests the race and class can take", () => {
     const quests = [

@@ -48,14 +48,20 @@ export interface ZoneProgress {
 
 export function selectTargets(input: CompletionInput, opts: CompletionOptions): Target[] {
   const { log, player, greenRange, positionsFor } = input;
+  const times = new Map<WorldPos, number>();
   const timeTo = (p: WorldPos): number => {
-    const t = input.timeTo(p);
-    return Number.isNaN(t) ? Infinity : t;
+    const cached = times.get(p);
+    if (cached != null) return cached;
+    const raw = input.timeTo(p);
+    const t = Number.isNaN(raw) ? Infinity : raw;
+    times.set(p, t);
+    return t;
   };
   const targets: Target[] = [];
 
   const push = (
     q: QuestInfo,
+    trivial: boolean,
     kind: TargetKind,
     objectiveIndex: number | null,
     pos: WorldPos,
@@ -69,7 +75,7 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
       cluster,
       seconds: timeTo(pos),
       questLevel: q.level,
-      trivial: isTrivial(q, player, greenRange),
+      trivial,
       elite: q.isElite,
       zoneAreaId: q.zoneAreaId,
     });
@@ -90,23 +96,24 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
 
   for (const q of input.quests) {
     if (!opts.showElite && q.isElite) continue;
-    if (!opts.showTrivial && isTrivial(q, player, greenRange)) continue;
-    if (opts.mode === "zone" && q.zoneAreaId !== opts.zoneAreaId) continue;
+    const trivial = isTrivial(q, player, greenRange);
+    if (!opts.showTrivial && trivial) continue;
+    if (opts.mode === "zone" && (opts.zoneAreaId == null || q.zoneAreaId !== opts.zoneAreaId)) continue;
 
     const entry = log.get(q.id);
     if (entry == null) {
       if (!isAvailable(q, player) || !passesMaxLevelOption(q, player, opts.minLevelGap)) continue;
       const pos = nearest(positionsFor(q, "accept", null));
-      if (pos != null) push(q, "accept", null, pos, null);
+      if (pos != null) push(q, trivial, "accept", null, pos, null);
     } else if (entry.complete) {
       const pos = nearest(positionsFor(q, "turnin", null));
-      if (pos != null) push(q, "turnin", null, pos, null);
+      if (pos != null) push(q, trivial, "turnin", null, pos, null);
     } else {
       for (const obj of q.objectives) {
         if (entry.objectivesDone.has(obj.index)) continue;
         const clusters = clusterSpawns(positionsFor(q, "objective", obj.index), CLUSTER_RADIUS_YARDS);
         const cluster = pickCluster(clusters, timeTo);
-        if (cluster != null) push(q, "objective", obj.index, cluster.center, cluster);
+        if (cluster != null) push(q, trivial, "objective", obj.index, cluster.center, cluster);
       }
     }
   }
