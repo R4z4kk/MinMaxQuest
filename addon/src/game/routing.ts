@@ -73,13 +73,10 @@ export function createRouting(
       }
       const current = { plan: solveFrom(graph, snap.pos, ctx), graph, ctx };
       solved = current;
-      const skipped = new Set(db.skippedQuests);
-      const all = allQuests();
-      const candidates = skipped.size === 0 ? all : all.filter((q) => !skipped.has(q.id));
       const { mode, zoneAreaId, showTrivial, showElite } = db.completion;
       return selectTargets(
         {
-          quests: candidates,
+          quests: allQuests(),
           log: snap.log,
           player: snap.state,
           greenRange: snap.greenRange,

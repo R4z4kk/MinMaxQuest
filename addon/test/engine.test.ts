@@ -181,6 +181,14 @@ describe("skip", () => {
     expect(db.skippedQuests).toEqual([1]);
   });
 
+  it("reports the lost XP as unknown without a player snapshot", () => {
+    const { engine, world } = setup([], [quest(1, { nextInChain: 2 }), quest(2)]);
+    world.snap = null;
+    const result = engine.skip(1, false);
+    expect(result.needsConfirm).toBe(true);
+    expect(result.lost).toBeNull();
+  });
+
   it("clears the pin of a skipped quest", () => {
     const { engine, db } = setup([target(1)], [quest(1)]);
     engine.pin(1);

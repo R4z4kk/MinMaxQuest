@@ -34,14 +34,20 @@ player = { 1000, 2000 }
 UnitPosition = function() return player[1], player[2], 0, 0 end
 GetPlayerFacing = function() return 0 end
 UnitLevel = function() return 10 end
-UnitRace = function() return "Human", "Human", 1 end
+raceCalls = 0
+UnitRace = function() raceCalls = raceCalls + 1; return "Human", "Human", 1 end
 UnitClass = function() return "Warrior", "WARRIOR", 1 end
 UnitFactionGroup = function() return "Alliance", "Alliance" end
 GetMaxPlayerLevel = function() return 60 end
 C_Container = { GetItemCooldown = function() return 0, 0, 1 end }
+logQuests = {}
+objectives = {}
 C_QuestLog = {
   GetAllCompletedQuestIDs = function() return {} end,
-  GetNumQuestLogEntries = function() return 0, 0 end,
+  GetNumQuestLogEntries = function() return #logQuests, #logQuests end,
+  GetInfo = function(i) return { questID = logQuests[i], isHeader = false } end,
+  GetQuestObjectives = function(id) return objectives[id] end,
+  IsComplete = function() return false end,
   GetTrivialRange = function() return 5 end,
 }
 CreateVector2D = function(x, y) return { x = x, y = y } end
@@ -52,13 +58,14 @@ C_Timer = { NewTicker = function(seconds, fn) ticker = fn end }
 quests = {
   [100] = { name = "Test Quest", questLevel = 10, requiredLevel = 1, startedBy = { { 500 } } },
   [101] = { name = "Second", questLevel = 10, requiredLevel = 1, startedBy = { { 501 } } },
+  [102] = { name = "Later", questLevel = 11, requiredLevel = 11, startedBy = { { 501 } } },
 }
 spawns = { [500] = { [12] = { { 10, 20 } } }, [501] = { [12] = { { 90, 90 } } } }
 LibQuestieDB = {
   RequireContract = function() return true end,
   Enum = { raceMaskById = { [1] = 1 }, classKeys = { WARRIOR = 1 } },
   Quest = {
-    GetAllIds = function() return { 100, 101 } end,
+    GetAllIds = function() return { 100, 101, 102 } end,
     Get = function(id, field) return quests[id] and quests[id][field] end,
   },
   Npc = { Get = function(id, field) if field == "spawns" then return spawns[id] end end },
@@ -79,6 +86,7 @@ async function session() {
   await lua.doString(readFileSync("build/MinMaxQuest.lua", "utf8"));
   return {
     cmd: (command: string) => lua.doString(`SlashCmdList.MMQ("${command}")`),
+    tick: () => lua.doString("ticker()"),
     event: (args: string) => lua.doString(`scripts["MinMaxQuestEvents.OnEvent"](nil, ${args})`),
     run: (code: string) => lua.doString(code),
     printed: async () => {
@@ -94,6 +102,7 @@ async function loggedIn() {
   const s = await session();
   await s.event(`"PLAYER_LOGIN"`);
   await s.event(`"PLAYER_ENTERING_WORLD"`);
+  await s.tick();
   return s;
 }
 
@@ -126,6 +135,58 @@ it("skips, pins and unpins through slash commands", async () => {
     expect(await s.run("return MinMaxQuestCharDB.skippedQuests[1]")).toBe(100);
     await s.cmd("targets");
     expect(await s.printed()).toBe("MinMaxQuest: [101] Second · pick up · <1 min");
+  } finally {
+    s.close();
+  }
+});
+
+it("coalesces quest log events into at most one forced refresh per tick", async () => {
+  const s = await loggedIn();
+  const reads = async () => (await s.run("return raceCalls")) as number;
+  try {
+    expect(await reads()).toBe(1);
+    await s.run("logQuests = { 101 }; objectives[101] = { { finished = false } }");
+    await s.event(`"QUEST_LOG_UPDATE"`);
+    await s.tick();
+    expect(await reads()).toBe(2);
+    for (let i = 0; i < 5; i++) await s.event(`"QUEST_LOG_UPDATE"`);
+    await s.tick();
+    expect(await reads()).toBe(2);
+    await s.run("objectives[101][1].finished = true");
+    for (let i = 0; i < 3; i++) await s.event(`"QUEST_LOG_UPDATE"`);
+    await s.tick();
+    await s.tick();
+    expect(await reads()).toBe(3);
+  } finally {
+    s.close();
+  }
+});
+
+it("uses the level from PLAYER_LEVEL_UP on the next tick", async () => {
+  const s = await loggedIn();
+  try {
+    await s.event(`"PLAYER_LEVEL_UP", 11`);
+    await s.tick();
+    await s.cmd("targets");
+    expect(await s.printed()).toContain("[102] Later");
+  } finally {
+    s.close();
+  }
+});
+
+it("asks to confirm a skip with follow-ups and forgets it when the target changes", async () => {
+  const s = await session();
+  try {
+    await s.run("quests[100].nextQuestInChain = 101");
+    await s.event(`"PLAYER_LOGIN"`);
+    await s.tick();
+    await s.cmd("skip");
+    expect(await s.printed()).toBe(
+      "MinMaxQuest: [100] Test Quest: 1 follow-up quest(s) would be lost (about 0 XP): type /mmq skip confirm",
+    );
+    await s.cmd("pin 101");
+    await s.cmd("skip confirm");
+    expect(await s.run("return MinMaxQuestCharDB.skippedQuests[1]")).toBe(101);
   } finally {
     s.close();
   }

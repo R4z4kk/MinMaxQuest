@@ -9,20 +9,21 @@ const HEARTH_LANDING_WINDOW_SEC = 60;
 
 export interface PlayerStateReader {
   read(): PlayerSnapshot | null;
-  markLogDirty(): void;
+  refreshLog(): boolean;
   markCompletedDirty(): void;
+  levelUp(level: number): void;
   markTurnedIn(questId: number): void;
   hearthCast(): void;
   enteredWorld(): void;
   hearthBound(): void;
 }
 
-interface QuestLogState {
+export interface QuestLogState {
   entries: CompletionInput["log"];
   ids: Set<number>;
 }
 
-function readCompleted(): Set<number> {
+export function readCompleted(): Set<number> {
   const completed = new Set<number>();
   const getAll = C_QuestLog.GetAllCompletedQuestIDs;
   if (getAll != null) {
@@ -38,7 +39,7 @@ function readCompleted(): Set<number> {
   return completed;
 }
 
-function readLog(): QuestLogState {
+export function readLog(): QuestLogState {
   const entries: CompletionInput["log"] = new Map();
   const ids = new Set<number>();
   const isComplete = C_QuestLog.IsComplete;
@@ -46,16 +47,30 @@ function readLog(): QuestLogState {
   for (let index = 1; index <= count; index++) {
     const info = C_QuestLog.GetInfo(index);
     if (info == null || info.isHeader) continue;
-    const objectives = C_QuestLog.GetQuestObjectives(info.questID) ?? [];
+    const objectives = C_QuestLog.GetQuestObjectives(info.questID);
     const objectivesDone = new Set<number>();
-    for (let i = 0; i < objectives.length; i++) if (objectives[i].finished) objectivesDone.add(i + 1);
-    // As Questie QuestLogCache: a quest without objective rows (delivery) counts as complete.
-    const allDone = objectivesDone.size === objectives.length;
-    const complete = allDone || (isComplete != null && isComplete(info.questID));
+    if (objectives != null) {
+      for (let i = 0; i < objectives.length; i++) if (objectives[i].finished) objectivesDone.add(i + 1);
+    }
+    // As Questie QuestLogCache: a quest without objective rows (delivery) counts as complete; nil rows are not loaded yet.
+    const allDone = objectives != null && objectivesDone.size === objectives.length;
+    const complete = allDone || (isComplete != null && isComplete(info.questID) === true);
     entries.set(info.questID, { complete, objectivesDone });
     ids.add(info.questID);
   }
   return { entries, ids };
+}
+
+function sameLog(a: QuestLogState, b: QuestLogState): boolean {
+  if (a.ids.size !== b.ids.size) return false;
+  for (const [id, entry] of b.entries) {
+    const old = a.entries.get(id);
+    if (old == null || old.complete !== entry.complete || old.objectivesDone.size !== entry.objectivesDone.size) {
+      return false;
+    }
+    for (const index of entry.objectivesDone) if (!old.objectivesDone.has(index)) return false;
+  }
+  return true;
 }
 
 // Same order as Questie QuestieCompat.GetQuestGreenRange: Forever's C_QuestLog.GetTrivialRange first.
@@ -85,6 +100,7 @@ export function createPlayerState(lib: LibQuestieDBApi, db: CharDb): PlayerState
   let completed: Set<number> | null = null;
   let log: QuestLogState | null = null;
   let hearthCastAt: number | null = null;
+  let eventLevel: number | null = null;
 
   const recordHearth = (): void => {
     const pos = playerPosition();
@@ -102,9 +118,12 @@ export function createPlayerState(lib: LibQuestieDBApi, db: CharDb): PlayerState
       if (raceMask == null || classMask == null) throw new Error(`unknown race ${raceId} or class ${classToken}`);
       if (completed == null) completed = readCompleted();
       if (log == null) log = readLog();
+      // UnitLevel can still return the old level during PLAYER_LEVEL_UP.
+      const level = eventLevel == null ? UnitLevel("player") : Math.max(eventLevel, UnitLevel("player"));
+      eventLevel = null;
       return {
         pos: playerPosition(),
-        state: { level: UnitLevel("player"), raceMask, classMask, completed, inLog: log.ids },
+        state: { level, raceMask, classMask, completed, inLog: log.ids },
         log: log.entries,
         greenRange: greenRange(),
         faction: side,
@@ -112,15 +131,20 @@ export function createPlayerState(lib: LibQuestieDBApi, db: CharDb): PlayerState
         maxLevel: GetMaxPlayerLevel(),
       };
     },
-    markLogDirty() {
-      log = null;
+    refreshLog() {
+      const next = readLog();
+      const changed = log == null || !sameLog(log, next);
+      log = next;
+      return changed;
     },
     markCompletedDirty() {
       completed = null;
     },
     markTurnedIn(questId) {
       if (completed != null) completed.add(questId);
-      log = null;
+    },
+    levelUp(level) {
+      eventLevel = level;
     },
     hearthCast() {
       hearthCastAt = GetTime();

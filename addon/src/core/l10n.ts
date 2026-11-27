@@ -14,6 +14,8 @@ export type L10nKey =
   | "goBoat"
   | "noTarget"
   | "skipConfirm"
+  | "lostXp"
+  | "lostXpUnknown"
   | "skipped"
   | "pinned"
   | "unpinned"
@@ -34,7 +36,9 @@ const EN: Record<L10nKey, string> = {
   goFlightMaster: "Go to the flight master",
   goBoat: "Take the boat",
   noTarget: "no target",
-  skipConfirm: "{n} follow-up quest(s) would be lost (about {xp} XP): type /mmq skip confirm",
+  skipConfirm: "{quest}: {n} follow-up quest(s) would be lost ({xp}): type /mmq skip confirm",
+  lostXp: "about {xp} XP",
+  lostXpUnknown: "XP unknown",
   skipped: "skipped",
   pinned: "pinned",
   unpinned: "unpinned",
@@ -56,7 +60,9 @@ const FR: Record<L10nKey, string> = {
   goFlightMaster: "Aller au maître de vol",
   goBoat: "Prendre le bateau",
   noTarget: "aucune cible",
-  skipConfirm: "{n} quête(s) de suite seraient perdues (environ {xp} XP) : tapez /mmq skip confirm",
+  skipConfirm: "{quest} : {n} quête(s) de suite seraient perdues ({xp}) : tapez /mmq skip confirm",
+  lostXp: "environ {xp} XP",
+  lostXpUnknown: "XP inconnue",
   skipped: "ignorée",
   pinned: "épinglée",
   unpinned: "désépinglée",

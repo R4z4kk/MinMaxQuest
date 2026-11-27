@@ -19,25 +19,25 @@ const NPC_SPAWNS: Record<number, AreaPoint[]> = {
 };
 const OBJECT_SPAWNS: Record<number, AreaPoint[]> = { 50: [{ areaId: 1, x: 50, y: 60 }] };
 
-function repo(): QuestRepository {
+function repo(calls: { items: number }): QuestRepository {
   return {
     get: () => null,
     allIds: () => [],
     npcSpawns: (id) => NPC_SPAWNS[id] ?? [],
     objectSpawns: (id) => OBJECT_SPAWNS[id] ?? [],
-    itemSources: (id) => (id === 7 ? { npcs: [11], objects: [50] } : { npcs: [], objects: [] }),
+    itemSources: (id) => (calls.items++, id === 7 ? { npcs: [11], objects: [50] } : { npcs: [], objects: [] }),
     uiMapIdForArea: () => null,
     lastError: () => null,
   };
 }
 
 function setup() {
-  const calls = { convert: 0 };
+  const calls = { convert: 0, items: 0 };
   const toWorld = (p: AreaPoint): WorldPos | null => {
     calls.convert++;
     return p.areaId === 99 ? null : { continent: 0, x: p.x, y: p.y };
   };
-  return { positionsFor: createPositions(repo(), toWorld), calls };
+  return { positionsFor: createPositions(repo(calls), toWorld), calls };
 }
 
 const xs = (points: WorldPos[]) => points.map((p) => p.x);
@@ -75,5 +75,13 @@ describe("positionsFor", () => {
     expect(xs(positionsFor(q, "objective", 2))).toEqual([50]);
     expect(xs(positionsFor(q, "objective", 3))).toEqual([30, 50]);
     expect(positionsFor(q, "objective", 4)).toEqual([]);
+  });
+
+  it("reads item sources once per item", () => {
+    const { positionsFor, calls } = setup();
+    const q = quest({ objectives: [{ kind: "item", id: 7, required: 1, index: 1 }] });
+    positionsFor(q, "objective", 1);
+    positionsFor(q, "objective", 1);
+    expect(calls.items).toBe(1);
   });
 });

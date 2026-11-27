@@ -20,6 +20,7 @@ export function mapToWorld(repo: QuestRepository): AreaToWorld {
 export function createPositions(repo: QuestRepository, toWorld: AreaToWorld): CompletionInput["positionsFor"] {
   const npcPoints: Record<number, WorldPos[]> = {};
   const objectPoints: Record<number, WorldPos[]> = {};
+  const itemSources: Record<number, { npcs: number[]; objects: number[] }> = {};
 
   const convert = (points: AreaPoint[]): WorldPos[] => {
     const out: WorldPos[] = [];
@@ -53,7 +54,11 @@ export function createPositions(repo: QuestRepository, toWorld: AreaToWorld): Co
     if (objective == null) return [];
     if (objective.kind === "npc") return collect([objective.id], []);
     if (objective.kind === "object") return collect([], [objective.id]);
-    const sources = repo.itemSources(objective.id);
+    let sources = itemSources[objective.id];
+    if (sources == null) {
+      sources = repo.itemSources(objective.id);
+      itemSources[objective.id] = sources;
+    }
     return collect(sources.npcs, sources.objects);
   };
 }

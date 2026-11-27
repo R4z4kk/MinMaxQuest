@@ -72,13 +72,11 @@ describe("routing", () => {
     expect(routing.quests().map((q) => q.id)).toEqual([1, 2, 3]);
   });
 
-  it("excludes skipped quests and applies the zone option", () => {
+  it("applies the zone option", () => {
     const { db, routing } = setup();
-    db.skippedQuests.push(2);
-    expect(routing.completion(snapshot(at(0))).map((t) => t.questId)).toEqual([1, 3]);
     db.completion.mode = "zone";
     db.completion.zoneAreaId = 12;
-    expect(routing.completion(snapshot(at(0))).map((t) => t.questId)).toEqual([1]);
+    expect(routing.completion(snapshot(at(0))).map((t) => t.questId)).toEqual([1, 2]);
   });
 
   it("returns nothing without a position", () => {

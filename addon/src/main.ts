@@ -1,12 +1,10 @@
-import { walkChain } from "./access/chains";
 import { createArrow, playerPosition, type ArrowApi, type ArrowTarget } from "./arrow/arrowFrame";
-import { formatDuration } from "./core/geometry";
 import { t } from "./core/l10n";
 import { guard, reportOnce } from "./core/report";
 import { loadCharDb, type CharDb } from "./core/storage";
 import { createQuestRepository, type QuestRepository, type RepoResult } from "./data/questRepository";
-import { setBuildOverride } from "./game/buildOverride";
-import { createEngine, describeTarget, type Engine } from "./game/engine";
+import { createCommands } from "./game/commands";
+import { createEngine, type Engine } from "./game/engine";
 import { createPlayerState, HEARTHSTONE_SPELL_ID, type PlayerStateReader } from "./game/playerState";
 import { createPositions, mapToWorld } from "./game/positions";
 import { createRouting } from "./game/routing";
@@ -14,28 +12,19 @@ import { createRouting } from "./game/routing";
 _G.MinMaxQuest = { version: "0.1.0" };
 
 const TICK_SEC = 0.5;
-const LISTED_TARGETS = 5;
-const NORTH_TEST_YARDS = 100;
-const EVENTS = [
-  "PLAYER_LOGIN",
+const FORCING_EVENTS = [
   "PLAYER_ENTERING_WORLD",
   "QUEST_ACCEPTED",
   "QUEST_TURNED_IN",
-  "QUEST_LOG_UPDATE",
   "ZONE_CHANGED_NEW_AREA",
   "PLAYER_LEVEL_UP",
-  "UNIT_SPELLCAST_SUCCEEDED",
-  "HEARTHSTONE_BOUND",
 ];
+const EVENTS = ["PLAYER_LOGIN", "QUEST_LOG_UPDATE", "HEARTHSTONE_BOUND", ...FORCING_EVENTS];
 
 interface Game {
   engine: Engine;
   player: PlayerStateReader;
   repo: QuestRepository;
-}
-
-function say(message: string): void {
-  print(`MinMaxQuest: ${message}`);
 }
 
 let db: CharDb | null = null;
@@ -68,6 +57,9 @@ function getArrow(): ArrowApi {
 
 let game: Game | null = null;
 let shownArrow: ArrowTarget | null = null;
+// Events only raise flags; the ticker runs at most one refresh per tick.
+let forcePending = true;
+let logDirty = true;
 
 function syncArrow(): void {
   if (game == null) return;
@@ -75,6 +67,23 @@ function syncArrow(): void {
   if (next === shownArrow) return;
   shownArrow = next;
   guard("arrow", () => getArrow().setTarget(next));
+}
+
+const commands = createCommands({
+  repository: () => getRepository(),
+  arrow: () => getArrow(),
+  game: () => start(),
+});
+
+function tick(current: Game): void {
+  if (logDirty) {
+    logDirty = false;
+    if (current.player.refreshLog()) forcePending = true;
+  }
+  const force = forcePending;
+  forcePending = false;
+  current.engine.refreshTargets(force);
+  syncArrow();
 }
 
 function start(): Game | null {
@@ -93,18 +102,17 @@ function start(): Game | null {
       firstHop: (target) => routing.firstHop(target),
       getQuest: (id) => repo.get(id),
       allQuests: () => routing.quests(),
-      onTargets: () => syncArrow(),
+      onTargets: (_list, current) => {
+        commands.targetChanged(current);
+        syncArrow();
+      },
     },
     charDb,
   );
-  game = { engine, player, repo };
-  C_Timer.NewTicker(TICK_SEC, () =>
-    guard("engine", () => {
-      engine.refreshTargets(false);
-      syncArrow();
-    }),
-  );
-  return game;
+  const started: Game = { engine, player, repo };
+  game = started;
+  C_Timer.NewTicker(TICK_SEC, () => guard("engine", () => tick(started)));
+  return started;
 }
 
 function onEvent(event: string, arg1: unknown, arg3: unknown): void {
@@ -114,152 +122,37 @@ function onEvent(event: string, arg1: unknown, arg3: unknown): void {
   }
   const current = game;
   if (current == null) return;
-  const { player, engine } = current;
+  const { player } = current;
   if (event === "UNIT_SPELLCAST_SUCCEEDED") {
-    if (arg1 === "player" && arg3 === HEARTHSTONE_SPELL_ID) player.hearthCast();
-    return;
-  }
-  if (event === "HEARTHSTONE_BOUND") {
+    if (arg3 === HEARTHSTONE_SPELL_ID) player.hearthCast();
+  } else if (event === "HEARTHSTONE_BOUND") {
     player.hearthBound();
-    return;
+  } else if (event === "QUEST_LOG_UPDATE") {
+    logDirty = true;
+  } else if (FORCING_EVENTS.includes(event)) {
+    forcePending = true;
+    if (event === "PLAYER_ENTERING_WORLD") {
+      player.enteredWorld();
+      player.markCompletedDirty();
+      logDirty = true;
+    } else if (event === "QUEST_TURNED_IN") {
+      if (typeof arg1 === "number") player.markTurnedIn(arg1);
+      else player.markCompletedDirty();
+      logDirty = true;
+    } else if (event === "QUEST_ACCEPTED") {
+      logDirty = true;
+    } else if (event === "PLAYER_LEVEL_UP" && typeof arg1 === "number") {
+      player.levelUp(arg1);
+    }
   }
-  if (event === "PLAYER_ENTERING_WORLD") {
-    player.enteredWorld();
-    player.markCompletedDirty();
-    player.markLogDirty();
-  } else if (event === "QUEST_TURNED_IN") {
-    if (typeof arg1 === "number") player.markTurnedIn(arg1);
-    else player.markCompletedDirty();
-  } else if (event === "QUEST_ACCEPTED" || event === "QUEST_LOG_UPDATE") {
-    player.markLogDirty();
-  }
-  engine.refreshTargets(true);
 }
 
 const events = CreateFrame("Frame", "MinMaxQuestEvents", UIParent);
 for (const event of EVENTS) events.RegisterEvent(event);
+events.RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player");
 events.SetScript("OnEvent", (_frame, event, arg1, _arg2, arg3) => {
   guard("engine", () => onEvent(event, arg1, arg3));
 });
 
-function handleArrowCommand(command: string): void {
-  if (command !== "move" && command !== "lock" && command !== "test") {
-    say(t("arrowUsage"));
-    return;
-  }
-  const api = getArrow();
-  if (command === "move" || command === "lock") {
-    api.setMoveMode(command === "move");
-  } else if (command === "test") {
-    const pos = playerPosition();
-    if (pos == null) {
-      say(t("positionUnavailable"));
-      return;
-    }
-    api.setTarget({ pos: { continent: pos.continent, x: pos.x + NORTH_TEST_YARDS, y: pos.y }, label: "Test" });
-  }
-}
-
-function questName(repo: QuestRepository, id: number): string {
-  return `[${id}] ${repo.get(id)?.name ?? "?"}`;
-}
-
-function questCommand(arg: string): void {
-  const repo = getRepository();
-  if (repo == null) return;
-  const id = Number(arg);
-  const quest = Number.isFinite(id) ? repo.get(id) : null;
-  if (quest == null) {
-    say(t("questNotFound"));
-    return;
-  }
-  say(`[${quest.id}] ${quest.name} level ${quest.level}, ${quest.objectives.length} objective(s)`);
-}
-
-function chainCommand(arg: string): void {
-  const repo = getRepository();
-  if (repo == null) return;
-  const id = Number(arg);
-  const steps = Number.isFinite(id) ? walkChain([id], (questId) => repo.get(questId)) : [];
-  if (steps.length === 0) {
-    say(t("questNotFound"));
-    return;
-  }
-  say(steps.map((step) => questName(repo, step)).join(" > "));
-}
-
-function targetsCommand(current: Game): void {
-  const list = current.engine.targets();
-  if (list.length === 0) {
-    say(t("noTarget"));
-    return;
-  }
-  for (const target of list.slice(0, LISTED_TARGETS)) {
-    const quest = current.repo.get(target.questId);
-    say(`[${target.questId}] ${describeTarget(target, quest)} · ${formatDuration(target.seconds)}`);
-  }
-}
-
-let pendingSkip: number | null = null;
-
-function skipCommand(current: Game, confirm: boolean): void {
-  const id = confirm && pendingSkip != null ? pendingSkip : current.engine.current()?.questId;
-  if (id == null) {
-    say(t("noTarget"));
-    return;
-  }
-  const result = current.engine.skip(id, confirm && pendingSkip === id);
-  if (result.needsConfirm) {
-    pendingSkip = id;
-    say(
-      t("skipConfirm")
-        .replace("{n}", String(result.followUps.length))
-        .replace("{xp}", String(Math.round(result.lost.xp))),
-    );
-    return;
-  }
-  pendingSkip = null;
-  say(`${t("skipped")}: ${questName(current.repo, id)}`);
-}
-
-function pinCommand(current: Game, arg: string | null): void {
-  if (arg == null) {
-    current.engine.pin(null);
-    say(t("unpinned"));
-    return;
-  }
-  const id = Number(arg);
-  if (!Number.isFinite(id) || current.repo.get(id) == null) {
-    say(t("questNotFound"));
-    return;
-  }
-  current.engine.pin(id);
-  say(`${t("pinned")}: ${questName(current.repo, id)}`);
-}
-
-function engineCommand(run: (current: Game) => void): void {
-  guard("engine", () => {
-    const current = start();
-    if (current != null) run(current);
-  });
-}
-
 _G.SLASH_MMQ1 = "/mmq";
-SlashCmdList["MMQ"] = (message: string) => {
-  const text = message.trim();
-  const space = text.indexOf(" ");
-  const command = space < 0 ? text : text.slice(0, space);
-  const arg = space < 0 ? "" : text.slice(space + 1).trim();
-  if (command === "arrow") guard("arrow", () => handleArrowCommand(arg));
-  else if (command === "q") guard("repository", () => questCommand(arg));
-  else if (command === "chain") guard("repository", () => chainCommand(arg));
-  else if (command === "targets") engineCommand(targetsCommand);
-  else if (command === "skip") engineCommand((current) => skipCommand(current, arg === "confirm"));
-  else if (command === "pin") engineCommand((current) => pinCommand(current, arg));
-  else if (command === "unpin") engineCommand((current) => pinCommand(current, null));
-  else if (command === "debug" && arg.startsWith("build ")) {
-    const build = arg.slice(6).trim();
-    setBuildOverride(build);
-    say(`${t("buildOverride")}: ${build}`);
-  } else say(t("help"));
-};
+SlashCmdList["MMQ"] = (message: string) => commands.handle(message);

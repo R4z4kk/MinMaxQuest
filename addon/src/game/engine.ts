@@ -36,7 +36,7 @@ export interface EngineDeps {
 export interface SkipResult {
   needsConfirm: boolean;
   followUps: QuestInfo[];
-  lost: { xp: number; levelFraction: number };
+  lost: { xp: number; levelFraction: number } | null;
 }
 
 type Listener = (list: Target[], current: Target | null) => void;
@@ -84,7 +84,8 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
   let snapshot: PlayerSnapshot | null = null;
   let lastRun: number | null = null;
   let arrow: ArrowTarget | null = null;
-  let loop: WorldPos[] = [];
+  let label = "";
+  let loop: WorldPos[] | null = null;
   let loopIndex = 0;
   let loopKey = "";
   const listeners: Listener[] = [];
@@ -95,36 +96,53 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
     return list.length > 0 ? list[0] : null;
   };
 
-  const nextArrow = (pos: WorldPos | null): ArrowTarget | null => {
+  const showArrow = (pos: WorldPos, text: string): void => {
+    const next = { pos, label: text };
+    if (!sameArrow(arrow, next)) arrow = next;
+  };
+
+  // Runs once per refresh; ticks only advance the loop index.
+  const retarget = (pos: WorldPos | null): void => {
     const target = currentTarget;
-    if (target == null) return null;
-    if (hop != null && (hop.kind === "taxi" || hop.kind === "boat")) {
-      return { pos: hop.pos, label: t(hop.kind === "taxi" ? "goFlightMaster" : "goBoat") };
+    if (target == null || (hop != null && (hop.kind === "taxi" || hop.kind === "boat"))) {
+      loop = null;
+      loopKey = "";
+      if (target == null) arrow = null;
+      else if (hop != null) showArrow(hop.pos, t(hop.kind === "taxi" ? "goFlightMaster" : "goBoat"));
+      return;
     }
-    const label = describeTarget(target, deps.getQuest(target.questId));
-    if (target.cluster == null) return { pos: target.pos, label };
+    label = describeTarget(target, deps.getQuest(target.questId));
+    if (target.cluster == null) {
+      loop = null;
+      loopKey = "";
+      showArrow(target.pos, label);
+      return;
+    }
     const center = target.cluster.center;
     const key = `${target.questId}:${target.objectiveIndex}:${center.continent}:${center.x}:${center.y}`;
-    if (key !== loopKey) {
+    if (loop == null || key !== loopKey) {
       loopKey = key;
       loop = killLoop(target.cluster, pos ?? target.pos);
       loopIndex = 0;
     } else if (pos != null) {
       loopIndex = nextLoopIndex(loop, loopIndex, pos, LOOP_ADVANCE_YARDS);
     }
-    return { pos: loop.length > 0 ? loop[loopIndex] : target.pos, label };
+    showArrow(loop.length > 0 ? loop[loopIndex] : target.pos, label);
   };
 
-  const updateArrow = (pos: WorldPos | null): void => {
-    const next = nextArrow(pos);
-    if (!sameArrow(arrow, next)) arrow = next;
+  const advanceLoop = (pos: WorldPos | null): void => {
+    if (loop == null || loop.length === 0 || pos == null) return;
+    const next = nextLoopIndex(loop, loopIndex, pos, LOOP_ADVANCE_YARDS);
+    if (next === loopIndex) return;
+    loopIndex = next;
+    arrow = { pos: loop[next], label };
   };
 
   const apply = (listChanged: boolean, pos: WorldPos | null): void => {
     const previous = currentTarget;
     currentTarget = pick();
     hop = currentTarget == null ? null : deps.firstHop(currentTarget);
-    updateArrow(pos);
+    retarget(pos);
     if (!listChanged && sameKey(previous, currentTarget)) return;
     deps.onTargets(list, currentTarget);
     for (const listener of listeners) listener(list, currentTarget);
@@ -133,7 +151,7 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
   const refreshTargets = (force: boolean): void => {
     const now = deps.now();
     if (!force && lastRun != null && now - lastRun < REFRESH_INTERVAL_SEC) {
-      updateArrow(deps.readPosition());
+      advanceLoop(deps.readPosition());
       return;
     }
     lastRun = now;
@@ -166,10 +184,7 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
       const quest = deps.getQuest(questId);
       const chain = quest == null ? [] : followUps(questId, (id) => deps.getQuest(id));
       const snap = snapshot ?? deps.readPlayer();
-      const lost =
-        snap == null || quest == null
-          ? { xp: 0, levelFraction: 0 }
-          : lostXp([quest, ...chain], snap.state.level, snap.maxLevel);
+      const lost = snap == null || quest == null ? null : lostXp([quest, ...chain], snap.state.level, snap.maxLevel);
       if (chain.length > 0 && !confirmed) return { needsConfirm: true, followUps: chain, lost };
       if (!db.skippedQuests.includes(questId)) db.skippedQuests.push(questId);
       if (db.pinnedQuestId === questId) db.pinnedQuestId = null;
