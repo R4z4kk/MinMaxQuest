@@ -46,7 +46,7 @@ export function createCommands(ctx: CommandContext): Commands {
     }
     const api = ctx.arrow();
     if (command !== "test") {
-      api.setMoveMode(command === "move");
+      api.setLocked(command === "lock");
       return;
     }
     const pos = playerPosition();

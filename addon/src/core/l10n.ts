@@ -61,6 +61,7 @@ export type L10nKey =
   | "includeDungeons"
   | "autoFly"
   | "nativeWaypoint"
+  | "lockArrow"
   | "otherSpots"
   | "taxiNotKnown"
   | "maxQuestLevel"
@@ -164,6 +165,7 @@ const EN: Record<L10nKey, string> = {
   includeDungeons: "Include dungeons",
   autoFly: "Auto-fly at flight masters",
   nativeWaypoint: "Blizzard map waypoint",
+  lockArrow: "Lock arrow",
   otherSpots: "+{n} other spots",
   taxiNotKnown: "flight destination not available from this flight master",
   maxQuestLevel: "Max quest level (below yours)",
@@ -268,6 +270,7 @@ const FR: Record<L10nKey, string> = {
   includeDungeons: "Inclure les donjons",
   autoFly: "Vol automatique aux maîtres de vol",
   nativeWaypoint: "Repère de la carte Blizzard",
+  lockArrow: "Verrouiller la flèche",
   otherSpots: "+{n} autres zones",
   taxiNotKnown: "destination de vol indisponible depuis ce maître de vol",
   maxQuestLevel: "Niveau max des quêtes (sous le tien)",

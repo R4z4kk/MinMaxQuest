@@ -3,6 +3,7 @@ import { currentLocale, t } from "../core/l10n";
 import { guard } from "../core/report";
 import type { CharDb } from "../core/storage";
 import type { QuestRepository } from "../data/questRepository";
+import type { ArrowApi } from "../arrow/arrowFrame";
 import type { Engine } from "../game/engine";
 import type { RouteFollower, RouteView } from "../route/follower";
 import { skipStepOrQuest } from "./completionTab";
@@ -13,6 +14,7 @@ import { CONTENT_TOP, type TabView } from "./window";
 export interface QuestDeps {
   db: CharDb;
   engine: Engine;
+  arrow(): ArrowApi;
   repo: QuestRepository;
   follower: RouteFollower;
   areaName(areaId: number): string | null;
@@ -33,7 +35,7 @@ const SECTION_Y = -154;
 const LINE = 16;
 const CHECK_HEIGHT = 14;
 const FOOTER_ROOM = 26;
-const GAP_ROW_Y = SECTION_Y - 4 * LINE - 20;
+const GAP_ROW_Y = SECTION_Y - 5 * LINE - 20;
 const OPTIONS_HEIGHT = CONTENT_TOP - GAP_ROW_Y + BUTTON_HEIGHT + FOOTER_ROOM;
 const SECONDS_PER_HOUR = 3600;
 
@@ -67,7 +69,7 @@ export function createQuestTab(deps: QuestDeps): TabView {
   let optionsToggle: Button | null = null;
   let dungeonsToggle: Button | null = null;
   let dungeonsHeight = HEIGHT;
-  const stored: (() => boolean)[] = [() => db.routeElites, () => db.routeDungeons, () => db.autoFly, () => db.nativeWaypoint];
+  const stored: (() => boolean)[] = [() => db.routeElites, () => db.routeDungeons, () => db.autoFly, () => db.nativeWaypoint, () => db.arrow?.locked ?? false];
 
   const toggleDungeon = (areaId: number): void => {
     const at = db.dungeonReturns.indexOf(areaId);
@@ -230,6 +232,10 @@ export function createQuestTab(deps: QuestDeps): TabView {
       option("MinMaxQuestNativeWaypoint", t("nativeWaypoint"), 3, () => {
         db.nativeWaypoint = !db.nativeWaypoint;
         deps.refreshPins();
+      });
+      option("MinMaxQuestLockArrow", t("lockArrow"), 4, () => {
+        const arrow = deps.arrow();
+        arrow.setLocked(!arrow.isLocked());
       });
       const gapLabel = text(parent, SIZE.small, COLOR.sub);
       gapLabel.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, GAP_ROW_Y + 16);

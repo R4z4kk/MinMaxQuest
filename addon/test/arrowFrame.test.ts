@@ -29,7 +29,7 @@ end
 CreateFrame = function(kind, name) return fake(name == "MinMaxQuestArrow" and "frame" or "driver") end
 UIParent = {}
 GetLocale = function() return "enUS" end
-MinMaxQuestCharDB = {}
+MinMaxQuestCharDB = { arrow = { x = 50, y = 60, locked = true } }
 UnitPosition = function() return 1000, 2000, 0, 1 end
 GetPlayerFacing = function() return 0 end
 `;
@@ -163,27 +163,55 @@ it("restores the saved position", async () => {
   }
 });
 
-it("is movable only in move mode and saves the position on lock", async () => {
-  const s = await session();
+it("starts unlocked on a fresh character: mouse on, movable, and a drag saves the position", async () => {
+  const s = await session(`MinMaxQuestCharDB = {}`);
   try {
-    await s.cmd("arrow move");
-    await s.cmd("arrow lock");
+    await s.cmd("arrow test");
     const calls = await s.calls();
-    expect(calls.indexOf("frame|SetMovable|true")).toBeLessThan(calls.indexOf("frame|SetMovable|false"));
-    expect(calls).toContain("frame|EnableMouse|false");
-    expect(await s.run("return { MinMaxQuestCharDB.arrow.x, MinMaxQuestCharDB.arrow.y, MinMaxQuestCharDB.arrow.locked }")).toEqual([
-      100, 700, true,
-    ]);
+    expect(calls).toContain("frame|EnableMouse|true");
+    expect(calls).toContain("frame|SetMovable|true");
+    expect(calls).toContain("frame|RegisterForDrag|LeftButton");
+    await s.run(`scripts["frame.OnDragStop"]()`);
+    expect(await s.run("local a = MinMaxQuestCharDB.arrow; return { a.x, a.y, a.locked }")).toEqual([100, 700, false]);
   } finally {
     s.close();
   }
 });
 
-it("does not save a position when lock is used outside move mode", async () => {
+it("does not capture the mouse when the saved arrow is locked", async () => {
   const s = await session();
   try {
+    await s.cmd("arrow test");
+    const calls = await s.calls();
+    expect(calls).toContain("frame|EnableMouse|false");
+    expect(calls).not.toContain("frame|EnableMouse|true");
+    expect(await s.run(`return scripts["frame.OnDragStop"] == nil`)).toBe(true);
+  } finally {
+    s.close();
+  }
+});
+
+it("move unlocks and lock saves the position with the locked flag", async () => {
+  const s = await session(`MinMaxQuestCharDB = {}`);
+  try {
     await s.cmd("arrow lock");
-    expect(await s.run("return MinMaxQuestCharDB.arrow == nil")).toBe(true);
+    expect(await s.run("local a = MinMaxQuestCharDB.arrow; return { a.x, a.y, a.locked }")).toEqual([100, 700, true]);
+    await s.cmd("arrow move");
+    expect(await s.run("return MinMaxQuestCharDB.arrow.locked")).toBe(false);
+    const calls = await s.calls();
+    expect(calls.lastIndexOf("frame|EnableMouse|true")).toBeGreaterThan(calls.lastIndexOf("frame|EnableMouse|false"));
+  } finally {
+    s.close();
+  }
+});
+
+it("shows the label in the same color as the distance", async () => {
+  const s = await session();
+  try {
+    await s.cmd("arrow test");
+    const colors = (await s.calls()).filter((c) => c.startsWith("font|SetTextColor|"));
+    expect(colors.filter((c) => c === "font|SetTextColor|0.902|0.902|0.902").length).toBe(2);
+    expect(colors.some((c) => c.includes("0.545"))).toBe(false);
   } finally {
     s.close();
   }

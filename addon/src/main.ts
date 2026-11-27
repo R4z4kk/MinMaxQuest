@@ -85,7 +85,7 @@ function clearArrow(): void {
   guard("arrow", () => getArrow().setTarget(null));
 }
 
-const ui = createUi({ db: () => getDb(), game: () => start() });
+const ui = createUi({ db: () => getDb(), game: () => start(), arrow: () => getArrow() });
 
 const commands = createCommands({
   repository: () => getRepository(),

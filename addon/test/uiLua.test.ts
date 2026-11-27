@@ -182,6 +182,26 @@ it("stores the Quest tab options and opens Completion from the empty state", asy
   }
 });
 
+it("locks the arrow from the Options checkbox and from the slash commands", async () => {
+  const s = await ui();
+  const locked = () => s.run("return MinMaxQuestCharDB.arrow and MinMaxQuestCharDB.arrow.locked");
+  try {
+    expect(await s.run("return MinMaxQuestCharDB.arrow == nil")).toBe(true);
+    await s.cmd("");
+    await s.click("MinMaxQuestLockArrow");
+    expect(await locked()).toBe(true);
+    await s.click("MinMaxQuestLockArrow");
+    expect(await locked()).toBe(false);
+    await s.cmd("arrow lock");
+    expect(await locked()).toBe(true);
+    await s.click("MinMaxQuestLockArrow");
+    expect(await locked()).toBe(false);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
 it("creates no frame, texture or font string when the engine redraws an open tab", async () => {
   const s = await ui();
   const created = async () => (await s.run("return created")) as number;
@@ -503,7 +523,7 @@ it("opens at 270x262 and fits every option above the footer while Options is ope
       expect(x + width).toBeLessThanOrEqual(270);
       expect(50 - y + boxHeight).toBeLessThanOrEqual(height - FOOTER_TOP);
     };
-    for (const name of ["MinMaxQuestRouteElites", "MinMaxQuestRouteDungeons", "MinMaxQuestAutoFly", "MinMaxQuestNativeWaypoint"]) {
+    for (const name of ["MinMaxQuestRouteElites", "MinMaxQuestRouteDungeons", "MinMaxQuestAutoFly", "MinMaxQuestNativeWaypoint", "MinMaxQuestLockArrow"]) {
       const point = lastCall(`${name}|SetPoint|`);
       const size = lastCall(`${name}|SetSize|`);
       inside(Number(point[5]), Number(point[6]), Number(size[2]), Number(size[3]));

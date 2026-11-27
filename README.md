@@ -34,7 +34,7 @@
 - **Kill objectives:** it loops through the mob spawn points of the area and moves on to the next point when you reach one. It doesn't send you to a single spot.
 - **Many spawn locations:** it targets the closest group and shows "+N other spots" for the rest.
 - **Objectives:** it follows them in quest log order, honouring QuestieDB ordering hints.
-- **Moving it:** `/mmq arrow move`, then `/mmq arrow lock`. The position is saved.
+- **Moving it:** drag it with the left mouse button while it is unlocked (the default on a new character). The position is saved. Tick **Lock arrow** in the Options (or `/mmq arrow lock`) to freeze it; a locked arrow lets clicks through. `/mmq arrow move` unlocks it.
 - **When it hides:** in instances, during flights, and when there is no target.
 - **Performance:** at most 30 updates per second. Route refreshes are batched: at most one every 2 seconds, skipped while standing still or flying, and immediate when an objective changes.
 
@@ -71,7 +71,7 @@
 - **Access chains:** tracked access chains are inserted into the route.
 - **Dungeons:** a named list with one checkbox per dungeon that has a return trip. Tick one to add its return trip to the route. All are unticked by default.
 - **Active mode:** the arrow follows whichever of the Quest or Completion tabs you opened last.
-- **Options** (variants, auto-fly, Blizzard map waypoint) and **Dungeons** are sections you open with a click, closed by default. The window grows while one is open.
+- **Options** (variants, auto-fly, Blizzard map waypoint, lock arrow) and **Dungeons** are sections you open with a click, closed by default. The window grows while one is open.
 - **Route finished** shows at level 60, with a button to open the Completion tab.
 - If the route files are missing or can't be read, a message says so and offers a button to open the Completion tab.
 
@@ -118,7 +118,7 @@
 | `/mmq pin <id>` / `/mmq unpin` | Force a quest / back to automatic (`/mmq pin` alone also unpins) |
 | `/mmq skip [confirm]` | Skip the current step |
 | `/mmq skipped` / `/mmq unskip <id>\|all` | List / re-activate skipped quests |
-| `/mmq arrow move` / `lock` / `test` | Move, lock or test the arrow |
+| `/mmq arrow move` / `lock` / `test` | Unlock, lock or test the arrow |
 | `/mmq debug build <n>` | Simulate a build mismatch (shows the banner) |
 | `/mmq debug prof` | Show refresh timings |
 
