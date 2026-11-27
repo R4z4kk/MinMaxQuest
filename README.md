@@ -31,7 +31,7 @@
 
 ### Guide arrow
 - **What it points to:** quest givers, quest items, objects and mob areas, with the distance and the step label as white text under the arrow.
-- **Kill objectives:** it routes you through the mob spawn points around the chosen area (up to 25 within 250 yards), nearest first, and moves on to the next waypoint when you reach one. The map pin follows the current waypoint. It doesn't send you to a single spot.
+- **Kill and collect objectives:** it walks a loop through the spawn points around the chosen area (up to 25 within 250 yards), nearest first, and moves on to the next waypoint within 25 yards. The loop repeats until the objective is done, in the Quest and Completion tabs. The map and minimap pins follow the current waypoint. It doesn't send you to a single spot.
 - **Many spawn locations:** it targets the closest group and shows "+N other spots" for the rest.
 - **Objectives:** it follows them in quest log order, honouring QuestieDB ordering hints.
 - **Moving it:** drag it with the left mouse button while it is unlocked (the default on a new character). The position is saved. Tick **Lock arrow** in the Options (or `/mmq arrow lock`) to freeze it; a locked arrow lets clicks through. `/mmq arrow move` unlocks it. An unlocked arrow with no target stays hidden until you untick **Lock arrow** or use `/mmq arrow move`.
@@ -56,9 +56,13 @@
 - **Grey** and **Elite** filters. Quests you can't take yet are never shown.
 
 ### Access tab
-- Tracks dungeon, raid and key chains step by step, with your progress.
-- **Track in route:** check a chain to bring its steps into your route.
-- Starts with the Dalaran Sewers key chain. More chains will follow.
+- Lists every unlockable for your faction: 70 entries in four collapsible groups (**Dungeons**, **Raids**, **Keys**, **Misc**), each header showing done / total.
+- Each entry shows its level range and progress. Click it to expand its steps: done steps are struck through and greyed, the current one is marked ».
+- **Steps:** quests (names from the game client), items, "Reach level N", Kill / Talk to / Use with the NPC or object name, reputation and profession steps.
+- **Progress:** quests turned in or in your log, items in your bags with their count, level and reputation earned. A step that can't be checked counts as done once a later step is.
+- **Track in route:** tick it to insert the entry's quests into your route at the cheapest spot, without duplicates.
+- The list scrolls with the mouse wheel. Names follow MinMaxQuest's language (English, French).
+- Data comes from the [Attune](https://warcraftratings.com) addon, cross-checked and completed with QuestieDB (see Credits).
 
 ### Quest tab
 - Precomputed routes from level 1 to 60, by faction and starting zone. The arrow follows your current route step.
@@ -71,7 +75,7 @@
 - **Off-route banner:** if your level is far from what the route expects, a banner says so and a **Re-sync** button puts you back on the right step.
 - **Steps your character can't do** (wrong race or class, exclusive quest already taken, missing prerequisite) are removed, with a single chat line saying how many.
 - **Skipped travel and grind steps** stay skipped: `/mmq unskip` only brings back quests.
-- **Access chains:** tracked access chains are inserted into the route.
+- **Access entries:** tracked Access tab entries have their quests inserted into the route.
 - **Dungeons:** a named list with one checkbox per dungeon that has a return trip. Tick one to add its return trip to the route. All are unticked by default.
 - **Active mode:** the arrow follows whichever of the Quest or Completion tabs you opened last.
 - **Options** (variants, auto-fly, Blizzard map waypoint, lock arrow) and **Dungeons** are sections you open with a click, closed by default. The window grows while one is open.
@@ -148,5 +152,6 @@ MinMaxQuest is free software under the **GPL-3.0** license.
 - Travel graph from [Shortest Path Forever](https://github.com/cjber/shortest-path-forever) (GPL-3.0), including flight timings from InFlight (MIT)
 - [HereBeDragons](https://github.com/Nevcairiel/HereBeDragons) (BSD) for map pins
 - Quest data from [QuestieDB](https://github.com/Questie/QuestieDB)
+- Access entries imported from [Attune](https://warcraftratings.com) by CixiDelmont (version 16001-46). Attune declares no license; its data is reused with credit
 
 Source code and issues: https://github.com/R4z4kk/MinMaxQuest

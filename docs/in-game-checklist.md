@@ -18,6 +18,7 @@ Prérequis : `npm test` (construit `build/MinMaxQuest.lua`), puis lancer WoW For
 - [ ] Bascule Proximité / Zone ; le sélecteur de zone liste les zones et filtre.
 - [ ] Filtres Grises / Élites ; aucune quête bloquée n'apparaît.
 - [ ] Les objectifs « tuer X » : la flèche parcourt les points du groupe de mobs et passe au suivant à ~25 m.
+- [ ] Objectif « tuer / collecter » : la flèche boucle sur les points (25 max, à 250 m) et recommence jusqu'à la fin de l'objectif ; le repère carte et minicarte suit le point courant. Idem en mode Quête.
 - [ ] Les donneurs de l'autre faction ne sont pas proposés.
 - [ ] Mode Journal : seules les quêtes du journal sont ciblées (objectifs et rendus, triés par temps de trajet) ; filtres Grises/Élites et zone ignorés ; en-tête sans chevauchement, en frFR comme en enUS.
 
@@ -45,6 +46,11 @@ Prérequis : `npm test` (construit `build/MinMaxQuest.lua`), puis lancer WoW For
 
 ## Accès
 - [ ] `/mmq chain 92432` affiche la chaîne des Égouts de Dalaran ; l'onglet Accès montre la progression et la case « Suivre dans la route ».
+- [ ] Onglet Accès : 4 groupes repliables (Donjons, Raids, Clés, Divers) avec « fait/total » ; seules les entrées de ta faction sont listées.
+- [ ] Cliquer une entrée déplie ses étapes : faites barrées et grisées, étape courante marquée » ; niveaux et progression corrects.
+- [ ] Noms affichés : quêtes, objets, PNJ et objets de monde (Tuer / Parler à / Utiliser) ; les noms d'objets apparaissent après un court chargement.
+- [ ] « Suivre dans la route » insère les quêtes de l'entrée dans la route, sans doublon.
+- [ ] La liste défile à la molette ; les noms suivent la langue choisie (enUS / frFR).
 
 ## Carte
 - [ ] Carte du monde : 2 marqueurs seulement (étape actuelle et suivante) ; minicarte : l'étape actuelle ; info-bulle « +N autres zones ».
