@@ -77,7 +77,7 @@ it("rejects non-finite coordinates when encoding, naming step and field", () => 
 
 it("rejects non-finite and non-integer values when decoding", () => {
   const good = encodeSteps([steps[3]]);
-  expect(() => decodeSteps(good.replace(";1.00;", ";Infinity;"))).toThrow(/line 1.*x/);
+  expect(() => decodeSteps(good.replace(";1.00;", ";Infinity;"))).toThrow("decodeSteps: line 1: x is not a valid number: 'Infinity'");
   expect(() => decodeSteps(good.replace(";1;", ";1.5;"))).toThrow(/line 1.*uiMapId/);
   expect(() => decodeSteps(good.replace(";6;", ";6.5;"))).toThrow(/line 1.*taxiNodeId/);
 });
@@ -89,6 +89,27 @@ it("fails in compiled Lua on a non-numeric field", async () => {
     lua.global.set("bad", encodeSteps([steps[3]]).replace(";1;", ";x;"));
     const message = await lua.doString("local ok, err = pcall(function() return loadFormat().decodeSteps(bad) end) return tostring(ok) .. '|' .. tostring(err)");
     expect(message).toMatch(/^false\|.*line 1.*uiMapId/);
+  } finally {
+    lua.global.close();
+  }
+});
+
+it("rejects infinite integer fields when encoding", () => {
+  expect(() => encodeSteps([{ ...steps[3], questId: Infinity }])).toThrow(/step 1 questId/);
+  expect(() => encodeSteps([{ ...steps[3], targetLevel: -Infinity }])).toThrow(/step 1 targetLevel/);
+});
+
+it("rejects Infinity and NaN in an x field in compiled Lua", async () => {
+  const lua = await new LuaFactory().createEngine();
+  try {
+    await lua.doString(`function loadFormat() ${luaCode}
+end`);
+    for (const word of ["Infinity", "NaN"]) {
+      lua.global.set("bad", encodeSteps([steps[3]]).replace(";1.00;", `;${word};`));
+      const message = await lua.doString("local ok, err = pcall(function() return loadFormat().decodeSteps(bad) end) return tostring(ok) .. '|' .. tostring(err)");
+      expect(message).toContain(`decodeSteps: line 1: x is not a valid number: '${word}'`);
+      expect(message).toMatch(/^false|/);
+    }
   } finally {
     lua.global.close();
   }

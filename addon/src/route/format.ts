@@ -44,7 +44,7 @@ const FIELD_COUNT = 15;
 
 function int(value: number | null, name: string): string {
   if (value == null) return "";
-  if (value !== value || Math.floor(value) !== value) throw new Error("encodeSteps: " + name + " must be an integer, got " + value);
+  if (value !== value || value === Infinity || value === -Infinity || Math.floor(value) !== value) throw new Error("encodeSteps: " + name + " must be an integer, got " + value);
   return String(value);
 }
 
