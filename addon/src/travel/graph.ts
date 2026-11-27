@@ -50,7 +50,6 @@ export const ORIGIN_ID = -1;
 export const HEARTH_ID = -2;
 
 const DOCK_ID_BASE = 1000000;
-const NEAREST_COUNT = 3;
 const WALK = 0;
 const TAXI = 1;
 const BOAT = 2;
@@ -265,22 +264,37 @@ export function solveFrom(graph: TravelGraph, origin: WorldPos, ctx: TravelConte
 // Walking links every node of a continent, so reachability is per continent and the nearest
 // slots can be chosen once per target, whatever the origin; unreachable ones cost Infinity.
 function nearestSlots(graph: TravelGraph, target: WorldPos): number[] {
-  const slots: number[] = [];
-  const squares: number[] = [];
+  let slotA = -1;
+  let slotB = -1;
+  let slotC = -1;
+  let distA = Infinity;
+  let distB = Infinity;
+  let distC = Infinity;
   for (let slot = 0; slot < graph.slotCount - 1; slot++) {
     const pos = graph.positions[slot];
     if (pos.continent !== target.continent) continue;
     const squared = (pos.x - target.x) ** 2 + (pos.y - target.y) ** 2;
-    let at = slots.length;
-    while (at > 0 && squared < squares[at - 1]) at -= 1;
-    if (at >= NEAREST_COUNT) continue;
-    slots.splice(at, 0, slot);
-    squares.splice(at, 0, squared);
-    if (slots.length > NEAREST_COUNT) {
-      slots.pop();
-      squares.pop();
+    if (squared < distA) {
+      slotC = slotB;
+      distC = distB;
+      slotB = slotA;
+      distB = distA;
+      slotA = slot;
+      distA = squared;
+    } else if (squared < distB) {
+      slotC = slotB;
+      distC = distB;
+      slotB = slot;
+      distB = squared;
+    } else if (squared < distC) {
+      slotC = slot;
+      distC = squared;
     }
   }
+  const slots: number[] = [];
+  if (slotA >= 0) slots.push(slotA);
+  if (slotB >= 0) slots.push(slotB);
+  if (slotC >= 0) slots.push(slotC);
   return slots;
 }
 
