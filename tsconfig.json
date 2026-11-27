@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ESNext",
+    "lib": ["ESNext"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "types": ["lua-types/5.1"],
+    "skipLibCheck": true
+  },
+  "include": ["addon/src", "addon/types"],
+  "tstl": {
+    "luaTarget": "5.1",
+    "luaBundle": "build/MinMaxQuest.lua",
+    "luaBundleEntry": "addon/src/main.ts",
+    "noImplicitSelf": true
+  }
+}

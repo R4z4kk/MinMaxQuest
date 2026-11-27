@@ -1,0 +1,9 @@
+## Interface: 16001
+## Title: MinMaxQuest
+## Notes: Quest guide for WoW Forever
+## Version: 0.1.0
+## Dependencies: QuestieDB
+## SavedVariables: MinMaxQuestDB
+## SavedVariablesPerCharacter: MinMaxQuestCharDB
+
+build\MinMaxQuest.lua
