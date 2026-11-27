@@ -32,6 +32,7 @@ describe("loadCharDb", () => {
       minLevelGap: 3,
       pinnedQuestId: 99,
       expandedChain: "chain",
+      hearthPos: { continent: 1, x: 5, y: 6 },
       completion: { mode: "zone", zoneAreaId: 12, showTrivial: false, showElite: true },
     };
     const db = loadCharDb(saved);
@@ -40,16 +41,18 @@ describe("loadCharDb", () => {
     expect(db.minLevelGap).toBe(3);
     expect(db.pinnedQuestId).toBe(99);
     expect(db.expandedChain).toBe("chain");
+    expect(db.hearthPos).toEqual({ continent: 1, x: 5, y: 6 });
     expect(db.completion.zoneAreaId).toBe(12);
     expect(db.completion.mode).toBe("zone");
   });
   it("resets wrong shapes in nullable fields to null", () => {
-    const db = loadCharDb({ window: "bad", arrow: 5, minLevelGap: "x", pinnedQuestId: {}, expandedChain: 3 });
+    const db = loadCharDb({ window: "bad", arrow: 5, minLevelGap: "x", pinnedQuestId: {}, expandedChain: 3, hearthPos: 4 });
     expect(db.window).toBeNull();
     expect(db.arrow).toBeNull();
     expect(db.minLevelGap).toBeNull();
     expect(db.pinnedQuestId).toBeNull();
     expect(db.expandedChain).toBeNull();
+    expect(db.hearthPos).toBeNull();
   });
   it("keeps explicit null", () => expect(loadCharDb({ window: null }).window).toBeNull());
   it("has empty taxiNames by default", () => expect(loadCharDb(null).taxiNames).toEqual({}));

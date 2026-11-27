@@ -19,16 +19,10 @@ export const ACCESS_CHAINS: AccessChainDef[] = [
   },
 ];
 
-export function resolveSteps(
-  def: AccessChainDef,
-  faction: "A" | "H",
-  get: (id: number) => QuestInfo | null,
-): number[] {
-  if (def.explicitSteps != null) return def.explicitSteps[faction];
-
+export function walkChain(startIds: number[], get: (id: number) => QuestInfo | null): number[] {
   const steps: number[] = [];
   const seen = new Set<number>();
-  for (const startId of def.start[faction]) {
+  for (const startId of startIds) {
     let current: number | null = startId;
     while (current != null && !seen.has(current)) {
       const quest = get(current);
@@ -39,4 +33,13 @@ export function resolveSteps(
     }
   }
   return steps;
+}
+
+export function resolveSteps(
+  def: AccessChainDef,
+  faction: "A" | "H",
+  get: (id: number) => QuestInfo | null,
+): number[] {
+  if (def.explicitSteps != null) return def.explicitSteps[faction];
+  return walkChain(def.start[faction], get);
 }

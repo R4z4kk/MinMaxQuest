@@ -19,12 +19,12 @@ it("loadCharDb keeps nullable saved fields when run as Lua", async () => {
       local db = m.loadCharDb({
         window = { x = 1, y = 2 }, pinnedQuestId = 5, minLevelGap = 3,
         completion = { zoneAreaId = 12 }, expandedChain = "c",
-        arrow = { x = 1, y = 2, locked = true },
+        arrow = { x = 1, y = 2, locked = true }, hearthPos = { continent = 1, x = 7, y = 8 },
       })
       return table.concat({ db.window.x, db.window.y, db.pinnedQuestId, db.minLevelGap,
-        db.completion.zoneAreaId, db.expandedChain, tostring(db.arrow.locked) }, ",")
+        db.completion.zoneAreaId, db.expandedChain, tostring(db.arrow.locked), db.hearthPos.continent, db.hearthPos.x, db.hearthPos.y }, ",")
     `);
-    expect(out).toBe("1,2,5,3,12,c,true");
+    expect(out).toBe("1,2,5,3,12,c,true,1,7,8");
   } finally {
     lua.global.close();
   }

@@ -6,6 +6,7 @@ type QuestieDBPair = [number, number];
 
 interface LibQuestieDBApi {
   RequireContract(this: void, required: number): LuaMultiReturn<[boolean, string?]>;
+  Enum: { raceMaskById: QuestieDBIdMap<number>; classKeys: { [token: string]: number } };
   Quest: {
     Get(this: void, id: number, field: string): unknown;
     GetAllIds(this: void): number[];

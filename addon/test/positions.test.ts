@@ -1,0 +1,79 @@
+import { describe, expect, it } from "vitest";
+import type { WorldPos } from "../src/core/geometry";
+import type { AreaPoint, QuestInfo, QuestRepository } from "../src/data/questRepository";
+import { createPositions } from "../src/game/positions";
+
+function quest(over: Partial<QuestInfo>): QuestInfo {
+  return {
+    id: 1, name: "Q", level: 10, requiredLevel: 1, requiredMaxLevel: null, races: 0, classes: 0,
+    preGroup: [], preSingle: [], exclusiveTo: [], nextInChain: null, children: [],
+    starterNpcs: [], starterObjects: [], finisherNpcs: [], finisherObjects: [],
+    objectives: [], baseXp: 0, hasUnsupportedRequirement: false, isElite: false, zoneAreaId: null,
+    ...over,
+  };
+}
+
+const NPC_SPAWNS: Record<number, AreaPoint[]> = {
+  10: [{ areaId: 1, x: 10, y: 20 }, { areaId: 99, x: 1, y: 1 }],
+  11: [{ areaId: 1, x: 30, y: 40 }],
+};
+const OBJECT_SPAWNS: Record<number, AreaPoint[]> = { 50: [{ areaId: 1, x: 50, y: 60 }] };
+
+function repo(): QuestRepository {
+  return {
+    get: () => null,
+    allIds: () => [],
+    npcSpawns: (id) => NPC_SPAWNS[id] ?? [],
+    objectSpawns: (id) => OBJECT_SPAWNS[id] ?? [],
+    itemSources: (id) => (id === 7 ? { npcs: [11], objects: [50] } : { npcs: [], objects: [] }),
+    uiMapIdForArea: () => null,
+    lastError: () => null,
+  };
+}
+
+function setup() {
+  const calls = { convert: 0 };
+  const toWorld = (p: AreaPoint): WorldPos | null => {
+    calls.convert++;
+    return p.areaId === 99 ? null : { continent: 0, x: p.x, y: p.y };
+  };
+  return { positionsFor: createPositions(repo(), toWorld), calls };
+}
+
+const xs = (points: WorldPos[]) => points.map((p) => p.x);
+
+describe("positionsFor", () => {
+  it("merges starter NPC and object spawns and drops unconvertible points", () => {
+    const { positionsFor } = setup();
+    expect(xs(positionsFor(quest({ starterNpcs: [10], starterObjects: [50] }), "accept", null))).toEqual([10, 50]);
+  });
+
+  it("uses finishers for turn-in", () => {
+    const { positionsFor } = setup();
+    expect(xs(positionsFor(quest({ finisherNpcs: [11] }), "turnin", null))).toEqual([30]);
+  });
+
+  it("converts each NPC's spawns once", () => {
+    const { positionsFor, calls } = setup();
+    const q = quest({ starterNpcs: [10] });
+    positionsFor(q, "accept", null);
+    const again = positionsFor(q, "accept", null);
+    expect(calls.convert).toBe(2);
+    expect(positionsFor(q, "accept", null)[0]).toBe(again[0]);
+  });
+
+  it("resolves npc, object and item objectives", () => {
+    const { positionsFor } = setup();
+    const q = quest({
+      objectives: [
+        { kind: "npc", id: 11, required: 1, index: 1 },
+        { kind: "object", id: 50, required: 1, index: 2 },
+        { kind: "item", id: 7, required: 1, index: 3 },
+      ],
+    });
+    expect(xs(positionsFor(q, "objective", 1))).toEqual([30]);
+    expect(xs(positionsFor(q, "objective", 2))).toEqual([50]);
+    expect(xs(positionsFor(q, "objective", 3))).toEqual([30, 50]);
+    expect(positionsFor(q, "objective", 4)).toEqual([]);
+  });
+});

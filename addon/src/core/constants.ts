@@ -8,6 +8,7 @@ export interface DatedValue {
 const VERIFIED_ON = "2026-11-27";
 const EXPIRES_ON = "2026-12-27";
 const MOVEMENT_SPEED_SOURCE = "https://warcraft.wiki.gg/wiki/Movement_speed";
+const RIDING_SOURCE = "https://warcraft.wiki.gg/wiki/Riding (Classic riding at 40); epic mount at 60 per Task 12a ruling";
 const SPELL_BUILD = "build 1.60.1.71139";
 
 function dated(value: number, source: string): DatedValue {
@@ -18,6 +19,8 @@ export const CONSTANTS = {
   runSpeed: dated(7, MOVEMENT_SPEED_SOURCE),
   mountSpeed: dated(11.2, MOVEMENT_SPEED_SOURCE),
   epicMountSpeed: dated(14, MOVEMENT_SPEED_SOURCE),
+  mountLevel: dated(40, RIDING_SOURCE),
+  epicMountLevel: dated(60, RIDING_SOURCE),
   taxiSpeed: dated(
     30.03,
     "RXP direct flight times vs Forever TaxiPathNode lengths, research_notes/Optimisation des routes de leveling/missing_data_sources.md",

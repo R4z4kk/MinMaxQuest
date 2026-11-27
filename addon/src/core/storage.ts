@@ -22,6 +22,7 @@ export interface CharDb {
   knownTaxiNodes: number[];
   taxiNames: { [nodeId: number]: string };
   expandedChain: string | null;
+  hearthPos: { continent: number; x: number; y: number } | null;
 }
 
 export const ACCOUNT_DEFAULTS: AccountDb = { version: 1 };
@@ -41,6 +42,7 @@ export const CHAR_DEFAULTS: CharDb = {
   knownTaxiNodes: [],
   taxiNames: {},
   expandedChain: null,
+  hearthPos: null,
 };
 
 // Sample values describing the shape of fields whose default is null.
@@ -51,6 +53,7 @@ const CHAR_SHAPES = {
   minLevelGap: 0,
   pinnedQuestId: 0,
   expandedChain: "",
+  hearthPos: { continent: 0, x: 0, y: 0 },
 };
 
 type Dict = Record<string, unknown>;
