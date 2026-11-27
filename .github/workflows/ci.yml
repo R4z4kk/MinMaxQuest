@@ -24,3 +24,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      # Dry-run packaging (-d: no upload) so release problems show up before a tag.
+      - run: git add -f build/MinMaxQuest.lua
+      - uses: BigWigsMods/packager@v2
+        with:
+          args: -d
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MinMaxQuest-package
+          path: .release/*.zip

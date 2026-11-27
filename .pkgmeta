@@ -1,0 +1,15 @@
+package-as: MinMaxQuest
+
+ignore:
+  - .github
+  - addon
+  - docs
+  - reports
+  - research_notes
+  - tools
+  - vendor
+  - CLAUDE.md
+  - package.json
+  - package-lock.json
+  - tsconfig.json
+  - vitest.config.ts
