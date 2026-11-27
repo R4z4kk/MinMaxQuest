@@ -516,7 +516,7 @@ export async function loadSnapshot(dir: string): Promise<QuestieSnapshot> {
   let json: unknown;
   try {
     const files: unknown = await engine.doString(SELECT_FILES);
-    if (!Array.isArray(files) || files.some((path) => typeof path !== "string")) fail(label, "TOC selection is not a list of paths");
+    if (!Array.isArray(files) || (files as unknown[]).some((path) => typeof path !== "string")) fail(label, "TOC selection is not a list of paths");
     for (const path of files as string[]) await factory.mountFile(path, readDirFile(dir, path));
     await engine.doString(LOAD);
     json = await engine.doString(EXTRACT);

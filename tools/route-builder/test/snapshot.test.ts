@@ -25,7 +25,14 @@ describe("snapshotLib", () => {
     expect(result.repo.uiMapIdForArea(12)).toBe(1429);
   });
 
-  it("rejects a snapshot from another contract", () => {
+  it("serves QuestXP and ZoneDB and throws naming any other support module", () => {
+    const lib = snapshotLib(snapshot({ questXp: { 7: [5, 450] }, areaIdToUiMapId: { 12: 1429 } }));
+    expect(lib.Support.Get("QuestXP").db).toEqual({ 7: [5, 450] });
+    expect(lib.Support.Get("ZoneDB").private.areaIdToUiMapId).toEqual({ 12: 1429 });
+    expect(() => lib.Support.Get("Other" as "ZoneDB")).toThrow('snapshot: unknown support module "Other"');
+  });
+
+    it("rejects a snapshot from another contract", () => {
     const result = createQuestRepository(snapshotLib(snapshot({ contract: 3, tag: "old" })));
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.message).toContain("contract");

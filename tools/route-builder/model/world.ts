@@ -8,13 +8,13 @@ import {
   type QuestObjectiveRef,
   type QuestRepository,
 } from "../../../addon/src/data/questRepository";
-import { TRAVEL, type TravelData } from "../../../addon/src/data/generated/travel";
+import type { TravelData } from "../../../addon/src/data/generated/travel";
 import { isFriendlyTo } from "../../../addon/src/game/positions";
 import { isAvailable, maskAllows } from "../../../addon/src/quests/availability";
 import { CLUSTER_RADIUS_YARDS, clusterSpawns, killLoop } from "../../../addon/src/targets/spawns";
-import { loadPinnedCmangosCounts, type CmangosCounts } from "../ingest/cmangos";
+import type { CmangosCounts } from "../ingest/cmangos";
 import { textCount } from "../ingest/counts";
-import { INSTANCE_PARTY, INSTANCE_PVP, INSTANCE_RAID, loadInstanceTypes } from "../ingest/instances";
+import { INSTANCE_PARTY, INSTANCE_PVP, INSTANCE_RAID } from "../ingest/instances";
 import { dropRate, hasFlag, npcInfo, snapshotLib, type QuestieSnapshot } from "../ingest/snapshot";
 import { zonePercentToWorld, type UiMapRect } from "../ingest/zones";
 import { BUILDER } from "./constants";
@@ -141,9 +141,9 @@ export function buildWorld(
   s: QuestieSnapshot,
   zones: Map<number, UiMapRect>,
   faction: "A" | "H",
-  travel: TravelData = TRAVEL,
-  instanceTypes: Map<number, number> = loadInstanceTypes(),
-  counts: CmangosCounts = loadPinnedCmangosCounts(),
+  travel: TravelData,
+  instanceTypes: Map<number, number>,
+  counts: CmangosCounts,
 ): World {
   const result = createQuestRepository(snapshotLib(s));
   if (!result.ok) throw new Error(`world: ${result.message}`);

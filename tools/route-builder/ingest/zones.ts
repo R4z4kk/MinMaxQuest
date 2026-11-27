@@ -57,7 +57,7 @@ export async function parseZones(lua: string): Promise<Map<number, UiMapRect>> {
   if (!Array.isArray(rows)) throw new Error(`${FILE_LABEL}: ns.Zones is not a table`);
 
   const zones = new Map<number, UiMapRect>();
-  for (const row of rows) {
+  for (const row of rows as unknown[]) {
     if (typeof row !== "object" || row === null) throw new Error(`${FILE_LABEL}: malformed zone row`);
     const { id, map, minX, minY, maxX, maxY, low, high } = row as Record<string, unknown>;
     const uiMapId = requiredNumber(id, "id", id);

@@ -12,6 +12,7 @@ export interface CmangosCounts {
 
 const TABLE = "quest_template";
 const SLOTS = [1, 2, 3, 4];
+const REQUIRED_COLUMNS = ["entry", ...["ReqCreatureOrGOId", "ReqCreatureOrGOCount", "ReqItemId", "ReqItemCount"].flatMap((c) => SLOTS.map((slot) => `${c}${slot}`))];
 const ESCAPES: Record<string, string> = { "0": "\0", b: "\b", n: "\n", r: "\r", t: "\t", Z: "\x1a" };
 
 type SqlValue = string | number | null;
@@ -111,6 +112,7 @@ export function parseCmangosCounts(sql: string, file: string): CmangosCounts {
   const lines = sql.split(/\r?\n/);
   let columns: string[] | null = null;
   let seen = false;
+  let parsedRows = 0;
   const counts = new Map<string, number>();
   const insertPrefix = new RegExp(`^INSERT INTO \`${TABLE}\`\\s*(?:\\(([^)]*)\\))?\\s*VALUES\\s*`);
   for (let n = 0; n < lines.length; n++) {
@@ -133,13 +135,16 @@ export function parseCmangosCounts(sql: string, file: string): CmangosCounts {
     const names = insert[1] != null ? columnList(insert[1], where) : columns;
     if (names == null) throw new Error(`${where}: INSERT into ${TABLE} before its CREATE TABLE`);
     const index = new Map(names.map((name, i) => [name, i]));
+    const missing = REQUIRED_COLUMNS.filter((column) => !index.has(column));
+    if (missing.length > 0) throw new Error(`${where}: ${TABLE} has no column ${missing.join(", ")}`);
     const entryAt = index.get("entry");
     if (entryAt == null) throw new Error(`${where}: no entry column`);
     for (const row of tuples(line, insert[0].length, where)) {
       if (row.length !== names.length) throw new Error(`${where}: row has ${row.length} values for ${names.length} columns`);
+      parsedRows++;
       const int = (column: string): number => {
         const at = index.get(column);
-        if (at == null) return 0;
+        if (at == null) throw new Error(`${where}: ${TABLE} has no column ${column}`);
         const value = row[at];
         if (typeof value !== "number" || !Number.isInteger(value)) throw new Error(`${where}: quest ${String(row[entryAt])} ${column} is not an integer`);
         return value;
@@ -162,6 +167,7 @@ export function parseCmangosCounts(sql: string, file: string): CmangosCounts {
     }
   }
   if (!seen) throw new Error(`${file}: no quest_template table`);
+  if (parsedRows === 0) throw new Error(`${file}: no quest_template row parsed`);
   return { get: (questId, kind, id) => counts.get(key(questId, kind, id)) ?? null };
 }
 

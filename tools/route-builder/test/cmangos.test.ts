@@ -29,6 +29,8 @@ const CREATE = [
   ") ENGINE=MyISAM DEFAULT CHARSET=utf8mb3 COMMENT='Quest System';",
 ];
 
+const REQ_COLUMNS = ["entry", ...["ReqItemId", "ReqItemCount", "ReqCreatureOrGOId", "ReqCreatureOrGOCount"].flatMap((c) => [1, 2, 3, 4].map((n) => `${c}${n}`))];
+
 function dump(lines: string[]): string {
   const dir = mkdtempSync(join(tmpdir(), "cmangos-"));
   const file = join(dir, "dump.sql");
@@ -42,7 +44,7 @@ describe("loadCmangosCounts", () => {
       "INSERT INTO `other_table` VALUES (1,2,3);",
       ...CREATE,
       "INSERT INTO `quest_template` VALUES (7,'Kobold, Camp \\'Cleanup\\'',0,0,0,0,0,0,0,0,6,0,0,0,10,0,0,0,1.5),(33,'Wolves',750,0,0,0,8,0,0,0,-1234,0,0,0,3,0,0,0,0);",
-      "INSERT INTO `quest_template` (`entry`,`ReqItemId1`,`ReqItemCount1`) VALUES (40,99,2);",
+      `INSERT INTO \`quest_template\` (${REQ_COLUMNS.map((c) => `\`${c}\``).join(",")}) VALUES (40,${REQ_COLUMNS.slice(1).map((c) => (c === "ReqItemId1" ? 99 : c === "ReqItemCount1" ? 2 : 0)).join(",")});`,
     ]);
     const counts = loadCmangosCounts(file);
     expect(counts.get(7, "npcOrObject", 6)).toBe(10);
@@ -62,6 +64,23 @@ describe("loadCmangosCounts", () => {
   it("throws on a row whose width does not match the columns", () => {
     const file = dump([...CREATE, "INSERT INTO `quest_template` VALUES (7,'x',1);"]);
     expect(() => loadCmangosCounts(file)).toThrow(`${file}:${CREATE.length + 1}:`);
+  });
+
+  it("throws naming the file and column when a Req column is missing from CREATE TABLE or INSERT", () => {
+    const noCount = CREATE.filter((line) => !line.includes("`ReqItemCount3`"));
+    const fromCreate = dump([...noCount, "INSERT INTO `quest_template` VALUES (7,'x',0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);"]);
+    expect(() => loadCmangosCounts(fromCreate)).toThrow(fromCreate);
+    expect(() => loadCmangosCounts(fromCreate)).toThrow(/ReqItemCount3/);
+    const fromInsert = dump([...CREATE, "INSERT INTO `quest_template` (`entry`,`ReqItemId1`) VALUES (40,99);"]);
+    expect(() => loadCmangosCounts(fromInsert)).toThrow(/ReqItemCount1/);
+    expect(() => loadCmangosCounts(fromInsert)).toThrow(fromInsert);
+    const noEntry = dump(["INSERT INTO `quest_template` (`ReqItemId1`) VALUES (99);"]);
+    expect(() => loadCmangosCounts(noEntry)).toThrow(/entry/);
+  });
+
+  it("throws when no quest_template row is parsed", () => {
+    const file = dump(CREATE);
+    expect(() => loadCmangosCounts(file)).toThrow(`${file}: no quest_template row parsed`);
   });
 
   it("throws when the quest_template table is missing", () => {

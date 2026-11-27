@@ -56,8 +56,11 @@ export function snapshotLib(s: QuestieSnapshot): LibQuestieDBApi {
     Object: { Get: (id, field) => s.objects[id]?.[field] ?? null },
     ObjectiveFirst: hints(s),
     Support: {
-      Get: ((name: string) =>
-        name === "QuestXP" ? { db: s.questXp } : { private: { areaIdToUiMapId: s.areaIdToUiMapId } }) as LibQuestieDBApi["Support"]["Get"],
+      Get: ((name: string) => {
+        if (name === "QuestXP") return { db: s.questXp };
+        if (name === "ZoneDB") return { private: { areaIdToUiMapId: s.areaIdToUiMapId } };
+        throw new Error(`snapshot: unknown support module "${name}"`);
+      }) as LibQuestieDBApi["Support"]["Get"],
     },
   };
 }
