@@ -146,14 +146,19 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
     arrow = { pos: loop[next], label };
   };
 
-  const apply = (listChanged: boolean, pos: WorldPos | null): void => {
+  const notifyListeners = (): void => {
+    for (const listener of listeners) listener(list, currentTarget);
+  };
+
+  const apply = (listChanged: boolean, pos: WorldPos | null): boolean => {
     const previous = currentTarget;
     currentTarget = pick();
     hop = currentTarget == null ? null : deps.firstHop(currentTarget);
     retarget(pos);
-    if (!listChanged && sameKey(previous, currentTarget)) return;
+    if (!listChanged && sameKey(previous, currentTarget)) return false;
     deps.onTargets(list, currentTarget);
-    for (const listener of listeners) listener(list, currentTarget);
+    notifyListeners();
+    return true;
   };
 
   const refreshTargets = (force: boolean): void => {
@@ -183,7 +188,7 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
     refreshTargets: (force) => refreshTargets(force),
     pin(questId) {
       db.pinnedQuestId = questId;
-      apply(false, deps.readPosition());
+      if (!apply(false, deps.readPosition())) notifyListeners();
     },
     current: () => currentTarget,
     targets: () => list,
@@ -195,8 +200,10 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
       const lost = snap == null || quest == null ? null : lostXp([quest, ...chain], snap.state.level, snap.maxLevel);
       if (chain.length > 0 && !confirmed) return { needsConfirm: true, followUps: chain, lost };
       if (!db.skippedQuests.includes(questId)) db.skippedQuests.push(questId);
-      if (db.pinnedQuestId === questId) db.pinnedQuestId = null;
+      const wasPinned = db.pinnedQuestId === questId;
+      if (wasPinned) db.pinnedQuestId = null;
       refreshTargets(true);
+      if (wasPinned) notifyListeners();
       return { needsConfirm: false, followUps: chain, lost };
     },
     onChange(cb) {

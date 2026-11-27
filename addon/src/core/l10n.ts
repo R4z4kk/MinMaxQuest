@@ -40,6 +40,7 @@ export type L10nKey =
   | "totalProgress"
   | "pinnedTag"
   | "pinTooltip"
+  | "unpinTooltip"
   | "pinUnavailable"
   | "unknownZone"
   | "stepsCount"
@@ -107,6 +108,7 @@ const EN: Record<L10nKey, string> = {
   totalProgress: "Total · {count}",
   pinnedTag: "Pinned",
   pinTooltip: "Pin with MinMaxQuest",
+  unpinTooltip: "Unpin",
   pinUnavailable: "quest log pin buttons unavailable (quest log frame not found)",
   unknownZone: "Unknown zone",
   stepsCount: "{done}/{total} steps",
@@ -175,6 +177,7 @@ const FR: Record<L10nKey, string> = {
   totalProgress: "Total · {count}",
   pinnedTag: "Épinglée",
   pinTooltip: "Épingler avec MinMaxQuest",
+  unpinTooltip: "Désépingler",
   pinUnavailable: "boutons d'épinglage indisponibles (journal de quêtes introuvable)",
   unknownZone: "Zone inconnue",
   stepsCount: "{done}/{total} étapes",

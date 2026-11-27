@@ -130,6 +130,25 @@ describe("refreshTargets", () => {
 });
 
 describe("pin", () => {
+  it("notifies listeners on pin and unpin even when the current target is unchanged", () => {
+    const { engine, world } = setup([target(1)]);
+    engine.refreshTargets(true);
+    const before = world.changes;
+    engine.pin(1);
+    expect(world.changes).toBe(before + 1);
+    engine.pin(null);
+    expect(world.changes).toBe(before + 2);
+  });
+
+  it("notifies listeners when skipping clears the pin", () => {
+    const { engine, world } = setup([target(1), target(2)], [quest(1), quest(2)]);
+    engine.refreshTargets(true);
+    engine.pin(2);
+    const before = world.changes;
+    engine.skip(2, false);
+    expect(world.changes).toBeGreaterThan(before);
+  });
+
   it("makes current the best target of the pinned quest", () => {
     const { engine, db } = setup([target(1), target(7, { seconds: 2 }), target(7, { seconds: 3, kind: "turnin" })]);
     engine.refreshTargets(true);

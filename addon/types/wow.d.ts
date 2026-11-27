@@ -110,6 +110,7 @@ interface WowFrame extends WowRegion {
   SetScript(event: "OnEnter" | "OnLeave", handler: ((frame: WowFrame) => void) | null): void;
   SetScript(event: "OnEvent", handler: (frame: WowFrame, event: string, ...args: unknown[]) => void): void;
   RegisterEvent(event: string): void;
+  UnregisterEvent(event: string): void;
   RegisterUnitEvent(event: string, unit: string): void;
   CreateTexture(name: string | null, layer: string): WowTexture;
   CreateFontString(name: string | null, layer: string): WowFontString;

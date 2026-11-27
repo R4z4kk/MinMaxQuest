@@ -33,7 +33,11 @@ function tint(mark: WowTexture, pinned: boolean): void {
   fill(mark, [accent[0], accent[1], accent[2], pinned ? 1 : DIM_ALPHA]);
 }
 
-function createPin(title: PinTitle, onClick: (questId: number) => void): PinButton {
+function createPin(
+  title: PinTitle,
+  onClick: (questId: number) => void,
+  isPinned: (questId: number) => boolean,
+): PinButton {
   const frame = CreateFrame("Button", null, title);
   frame.SetSize(BUTTON_SIZE, BUTTON_SIZE);
   frame.SetPoint("RIGHT", title, "RIGHT", -2, 0);
@@ -45,11 +49,13 @@ function createPin(title: PinTitle, onClick: (questId: number) => void): PinButt
   mark.SetRotation(math.pi / 4);
   const pin: PinButton = { frame, mark, title, questId: null };
   frame.SetScript("OnClick", () => {
-    if (pin.questId != null) onClick(pin.questId);
+    guard(FEATURE, () => {
+      if (pin.questId != null) onClick(pin.questId);
+    });
   });
   frame.SetScript("OnEnter", () => {
     GameTooltip.SetOwner(frame, "ANCHOR_RIGHT");
-    GameTooltip.SetText(t("pinTooltip"));
+    GameTooltip.SetText(t(pin.questId != null && isPinned(pin.questId) ? "unpinTooltip" : "pinTooltip"));
     GameTooltip.Show();
   });
   frame.SetScript("OnLeave", () => GameTooltip.Hide());
@@ -76,7 +82,12 @@ function refreshPin(pin: PinButton, isPinned: (questId: number) => boolean): voi
 }
 
 function logAvailable(): boolean {
-  return typeof _G.QuestLog_Update === "function" && isTitleButton(_G.QuestLogTitle1);
+  return (
+    typeof _G.QuestLog_Update === "function" &&
+    typeof FauxScrollFrame_GetOffset === "function" &&
+    typeof _G.QuestLogListScrollFrame === "object" &&
+    isTitleButton(_G.QuestLogTitle1)
+  );
 }
 
 export function installPinButtons(
@@ -84,7 +95,6 @@ export function installPinButtons(
   isPinned: (questId: number) => boolean,
 ): () => void {
   const pins: PinButton[] = [];
-  let hooked = false;
 
   const refresh = (): void => {
     guard(FEATURE, () => {
@@ -97,40 +107,40 @@ export function installPinButtons(
     refresh();
   };
 
-  const build = (): void => {
+  const build = (final: boolean): boolean => {
     if (!logAvailable()) {
-      reportOnce(FEATURE, t("pinUnavailable"));
-      return;
+      if (final) reportOnce(FEATURE, t("pinUnavailable"));
+      return false;
     }
     const lines = lineCount();
     for (let i = 1; i <= lines; i++) {
       const title = _G[`QuestLogTitle${i}`];
-      if (isTitleButton(title)) pins.push(createPin(title, onClick));
+      if (isTitleButton(title)) pins.push(createPin(title, onClick, isPinned));
     }
-    if (!hooked) {
-      hooked = true;
-      hooksecurefunc("QuestLog_Update", refresh);
-    }
+    hooksecurefunc("QuestLog_Update", refresh);
     refresh();
+    return true;
   };
 
-  const install = (): void => {
-    guard(FEATURE, () => {
-      if (!InCombatLockdown()) {
-        build();
-        return;
-      }
-      const waiter = CreateFrame("Frame", null, UIParent);
-      waiter.RegisterEvent("PLAYER_REGEN_ENABLED");
-      let built = false;
-      waiter.SetScript("OnEvent", () => {
-        if (built) return;
-        built = true;
-        guard(FEATURE, build);
-      });
+  const once = (events: string[], fn: () => void): void => {
+    const waiter = CreateFrame("Frame", null, UIParent);
+    let done = false;
+    for (const event of events) waiter.RegisterEvent(event);
+    waiter.SetScript("OnEvent", () => {
+      if (done) return;
+      done = true;
+      for (const event of events) waiter.UnregisterEvent(event);
+      guard(FEATURE, fn);
     });
   };
 
-  install();
+  const start = (): void => {
+    if (!build(false)) once(["ADDON_LOADED", "QUEST_LOG_UPDATE"], () => build(true));
+  };
+
+  guard(FEATURE, () => {
+    if (InCombatLockdown()) once(["PLAYER_REGEN_ENABLED"], start);
+    else start();
+  });
   return refresh;
 }
