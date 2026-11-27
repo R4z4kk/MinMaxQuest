@@ -2,7 +2,7 @@
 
 **One clean, fast quest guide for WoW: Forever.** An arrow that takes you exactly where you need to go, a to-do list sorted by real travel time, and dungeon / raid access tracking, in a single window.
 
-> **Alpha.** The Completion and Access tabs work today. Precomputed level 1-60 routes for the Quest tab come in the next releases.
+> **Alpha.** Precomputed level 1-60 routes, Completion and Access tabs all work today.
 
 ## Latest update
 
@@ -58,14 +58,14 @@
 - Starts with the Dalaran Sewers key chain. More chains will follow.
 
 ### Quest tab
-- Options for the upcoming routes:
-  - include elite quests;
-  - include dungeons;
-  - max quest level: only quests at least X levels below yours, off by default.
-- Options that already apply:
-  - auto-fly;
-  - Blizzard map waypoint.
-- Until routes are installed, a shortcut sends you to the Completion tab.
+- Precomputed routes from level 1 to 60, by faction and starting zone. The arrow follows your current route step.
+- **Variants:** include elite quests, include dungeons, and a max quest level (only quests at least X levels below yours, off by default).
+- **Done steps are skipped:** quests you already did or turned in never show up.
+- **Off-route banner:** if your level is far from what the route expects, a banner says so and a **Re-sync** button puts you back on the right step.
+- **Access chains and dungeon returns:** tracked access chains are inserted into the route, and a dungeon you tick adds its return trip.
+- **Active mode:** the arrow follows whichever of the Quest or Completion tabs you opened last.
+- Options: auto-fly and Blizzard map waypoint.
+- If the route files are missing, a message says so and sends you to the Completion tab.
 
 ### Quest log pin
 - A small pin button next to each quest in the Blizzard quest log.
@@ -121,10 +121,6 @@
 
 ## Roadmap
 
-- **Quest tab:** optimized level 1-60 routes, precomputed offline.
-  - Each starting zone gets its own start segment, then a common route per faction.
-  - Elite quests and dungeons are optional.
-- Tracked access chains will be inserted into the route.
 - Daily data refresh and automatic releases.
 - Class quests are not planned for now.
 

@@ -162,7 +162,7 @@ Maquette validée : `.superpowers/brainstorm/*/content/window-v3.html` (spec §6
 
 ### 3.10 Performance et robustesse
 - **Décodage :** seulement au chargement et au changement de variante, hors combat. Si le joueur est en combat, il est différé à `PLAYER_REGEN_ENABLED`.
-- **Calcul de l'étape en cours :** incrémental. On part de l'index précédent ; seul un événement de quête ou de niveau le fait avancer, ou le recalage.
+- **Calcul de l'étape en cours :** recalculé à chaque rafraîchissement, pas de façon incrémentale. Il doit pouvoir reculer (quête abandonnée).
 - **Hors route :** au plus 15 calculs de trajet, une fois toutes les 2 s, au rythme du moteur actuel.
 - **Erreurs :** chaque partie est isolée par `guard`. Une étape illisible (quête absente de QuestieDB, position non convertible) est sautée et comptée, avec un seul message ; elle ne bloque jamais la route.
 
