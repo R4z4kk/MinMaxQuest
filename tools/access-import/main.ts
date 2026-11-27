@@ -109,6 +109,11 @@ function renderReport(data: AccessData, report: CrossCheckReport, notes: AttuneN
     "## Class dungeon quests not added",
     "",
     ...bullets(report.skippedClassQuests.map((q) => `${q.areaId} ${s.dungeons[q.areaId].name}: quest ${quest(q.quest)}`)),
+    "## Repeatable and event dungeon quests not added",
+    "",
+    "QuestieDB `specialFlags` bit 1 (repeatable) or 2 (needs event).",
+    "",
+    ...bullets(report.skippedFlaggedQuests.map((q) => `${q.areaId} ${s.dungeons[q.areaId].name}: quest ${quest(q.quest)} (${q.flag})`)),
     "## Addon access chains",
     "",
     ...bullets(report.chains.map((c) => (c.mergedInto.length > 0 ? `${c.id}: found in Attune ${c.mergedInto.map(name).join(", ")}` : `${c.id}: absent from Attune, kept`))),
@@ -123,9 +128,11 @@ function renderReport(data: AccessData, report: CrossCheckReport, notes: AttuneN
     "Dropped FOLLOWS references:",
     "",
     ...bullets(notes.droppedFollows),
-    "Steps whose FOLLOWS is an OR in Attune (kept as a plain list):",
+    "Steps whose FOLLOWS is an OR in Attune (`followsAny`):",
     "",
     ...bullets(notes.orFollows),
+    `Steps carrying Attune filters: ${notes.filteredSteps.excludedRaces} with \`excludedRaces\` (NORACE), ${notes.filteredSteps.optional} \`optional\` (SIDE or FOLLOW), ${notes.orFollows.length} with \`followsAny\`.`,
+    "",
     "Steps without a numeric ref in Attune (ref 0):",
     "",
     ...bullets(notes.placeholderRefs),
@@ -149,8 +156,8 @@ async function main(): Promise<void> {
   if (version !== ATTUNE.version) {
     throw new Error(`gen:access: ${ATTUNE.path} is Attune ${version} but ATTUNE pins ${ATTUNE.version}; review the new data, then update ATTUNE in tools/route-builder/sources.ts`);
   }
-  const attune = await parseAttune(readAttuneFiles(ATTUNE.path));
   const snapshot = await cachedSnapshot();
+  const attune = await parseAttune(readAttuneFiles(ATTUNE.path), snapshot.raceMaskById);
   const { entries, report } = crossCheck({ entries: attune.entries, snapshot, instanceTypes: loadInstanceTypes(), chains: ACCESS_CHAINS });
   const data: AccessData = {
     source: { name: "Attune", version, questieDb: QUESTIE_DB.tag, verifiedOn: ATTUNE.verifiedOn, expiresOn: ATTUNE.expiresOn },

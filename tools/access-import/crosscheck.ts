@@ -1,7 +1,7 @@
 import type { AccessChainDef } from "../../addon/src/access/chains";
 import { maskAllows } from "../../addon/src/quests/availability";
 import { INSTANCE_PARTY } from "../route-builder/ingest/instances";
-import type { QuestieSnapshot } from "../route-builder/ingest/snapshot";
+import { hasFlag, type QuestieSnapshot } from "../route-builder/ingest/snapshot";
 import { FACTION_RACES, raceUnion } from "../route-builder/model/world";
 import type { AccessEntry, AccessGroup, AccessStep, AccessStepKind } from "./types";
 
@@ -24,6 +24,7 @@ export interface CrossCheckReport {
   questlessDungeons: { areaId: number; name: string }[];
   addedQuests: { entry: string; quest: number }[];
   skippedClassQuests: { areaId: number; quest: number }[];
+  skippedFlaggedQuests: { areaId: number; quest: number; flag: "repeatable" | "event" }[];
   chains: { id: string; mergedInto: string[] }[];
 }
 
@@ -37,6 +38,9 @@ export interface CrossCheckInput {
 const SIDES: Side[] = ["A", "H"];
 const QUEST_KINDS = new Set<AccessStepKind>(["pickUp", "turnIn", "quest"]);
 const GROUP_ORDER: AccessGroup[] = ["dungeon", "raid", "key", "misc"];
+// specialFlags bits, QuestieDB v1.1.6 data/Forever/foreverQuestDB.lua questKeys: 1 = Repeatable, 2 = Needs event.
+const REPEATABLE_FLAG = 1;
+const EVENT_FLAG = 2;
 
 // QuestieDB leaves a field nil when it does not restrict (requiredRaces, requiredClasses) or is unknown (zoneOrSort).
 function questNumber(s: QuestieSnapshot, id: number, field: string): number {
@@ -111,6 +115,7 @@ export function crossCheck(input: CrossCheckInput): { entries: AccessEntry[]; re
     questlessDungeons: [],
     addedQuests: [],
     skippedClassQuests: [],
+    skippedFlaggedQuests: [],
     chains: [],
   };
 
@@ -152,12 +157,17 @@ export function crossCheck(input: CrossCheckInput): { entries: AccessEntry[]; re
       continue;
     }
     const referenced = new Set(entries.flatMap(questRefs));
-    for (const quest of quests) {
-      if (questNumber(s, quest, "requiredClasses") !== 0 && !referenced.has(quest)) report.skippedClassQuests.push({ areaId: dungeon.areaId, quest });
-    }
+    const eligible = quests.filter((quest) => {
+      const flags = questNumber(s, quest, "specialFlags");
+      const flag = hasFlag(flags, REPEATABLE_FLAG) ? "repeatable" : hasFlag(flags, EVENT_FLAG) ? "event" : null;
+      const classQuest = questNumber(s, quest, "requiredClasses") !== 0;
+      if (!referenced.has(quest) && flag != null) report.skippedFlaggedQuests.push({ areaId: dungeon.areaId, quest, flag });
+      else if (!referenced.has(quest) && classQuest) report.skippedClassQuests.push({ areaId: dungeon.areaId, quest });
+      return flag == null && !classQuest;
+    });
     for (const side of SIDES) {
       const present = new Set(entries.filter((entry) => sidesOf(entry.faction).includes(side)).flatMap(questRefs));
-      const missing = quests.filter((quest) => allows(quest, side) && questNumber(s, quest, "requiredClasses") === 0 && !present.has(quest));
+      const missing = eligible.filter((quest) => allows(quest, side) && !present.has(quest));
       if (missing.length === 0) continue;
       let best: AccessEntry | null = null;
       let bestCount = 0;

@@ -3,12 +3,12 @@ import { ACCESS_CHAINS } from "../../../addon/src/access/chains";
 import { parseAttune } from "../attune";
 import { crossCheck, sortEntries } from "../crosscheck";
 import type { AccessEntry } from "../types";
-import { ATTUNE_FILES, INSTANCE_TYPES, snapshotFixture } from "./fixtures";
+import { ATTUNE_FILES, INSTANCE_TYPES, RACE_MASKS, snapshotFixture } from "./fixtures";
 
 const ALLIANCE_RACES = 1 + 4 + 8 + 64 + 4294967296;
 
 async function run(snapshot = snapshotFixture(), keep: (e: AccessEntry) => boolean = () => true) {
-  const { entries } = await parseAttune(ATTUNE_FILES);
+  const { entries } = await parseAttune(ATTUNE_FILES, RACE_MASKS);
   return crossCheck({ entries: entries.filter(keep), snapshot, instanceTypes: INSTANCE_TYPES, chains: ACCESS_CHAINS });
 }
 
@@ -25,6 +25,11 @@ describe("crossCheck", () => {
     expect(rfc?.steps.at(-1)).toEqual({ id: 91, kind: "quest", ref: 5761, follows: [], origin: "questiedb" });
     expect(report.addedQuests).toContainEqual({ entry: "160", quest: 5761 });
     expect(report.skippedClassQuests).toEqual([{ areaId: 2437, quest: 5728 }]);
+    expect(report.skippedFlaggedQuests).toEqual([
+      { areaId: 2437, quest: 5800, flag: "repeatable" },
+      { areaId: 2437, quest: 5801, flag: "event" },
+    ]);
+    expect(rfc?.steps.some((s) => s.ref === 5800 || s.ref === 5801)).toBe(false);
     expect(rfc?.steps.some((s) => s.ref === 5723)).toBe(false);
   });
 
@@ -83,6 +88,8 @@ describe("crossCheck", () => {
     snapshot.quests[5761] = { ...snapshot.quests[5761], zoneOrSort: 1637 };
     snapshot.quests[5728] = { ...snapshot.quests[5728], zoneOrSort: 1637 };
     snapshot.quests[5723] = { ...snapshot.quests[5723], zoneOrSort: 1637 };
+    snapshot.quests[5800] = { ...snapshot.quests[5800], zoneOrSort: 1637 };
+    snapshot.quests[5801] = { ...snapshot.quests[5801], zoneOrSort: 1637 };
     expect((await run(snapshot)).report.unmatchedAttuneDungeons).toEqual(["160"]);
   });
 });

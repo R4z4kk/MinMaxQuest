@@ -14,6 +14,7 @@ export interface AttuneNotes {
   droppedSteps: string[];
   droppedFollows: string[];
   orFollows: string[];
+  filteredSteps: { excludedRaces: number; optional: number };
   placeholderRefs: string[];
   frenchFallbacks: string[];
 }
@@ -63,6 +64,8 @@ const STEP_KINDS: Record<string, AccessStepKind> = {
 const DROPPED_TYPES = new Set(["Spacer", "Attune"]);
 const UNSUPPORTED_TYPES = new Set(["Stat"]);
 const PLACEHOLDER_KINDS = new Set<AccessStepKind>(["interact", "click"]);
+// NORACE holds UnitRace file names; race ids per https://warcraft.wiki.gg/wiki/API_UnitRace.
+const RACE_IDS: Record<string, number> = { Human: 1, Orc: 2, Dwarf: 3, NightElf: 4, Scourge: 5, Tauren: 6, Gnome: 7, Troll: 8 };
 
 type Row = Record<string, unknown>;
 
@@ -161,7 +164,21 @@ function stepRef(step: RawStep, kind: AccessStepKind, notes: AttuneNotes): numbe
   return integer(raw, `${what}: ID_WOWHEAD`);
 }
 
-function buildSteps(attune: string, raws: RawStep[], notes: AttuneNotes): AccessStep[] {
+function excludedRaces(step: RawStep, raceMaskById: Record<number, number>): number | null {
+  if (step.row.NORACE == null) return null;
+  const what = `attune ${step.attune} step ${step.id}`;
+  let mask = 0;
+  for (const token of text(step.row, "NORACE", what).split("|")) {
+    const race = RACE_IDS[token];
+    if (race == null) throw new Error(`${what}: unknown NORACE race "${token}"`);
+    const bit = raceMaskById[race];
+    if (bit == null) throw new Error(`${what}: race ${race} (${token}) missing from QuestieDB raceMaskById`);
+    mask += bit;
+  }
+  return mask;
+}
+
+function buildSteps(attune: string, raws: RawStep[], notes: AttuneNotes, raceMaskById: Record<number, number>): AccessStep[] {
   const kept = new Map<number, RawStep>();
   const dropped = new Map<number, RawStep[]>();
   for (const step of raws) {
@@ -192,15 +209,27 @@ function buildSteps(attune: string, raws: RawStep[], notes: AttuneNotes): Access
     .sort((a, b) => stage(a) - stage(b) || a.index - b.index)
     .map((step) => {
       const kind = STEP_KINDS[step.type];
-      if (text(step.row, "FOLLOWS", `attune ${attune} step ${step.id}`).includes("|")) notes.orFollows.push(`${attune}/${step.id}`);
+      const followsAny = text(step.row, "FOLLOWS", `attune ${attune} step ${step.id}`).includes("|");
+      if (followsAny) notes.orFollows.push(`${attune}/${step.id}`);
       const follows = [...new Set(followsOf(step).flatMap((id) => resolve(id, [step.id])))];
-      return { id: step.id, kind, ref: stepRef(step, kind, notes), follows, origin: "attune" as const };
+      const excluded = excludedRaces(step, raceMaskById);
+      const result: AccessStep = { id: step.id, kind, ref: stepRef(step, kind, notes), follows, origin: "attune" };
+      if (excluded != null) {
+        result.excludedRaces = excluded;
+        notes.filteredSteps.excludedRaces += 1;
+      }
+      if (step.row.SIDE === true || step.row.FOLLOW === true) {
+        result.optional = true;
+        notes.filteredSteps.optional += 1;
+      }
+      if (followsAny) result.followsAny = true;
+      return result;
     });
 }
 
-export async function parseAttune(files: AttuneFiles): Promise<AttuneImport> {
+export async function parseAttune(files: AttuneFiles, raceMaskById: Record<number, number>): Promise<AttuneImport> {
   const { attunes, steps, enUS, frFR } = await evaluate(files);
-  const notes: AttuneNotes = { skippedEntries: [], droppedSteps: [], droppedFollows: [], orFollows: [], placeholderRefs: [], frenchFallbacks: [] };
+  const notes: AttuneNotes = { skippedEntries: [], droppedSteps: [], droppedFollows: [], orFollows: [], filteredSteps: { excludedRaces: 0, optional: 0 }, placeholderRefs: [], frenchFallbacks: [] };
 
   const stepsByAttune = new Map<string, RawStep[]>();
   steps.forEach((row, index) => {
@@ -242,7 +271,7 @@ export async function parseAttune(files: AttuneFiles): Promise<AttuneImport> {
     if (enName == null) throw new Error(`attune ${id}: enUS locale has no "${nameKey}"`);
     const frName = frFR[nameKey];
     if (frName == null && !notes.frenchFallbacks.includes(nameKey)) notes.frenchFallbacks.push(nameKey);
-    entries.push({ id, group, faction, levels, name: { enUS: enName, frFR: frName ?? enName }, steps: buildSteps(id, stepsByAttune.get(id) ?? [], notes) });
+    entries.push({ id, group, faction, levels, name: { enUS: enName, frFR: frName ?? enName }, steps: buildSteps(id, stepsByAttune.get(id) ?? [], notes, raceMaskById) });
   }
   for (const attune of stepsByAttune.keys()) if (!seen.has(attune)) throw new Error(`${DATA_LABEL}: steps name an unknown attune ${attune}`);
   return { entries, notes };
