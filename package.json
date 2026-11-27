@@ -1,0 +1,28 @@
+{
+  "name": "minmaxquest",
+  "version": "0.1.0",
+  "description": "Quest guide for WoW Forever",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "build": "tstl -p tsconfig.json",
+    "pretest": "npm run build",
+    "test": "vitest run",
+    "gen:arrow": "tsx tools/make-arrow-tga.ts",
+    "gen:travel": "tsx tools/gen-travel/main.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "GPL-3.0-only",
+  "type": "commonjs",
+  "devDependencies": {
+    "lua-types": "^2.14.1",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.2",
+    "typescript-to-lua": "^1.37.3",
+    "vitest": "^5.1.2",
+    "wasmoon": "^1.16.0"
+  },
+  "private": true
+}

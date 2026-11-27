@@ -1,0 +1,21 @@
+MinMaxQuest is licensed under GPL-3.0-only (see LICENSE).
+
+Third-party components:
+
+HereBeDragons 2.0 and HereBeDragons-Pins 2.0 (libs/HereBeDragons)
+  Copyright Nevcairiel. BSD, as declared in the upstream TOC (no LICENSE file upstream).
+  https://github.com/Nevcairiel/HereBeDragons
+
+CallbackHandler-1.0 (libs/HereBeDragons)
+  Copyright Ace3 Development Team. BSD-2.0, as declared in the upstream TOC.
+
+LibStub (libs/HereBeDragons)
+  Public Domain.
+
+Shortest Path Forever data (vendor/shortest-path-forever)
+  Copyright cjber. GPL-3.0. https://github.com/cjber/shortest-path-forever
+  Taxi.lua and Transports.lua embed InFlight duration data under the MIT License:
+  Copyright (c) 2009-2024 TotalPackage, 2022 Deranjata, 2025-2026 LudiusMaximus
+  (full MIT text in vendor/shortest-path-forever/LICENSE).
+
+Details and checksums for the vendored libraries: libs/HereBeDragons/SOURCES.txt.
