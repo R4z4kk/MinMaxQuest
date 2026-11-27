@@ -3,16 +3,18 @@ import type { ArrowTarget } from "./arrowFrame";
 
 export interface CorpseDeps {
   isDead(): boolean;
+  isGhost(): boolean;
   corpseOnMap(uiMapId: number): { x: number; y: number } | null;
   playerMap(): number | null;
   parentMap(uiMapId: number): number | null;
   toWorld(uiMapId: number, x: number, y: number): WorldPos | null;
 }
 
-export type CorpseTarget = { kind: "none" } | { kind: "unknown" } | { kind: "corpse"; target: ArrowTarget };
+export type CorpseTarget = { kind: "none" } | { kind: "atBody" } | { kind: "unknown" } | { kind: "corpse"; target: ArrowTarget };
 
 const PERCENT = 100;
 const NONE: CorpseTarget = { kind: "none" };
+const AT_BODY: CorpseTarget = { kind: "atBody" };
 const UNKNOWN: CorpseTarget = { kind: "unknown" };
 
 let cached: CorpseTarget & { kind: "corpse" } | null = null;
@@ -28,6 +30,7 @@ function reuse(pos: WorldPos, label: string): CorpseTarget & { kind: "corpse" } 
 
 export function corpseTarget(deps: CorpseDeps, label: string): CorpseTarget {
   if (!deps.isDead()) return NONE;
+  if (!deps.isGhost()) return AT_BODY;
   const here = deps.playerMap();
   if (here == null) return UNKNOWN;
   const parent = deps.parentMap(here);

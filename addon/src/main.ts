@@ -77,6 +77,7 @@ let lastMode: CharDb["activeMode"] | null = null;
 
 const corpseDeps: CorpseDeps = {
   isDead: () => UnitIsDeadOrGhost("player") === true,
+  isGhost: () => UnitIsGhost("player") === true,
   corpseOnMap: (uiMapId) => C_DeathInfo?.GetCorpseMapPosition?.(uiMapId) ?? null,
   playerMap: () => C_Map.GetBestMapForUnit("player"),
   parentMap: (uiMapId) => C_Map.GetMapInfo(uiMapId)?.parentMapID ?? null,
@@ -84,8 +85,10 @@ const corpseDeps: CorpseDeps = {
 };
 
 function currentTarget(current: Game): ArrowTarget | null {
+  if (!corpseDeps.isDead()) return current.engine.arrowTarget();
   const corpse = guard("corpseArrow", () => corpseTarget(corpseDeps, t("corpse")));
   if (corpse?.kind === "corpse") return corpse.target;
+  if (corpse?.kind === "atBody") return null;
   if (corpse?.kind === "unknown") {
     reportOnce("corpse", t("corpseUnknown"));
     return null;

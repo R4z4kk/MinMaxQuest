@@ -15,6 +15,7 @@ declare const Enum: {
 declare function GetTime(): number;
 declare function debugprofilestop(): number;
 declare function UnitOnTaxi(unit: string): boolean;
+declare function UnitIsGhost(unit: string): boolean;
 declare function UnitIsDeadOrGhost(unit: string): boolean;
 declare const C_DeathInfo: { GetCorpseMapPosition: ((this: void, uiMapId: number) => WowVector2D | null) | null } | null;
 declare function UnitLevel(unit: string): number;

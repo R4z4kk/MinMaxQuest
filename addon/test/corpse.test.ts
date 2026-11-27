@@ -7,6 +7,7 @@ const world = { continent: 0, x: 5, y: 6 };
 function deps(over: Partial<CorpseDeps>): CorpseDeps {
   return {
     isDead: () => true,
+    isGhost: () => true,
     corpseOnMap: () => null,
     playerMap: () => 10,
     parentMap: () => null,
@@ -17,6 +18,14 @@ function deps(over: Partial<CorpseDeps>): CorpseDeps {
 
 it("is none when alive", () => {
   expect(corpseTarget(deps({ isDead: () => false }), "Your corpse")).toEqual({ kind: "none" });
+});
+
+it("is atBody when dead but not yet a ghost, without looking up the corpse", () => {
+  const result = corpseTarget(
+    deps({ isGhost: () => false, corpseOnMap: () => { throw new Error("lookup"); } }),
+    "Your corpse",
+  );
+  expect(result).toEqual({ kind: "atBody" });
 });
 
 it("targets the corpse on the player map", () => {
@@ -59,6 +68,8 @@ dead = true
 C_Map.GetBestMapForUnit = function() return 1429 end
 C_Map.GetMapInfo = function() return nil end
 UnitIsDeadOrGhost = function() return dead end
+ghost = true
+UnitIsGhost = function() return ghost end
 corpse = { x = 0.5, y = 0.5 }
 C_DeathInfo = { GetCorpseMapPosition = function(id) if id == 1429 then return corpse or nil end end }
 `;
@@ -76,6 +87,27 @@ it("labels the arrow Your corpse when dead, and goes back after release", async 
     await s.clearCalls();
     await s.tick();
     expect(await s.calls()).toContain("font|SetText|Test Quest · pick up");
+  } finally {
+    s.close();
+  }
+});
+
+it("hides the arrow silently when dead but not released", async () => {
+  const s = await loggedIn(`${DEAD}
+dead = false
+corpse = false`);
+  try {
+    await s.run("dead = true; ghost = false");
+    await s.event(`"PLAYER_DEAD"`);
+    await s.clearCalls();
+    await s.tick();
+    expect((await s.calls()).filter((c) => c.startsWith("MinMaxQuestArrow|")).pop()).toBe("MinMaxQuestArrow|Hide");
+    expect(await s.printed()).toBe("");
+    await s.run("ghost = true; corpse = { x = 0.5, y = 0.5 }");
+    await s.event(`"PLAYER_UNGHOST"`);
+    await s.clearCalls();
+    await s.tick();
+    expect(await s.calls()).toContain("font|SetText|Your corpse");
   } finally {
     s.close();
   }
