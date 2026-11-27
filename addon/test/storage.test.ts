@@ -58,3 +58,12 @@ describe("loadCharDb", () => {
     expect(loadCharDb({ completion: { mode: "nope" } }).completion.mode).toBe("proximity");
   });
 });
+
+describe("nil-valued defaults (Lua drops null keys)", () => {
+  it("still merges saved values for keys omitted from defaults", () => {
+    const defaults = { a: 1, inner: { n: 1 } } as { a: number; inner: { n: number; z?: number | null }; w?: { x: number } | null };
+    const out = withDefaults({ w: { x: 4 }, inner: { z: 2 } }, defaults, { w: { x: 0 }, inner: { z: 0 } });
+    expect(out.w).toEqual({ x: 4 });
+    expect(out.inner.z).toBe(2);
+  });
+});

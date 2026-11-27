@@ -67,6 +67,8 @@ function merge(saved: unknown, defaults: unknown, shape: unknown): unknown {
   const source: Dict | null = typeof saved === "object" && saved != null ? (saved as Dict) : null;
   if (keys.length === 0) return source ?? (Array.isArray(defaults) ? [] : {});
   const shapes: Dict = typeof shape === "object" && shape != null ? (shape as Dict) : {};
+  // Lua drops null-valued keys, so nullable fields are enumerated from the shape too.
+  for (const key of Object.keys(shapes)) if (defs[key] == null) keys.push(key);
   const out: Dict = {};
   for (const key of keys) out[key] = merge(source == null ? null : source[key], defs[key], shapes[key]);
   return out;

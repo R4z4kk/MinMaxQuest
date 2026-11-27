@@ -23,6 +23,6 @@ export function setLocale(locale: string): void {
 }
 
 export function t(key: L10nKey): string {
-  if (french == null) french = GetLocale() === "frFR";
+  if (french == null) french = typeof GetLocale === "function" && GetLocale() === "frFR";
   return (french ? FR : EN)[key];
 }
