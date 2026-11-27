@@ -37,6 +37,7 @@ describe("world from the real QuestieDB snapshot", () => {
           `start ${w.startZones.map((z) => z.key).join(",")}`,
           `excluded ${JSON.stringify(Object.fromEntries(w.excluded))}`,
           `counts ${JSON.stringify(w.countStats)}`,
+          `unlearnable taxi nodes ${w.unlearnableTaxiNodes.join(",")}`,
         );
         expect(w.countStats.disagreements).toBeLessThanOrEqual(w.countStats.bothSources * MAX_DISAGREEMENT_SHARE);
         expect(w.quests.size).toBeGreaterThan(1000);

@@ -25,6 +25,7 @@ const w = worldOf([q10, q11, t100, q301], {
   startZones: [{ key: "start-zone", faction: "A", raceMask: RACE, areaId: 12, start: place(0, 0, 1) }],
   dungeons: [{ areaId: 99, name: "Test", entrance: place(500, 0, 2), questIds: [301] }],
   conversionOffsetYards: 3.4567,
+  unlearnableTaxiNodes: [7, 9],
   excluded: new Map([["noXp", 4], ["class", 2]]),
 });
 
@@ -142,5 +143,6 @@ describe("emitReport", () => {
     expect(report).toContain("| noXp | 4 |");
     expect(report).toContain("| class | 2 |");
     expect(report).toMatch(/median offset 3\.46 yards/i);
+    expect(report).toContain("Unlearnable taxi nodes (no flight master within 100 yards): 7, 9.");
   });
 });

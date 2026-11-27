@@ -3,7 +3,7 @@ import { followUps } from "../../../addon/src/quests/followUps";
 import { encodeSteps, type EmittedStep } from "../../../addon/src/route/format";
 import { SCENARIOS, type Scenario } from "../model/constants";
 import type { BenchRow } from "../bench/rxp";
-import type { World } from "../model/world";
+import { MAX_FLIGHT_MASTER_OFFSET_YARDS, type World } from "../model/world";
 import { allVariants, segments, variantKey, type Evaluated, type FactionRoutes, type Segment } from "../opt/variants";
 import { applyStep, initialState, type RouteStep, type SimOptions, type SimState, type StepOutcome } from "../sim/simulate";
 
@@ -209,6 +209,8 @@ export function emitReport(all: FactionRoutes[], worlds: World[], meta: EmitMeta
     out.push(`## ${faction} excluded quests`, "", "| Reason | Count |", "| --- | --- |");
     for (const [reason, count] of [...world.excluded].sort((a, b) => a[0].localeCompare(b[0]))) out.push(`| ${reason} | ${count} |`);
     out.push("", `Zone conversion check: median offset ${world.conversionOffsetYards.toFixed(2)} yards.`, "");
+    const unlearnable = world.unlearnableTaxiNodes.length === 0 ? "none" : world.unlearnableTaxiNodes.join(", ");
+    out.push(`Unlearnable taxi nodes (no flight master within ${MAX_FLIGHT_MASTER_OFFSET_YARDS} yards): ${unlearnable}.`, "");
   }
   return out.join("\n");
 }

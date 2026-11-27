@@ -57,6 +57,7 @@ export function world(overrides: Partial<World> = {}): World {
     startZones: [],
     taxiZone: new Map(),
     taxiPlaces: new Map(),
+    unlearnableTaxiNodes: [],
     areaUiMap: new Map(),
     capitalTaxiNode: 2,
     conversionOffsetYards: 0,

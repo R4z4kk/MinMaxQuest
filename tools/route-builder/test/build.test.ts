@@ -200,6 +200,23 @@ describe("buildRoute", () => {
     expect(route.steps[fly + 1]).toMatchObject({ type: "accept", place: { uiMapId: 2 } });
   });
 
+  it("never learns or flies to a node that has no flight master place", () => {
+    const flights = travel({
+      taxiNodes: [
+        { id: 1, name: "A", pos: { continent: 0, x: 5, y: 5 }, faction: "A" },
+        { id: 2, name: "B", pos: { continent: 0, x: 6005, y: 5 }, faction: "A" },
+      ],
+      taxiEdges: [
+        { from: 1, to: 2, seconds: 60 },
+        { from: 2, to: 1, seconds: 60 },
+      ],
+    });
+    const near = [0, 1].map((i) => quest(30 + i, place(i * 20, 0, 1), { baseXp: 400 }, [kill(place(i * 20, 30, 1))]));
+    const w = worldOf(near, { taxiZone: new Map([[2, 2]]), taxiPlaces: new Map([[2, place(6005, 5, 2)]]), unlearnableTaxiNodes: [1] });
+    const route = buildRoute(request(w, initialState(place(0, 0, 1), 1, [2], null), 4), flights);
+    expect(route.steps.filter((s) => s.type === "getFlightPath" || s.type === "fly")).toEqual([]);
+  });
+
   it("restricts quests to the accept areas", () => {
     const w = worldOf([...zoneA, ...zoneB], { areaUiMap: new Map([[12, 1], [40, 2]]) });
     const route = build({ ...request(w, start(), 3), areaIds: new Set([12]) });

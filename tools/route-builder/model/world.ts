@@ -66,6 +66,7 @@ export interface World {
   startZones: StartZone[];
   taxiZone: Map<number, number>;
   taxiPlaces: Map<number, Place>;
+  unlearnableTaxiNodes: number[];
   areaUiMap: Map<number, number>;
   capitalTaxiNode: number;
   conversionOffsetYards: number;
@@ -107,6 +108,8 @@ const START_AREAS: { key: string; faction: "A" | "H"; races: number[]; areaId: n
 // Taxi node ids from tools/gen-travel output: 2 = Stormwind, 23 = Orgrimmar.
 const CAPITAL_TAXI_NODE: Record<"A" | "H", number> = { A: 2, H: 23 };
 const MAX_CONVERSION_OFFSET_YARDS = 15;
+// Beyond this the node has no reachable flight master in QuestieDB.
+export const MAX_FLIGHT_MASTER_OFFSET_YARDS = 100;
 
 class Excluded extends Error {
   constructor(readonly reason: ExclusionReason) {
@@ -444,15 +447,18 @@ export function buildWorld(
   if (nodes.length === 0) throw new Error(`world: no taxi node for faction ${faction} in TRAVEL`);
   const taxiZone = new Map<number, number>();
   const taxiPlaces = new Map<number, Place>();
+  const unlearnableTaxiNodes: number[] = [];
   const offsets: number[] = [];
-  for (const node of nodes) {
+  for (const node of [...nodes].sort((a, b) => a.id - b.id)) {
     let nearest: Place | null = null;
     for (const fm of flightMasters) if (nearest == null || distance(node.pos, fm.pos) < distance(node.pos, nearest.pos)) nearest = fm;
     const offset = nearest == null ? Infinity : distance(node.pos, nearest.pos);
     offsets.push(offset);
-    if (nearest != null && Number.isFinite(offset)) {
+    if (nearest != null && offset <= MAX_FLIGHT_MASTER_OFFSET_YARDS) {
       taxiZone.set(node.id, nearest.uiMapId);
       taxiPlaces.set(node.id, nearest);
+    } else {
+      unlearnableTaxiNodes.push(node.id);
     }
   }
   const conversionOffsetYards = median(offsets);
@@ -481,5 +487,5 @@ export function buildWorld(
   const repoError = repo.lastError();
   if (repoError != null) throw new Error(`world: QuestieDB read failed (${repoError})`);
   const areaUiMap = new Map(Object.entries(s.areaIdToUiMapId).map(([areaId, uiMapId]) => [Number(areaId), uiMapId]));
-  return { faction, raceMask, raceMasks, quests, inns, dungeons, startZones, taxiZone, taxiPlaces, areaUiMap, capitalTaxiNode, conversionOffsetYards, excluded, countStats };
+  return { faction, raceMask, raceMasks, quests, inns, dungeons, startZones, taxiZone, taxiPlaces, unlearnableTaxiNodes, areaUiMap, capitalTaxiNode, conversionOffsetYards, excluded, countStats };
 }

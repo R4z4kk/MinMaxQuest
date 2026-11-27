@@ -254,6 +254,22 @@ describe("buildWorld", () => {
     );
   });
 
+  it("leaves a node without a flight master within 100 yards unlearnable", () => {
+    const at = (yards: number) => zonePercentToWorld(ELWYNN, NODE_PERCENT.x, NODE_PERCENT.y + (3 + yards) / YARDS_PER_Y_PERCENT);
+    const nodes = travel({
+      taxiNodes: [
+        { id: 2, name: "Stormwind", pos: zonePercentToWorld(ELWYNN, NODE_PERCENT.x, NODE_PERCENT.y), faction: "A" },
+        { id: 3, name: "Near", pos: at(-1), faction: "A" },
+        { id: 9, name: "Far", pos: at(150), faction: "A" },
+      ],
+    });
+    const far = buildWorld(fixture(), zones(), "A", nodes, INSTANCES, COUNTS);
+    expect([...far.taxiPlaces.keys()]).toEqual([2, 3]);
+    expect([...far.taxiZone.keys()]).toEqual([2, 3]);
+    expect(far.unlearnableTaxiNodes).toEqual([9]);
+    expect(w.unlearnableTaxiNodes).toEqual([]);
+  });
+
   it("refuses a faction without any flight master", () => {
     const s = fixture();
     delete s.npcs[300];
