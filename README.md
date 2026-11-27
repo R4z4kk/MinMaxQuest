@@ -49,8 +49,9 @@
 
 ### Completion tab
 - Lists every quest you can still do, at any level, and keeps working past level 60.
+- Three sub-tabs under the main tabs choose the mode: **Proximity**, **Zone** and **Log**.
 - **Proximity** mode covers the current zone and neighbouring zones (same continent, within about 300 yards of it), sorted by real travel time. Quests without a known zone are left out; with no zone known for your position, the list stays empty.
-- **Zone** mode shows one zone, picked from a zone list.
+- **Zone** mode shows one zone, picked from a zone list (the picker only appears in this mode).
 - **Log** mode only targets quests already in your quest log: objectives and turn-ins, sorted by travel time. No new quests; the Grey and Elite filters and the zone are ignored.
 - Shows the nearest target, the next one, and the remaining quests with their estimated travel time.
 - Progress counters for the zone and in total.

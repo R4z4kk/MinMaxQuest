@@ -117,23 +117,38 @@ it("shows a notice instead of the tabs when QuestieDB is unusable", async () => 
   }
 });
 
-it("changes Completion mode, zone and filters and unpins from the window", async () => {
+it("switches Completion modes with sub-tabs, picks a zone, filters and unpins from the window", async () => {
   const s = await ui();
   const completion = () => s.run("local c = MinMaxQuestCharDB.completion; return { c.mode, c.zoneAreaId or 0, c.showTrivial, c.showElite }");
+  const lit = async () => {
+    const out: string[] = [];
+    for (const mode of ["proximity", "zone", "log"]) {
+      const on = await s.run(
+        `for _, r in ipairs(layout) do if r.name == "texture" and r.parent == "MinMaxQuestCompletionTab${mode}" and r.colored then return r.shown end end`,
+      );
+      if (on === true) out.push(mode);
+    }
+    return out;
+  };
   try {
     await s.cmd("");
     await s.click("MinMaxQuestTabcompletion");
-    await s.click("MinMaxQuestCompletionMode");
+    expect(await lit()).toEqual(["proximity"]);
+    await s.click("MinMaxQuestCompletionTabzone");
     expect(await completion()).toEqual(["zone", 12, true, true]);
-    await s.click("MinMaxQuestCompletionMode");
+    expect(await lit()).toEqual(["zone"]);
+    await s.click("MinMaxQuestCompletionTablog");
     expect(await completion()).toEqual(["log", 12, true, true]);
+    expect(await lit()).toEqual(["log"]);
     expect((await s.texts()).some((line) => line.endsWith("in log"))).toBe(true);
-    await s.click("MinMaxQuestCompletionMode");
+    await s.click("MinMaxQuestCompletionTabproximity");
     expect(await completion()).toEqual(["proximity", 12, true, true]);
+    expect(await lit()).toEqual(["proximity"]);
     await s.click("MinMaxQuestFilterGrey");
     await s.click("MinMaxQuestFilterElite");
     expect(await completion()).toEqual(["proximity", 12, false, false]);
     await s.run("MinMaxQuestCharDB.completion.zoneAreaId = nil");
+    await s.click("MinMaxQuestCompletionTabzone");
     await s.click("MinMaxQuestCompletionZone");
     expect(await s.texts()).toContain("Elwynn Forest");
     await s.click("MinMaxQuestZonePickerRow1");
@@ -144,6 +159,40 @@ it("changes Completion mode, zone and filters and unpins from the window", async
     expect(await s.printed()).toBe("MinMaxQuest: pinned: [101] Second");
   } finally {
     s.close();
+  }
+});
+
+it("shows the zone picker button only in Zone mode and has no mode cycle button", async () => {
+  const s = await ui();
+  try {
+    await s.cmd("");
+    await s.click("MinMaxQuestTabcompletion");
+    expect(await s.visibilityOf("MinMaxQuestCompletionZone")).toBe("MinMaxQuestCompletionZone|Hide");
+    expect(await s.run("return scripts['MinMaxQuestCompletionMode.OnClick'] == nil")).toBe(true);
+    await s.click("MinMaxQuestCompletionTabzone");
+    expect(await s.visibilityOf("MinMaxQuestCompletionZone")).toBe("MinMaxQuestCompletionZone|Show");
+    await s.click("MinMaxQuestCompletionTablog");
+    expect(await s.visibilityOf("MinMaxQuestCompletionZone")).toBe("MinMaxQuestCompletionZone|Hide");
+    await s.click("MinMaxQuestCompletionTabproximity");
+    expect(await s.visibilityOf("MinMaxQuestCompletionZone")).toBe("MinMaxQuestCompletionZone|Hide");
+  } finally {
+    s.close();
+  }
+});
+
+it("labels the Completion sub-tabs in both locales", async () => {
+  for (const [locale, labels] of [["enUS", ["Proximity", "Zone", "Log"]], ["frFR", ["Proximité", "Zone", "Journal"]]] as const) {
+    const s = await ui(`MinMaxQuestDB = { locale = "${locale}" }`);
+    try {
+      await s.cmd("");
+      await s.click("MinMaxQuestTabcompletion");
+      const texts = await s.texts();
+      for (const label of labels) expect(texts).toContain(label);
+      const calls = await s.calls();
+      for (const mode of ["proximity", "zone", "log"]) expect(calls).toContain(`MinMaxQuestCompletionTab${mode}|SetSize|100.0|24`);
+    } finally {
+      s.close();
+    }
   }
 });
 
@@ -415,14 +464,14 @@ it("shows expired constants in the banner", async () => {
   }
 });
 
-it("opens the zone picker when Zone mode has no zone to use", async () => {
+it("opens the zone picker when the Zone sub-tab has no zone to use", async () => {
   const s = await ui("C_Map.GetBestMapForUnit = function() return nil end");
   try {
     await s.cmd("");
     await s.click("MinMaxQuestTabcompletion");
     await s.clearCalls();
-    await s.click("MinMaxQuestCompletionMode");
-    expect(await s.run("return MinMaxQuestCharDB.completion.mode")).toBe("proximity");
+    await s.click("MinMaxQuestCompletionTabzone");
+    expect(await s.run("return MinMaxQuestCharDB.completion.mode")).toBe("zone");
     expect(await s.visibilityOf("MinMaxQuestZonePicker")).toBe("MinMaxQuestZonePicker|Show");
   } finally {
     s.close();
@@ -733,16 +782,15 @@ extentOf = edge
 local function named(name)
   for i = #layout, 1, -1 do if layout[i].name == name then return layout[i] end end
 end
-local mode, zone = named("MinMaxQuestCompletionMode"), named("MinMaxQuestCompletionZone")
+local zone = named("MinMaxQuestCompletionZone")
 local header
 for i = #layout, 1, -1 do
   local r = layout[i]
   if r.name == "font" and r.width ~= nil and r.text == HEADER then header = r break end
 end
-local ml, mr = edge(mode)
 local zl, zr = edge(zone)
 local hl, hr = edge(header)
-return { ml, mr, zone.shown and 1 or 0, zl, zr, hl, hr, textWidth(header.text), header.width }
+return { zone.shown and 1 or 0, zl, zr, hl, hr, textWidth(header.text), header.width }
 `;
 
 const HEADERS = {
@@ -760,16 +808,16 @@ for (const locale of ["enUS", "frFR"] as const) {
       try {
         await s.cmd("");
         await s.click("MinMaxQuestTabcompletion");
-        const [ml, mr, zoneShown, zl, zr, hl, hr, textW, headerW] = (await s.run(
+        const [zoneShown, zl, zr, hl, hr, textW, headerW] = (await s.run(
           `HEADER = ${JSON.stringify(HEADERS[locale][mode])}
 ${LAYOUT_LUA}`,
         )) as number[];
-        const boxes = [[ml, mr], [hl, hr], ...(zoneShown === 1 ? [[zl, zr]] : [])];
+        const boxes = [[hl, hr], ...(zoneShown === 1 ? [[zl, zr]] : [])];
         for (const [l, r] of boxes) expect(l >= 0 && r <= 300).toBe(true);
         boxes.sort((a, b) => a[0] - b[0]);
         for (let i = 1; i < boxes.length; i++) expect(boxes[i - 1][1] <= boxes[i][0]).toBe(true);
         expect(textW <= headerW).toBe(true);
-        expect(zoneShown).toBe(mode === "log" ? 0 : 1);
+        expect(zoneShown).toBe(mode === "zone" ? 1 : 0);
       } finally {
         s.close();
       }

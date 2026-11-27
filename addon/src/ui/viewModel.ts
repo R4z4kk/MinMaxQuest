@@ -37,7 +37,8 @@ export interface RowLine {
 }
 
 type QuestGetter = (id: number) => QuestInfo | null;
-type Mode = CharDb["completion"]["mode"];
+export type Mode = CharDb["completion"]["mode"];
+export const MODES: Mode[] = ["proximity", "zone", "log"];
 
 export function formatCount(n: number): string {
   const digits = String(Math.round(Math.abs(n)));
