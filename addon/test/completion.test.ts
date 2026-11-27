@@ -96,6 +96,20 @@ describe("selectTargets", () => {
     expect(targets[0].pos).toEqual(at(25));
   });
 
+  it("counts the other clusters as otherSpots, and none for accept and turnin", () => {
+    const q = quest({ id: 1, objectives: [objective(1)] });
+    const spots = { "1:objective:1": [at(10), at(500), at(1000)] };
+    const [objectiveTarget] = selectTargets(input([q], spots, { log: new Map([[1, logged(false)]]) }), opts());
+    expect(objectiveTarget.otherSpots).toBe(2);
+    const [accept] = selectTargets(input([quest({ id: 2 })], { "2:accept:null": [at(10), at(500)] }), opts());
+    expect(accept.otherSpots).toBe(0);
+    const turnin = selectTargets(
+      input([quest({ id: 3 })], { "3:turnin:null": [at(10), at(500)] }, { log: new Map([[3, logged(true)]]) }),
+      opts(),
+    );
+    expect(turnin[0].otherSpots).toBe(0);
+  });
+
   it("objective without positions is excluded", () => {
     const q = quest({ id: 1, objectives: [objective(1)] });
     expect(selectTargets(input([q], {}, { log: new Map([[1, logged(false)]]) }), opts())).toEqual([]);

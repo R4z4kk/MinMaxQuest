@@ -1,15 +1,26 @@
-Vendored unmodified, fetched 2026-11-27.
+Vendored unmodified, fetched 2026-11-27. SHA-256 is of the files as downloaded (LF line endings).
 
-HereBeDragons-2.0.lua, HereBeDragons-Pins-2.0.lua
-  https://github.com/Nevcairiel/HereBeDragons  tag 2.18-release (HBD 2.0 minor 35, Pins minor 17)
-  License: BSD (declared as "X-License: BSD" in the upstream HereBeDragons.toc; the repository ships no LICENSE file)
+HereBeDragons-2.0.lua  (HBD-2.0 minor 35)
+  sha256 285d448a5b6108fe20d13e8fcf4f271f3ba55a56ac1a120639ffa9b5fa0a2df1
+HereBeDragons-Pins-2.0.lua  (HBD-Pins-2.0 minor 17)
+  sha256 9008cc5787d63acecc4855b0fb2eb6e5278ced13293334a4aa48498b44ae87cd
+  Source: https://github.com/Nevcairiel/HereBeDragons
+  Tag 2.18-release, commit 90a7b2d8c065010dfb866e2b6bd56f5bc930029b
+  Copyright holder: Nevcairiel (upstream TOC "## Author: Nevcairiel")
+  License: BSD, declared only as "## X-License: BSD" in the upstream HereBeDragons.toc.
+  Upstream HBD ships NO LICENSE file and the files carry no license header, so the exact
+  BSD variant (2-clause or 3-clause) is unstated.
 
-CallbackHandler-1.0.lua
-  https://repos.curseforge.com/wow/callbackhandler/trunk/CallbackHandler-1.0/ (r29)
-  License: BSD-2.0 (declared in the upstream CallbackHandler-1.0.toc)
+CallbackHandler-1.0.lua  (minor 8)
+  sha256 8ab5d51799e8c67b6d17b523b3c191ff63ad24e081134ab8ac7d188ce69701b9
+  Source: https://repos.curseforge.com/wow/callbackhandler/trunk/CallbackHandler-1.0/CallbackHandler-1.0.lua (r29)
+  Copyright holder: Ace3 Development Team (upstream TOC "## Author")
+  License: BSD-2.0 ("## X-License: BSD-2.0" in the upstream CallbackHandler-1.0.toc)
 
-LibStub.lua
-  https://repos.wowace.com/wow/libstub/tags/1.0/ (r109)
-  License: Public Domain (header of LibStub.lua)
+LibStub.lua  (minor 2)
+  sha256 a59b4c745c1fdb1b5ad22a86394814afecf8549516c18f6a16353960646b47f8
+  Source: https://repos.wowace.com/wow/libstub/tags/1.0/LibStub.lua (r109)
+  Credits: Kaelten, Cladhaire, ckknight, Mikk, Ammo, Nevcairiel (file header)
+  License: Public Domain (file header: "hereby placed in the Public Domain")
 
 All three are GPL-3.0 compatible.

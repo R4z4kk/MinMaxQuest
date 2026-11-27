@@ -42,6 +42,7 @@ const SHOW_WORLD = 3;
 const PIN_SIZE = 12;
 const DIAMOND_SIZE = 9;
 const NUMBER_SIZE = 9;
+const WAYPOINT_EPSILON = 1e-4;
 
 function createPinFrame(name: string, step: number, state: PinState): WowFrame {
   const frame = CreateFrame("Frame", name, UIParent);
@@ -102,14 +103,32 @@ function mapPoint(pos: WorldPos): MapPoint | null {
   return { uiMapId: best, x: local.x, y: local.y };
 }
 
+function sameWaypoint(a: WowUserWaypoint, b: MapPoint): boolean {
+  return (
+    a.uiMapID === b.uiMapId &&
+    Math.abs(a.position.x - b.x) < WAYPOINT_EPSILON &&
+    Math.abs(a.position.y - b.y) < WAYPOINT_EPSILON
+  );
+}
+
 function createWaypoint(): { sync(on: boolean, target: Target | null): void } {
   let key: string | null = null;
+  let ours: MapPoint | null = null;
+
+  const isOurs = (): boolean => {
+    const read = C_Map.GetUserWaypoint;
+    if (ours == null || read == null) return ours != null;
+    const live = read();
+    return live != null && sameWaypoint(live, ours);
+  };
 
   const clear = (): void => {
     if (key == null) return;
+    const mine = isOurs();
     key = null;
+    ours = null;
     const clearWaypoint = C_Map.ClearUserWaypoint;
-    if (clearWaypoint != null) clearWaypoint();
+    if (mine && clearWaypoint != null) clearWaypoint();
   };
 
   const apply = (pos: WorldPos): void => {
@@ -124,7 +143,14 @@ function createWaypoint(): { sync(on: boolean, target: Target | null): void } {
     if (!canSet(point.uiMapId)) return clear();
     const next = `${point.uiMapId}:${point.x}:${point.y}`;
     if (next === key) return;
+    const hasUser = C_Map.HasUserWaypoint;
+    if (hasUser != null && hasUser() && !isOurs()) {
+      key = null;
+      ours = null;
+      return;
+    }
     key = next;
+    ours = point;
     setWaypoint(createPoint(point.uiMapId, point.x, point.y));
     superTrack(true);
   };

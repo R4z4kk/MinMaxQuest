@@ -27,6 +27,11 @@ declare const GetItemCooldown: WowItemCooldown | null;
 declare const C_Container: { GetItemCooldown: WowItemCooldown | null } | null;
 declare const C_Item: { GetItemCooldown: WowItemCooldown | null } | null;
 
+interface WowUserWaypoint {
+  uiMapID: number;
+  position: WowVector2D;
+}
+
 interface WowVector2D {
   x: number;
   y: number;
@@ -58,6 +63,8 @@ declare namespace C_Map {
   const CanSetUserWaypointOnMap: ((this: void, uiMapId: number) => boolean) | null;
   const SetUserWaypoint: ((this: void, point: unknown) => void) | null;
   const ClearUserWaypoint: ((this: void) => void) | null;
+  const HasUserWaypoint: ((this: void) => boolean) | null;
+  const GetUserWaypoint: ((this: void) => WowUserWaypoint | null) | null;
 }
 
 declare const C_SuperTrack: { SetSuperTrackedUserWaypoint: ((this: void, on: boolean) => void) | null } | null;

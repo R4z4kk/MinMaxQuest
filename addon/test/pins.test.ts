@@ -167,6 +167,56 @@ it("clears the Blizzard waypoint when the option is turned off", async () => {
   }
 });
 
+const LIVE_WAYPOINT = `
+live = false
+C_Map.HasUserWaypoint = function() return live ~= false end
+C_Map.GetUserWaypoint = function() return live or nil end
+C_Map.SetUserWaypoint = function(point)
+  way[#way + 1] = "set|" .. point.map .. "|" .. point.x .. "|" .. point.y
+  live = { uiMapID = point.map, position = { x = point.x, y = point.y } }
+end
+C_Map.ClearUserWaypoint = function() way[#way + 1] = "clear"; live = false end
+`;
+
+it("does not clear a waypoint the user set after ours", async () => {
+  const s = await pins(LIVE_WAYPOINT);
+  try {
+    expect(await s.list("way")).toEqual(["set|1429|0.25|0.75", "track|true"]);
+    await s.refresh("live = { uiMapID = 1429, position = { x = 0.9, y = 0.9 } }; MinMaxQuestCharDB.nativeWaypoint = false");
+    await s.cmd("");
+    await s.run(`scripts["MinMaxQuestNativeWaypoint.OnClick"](nil, "LeftButton")`);
+    await s.run(`scripts["MinMaxQuestNativeWaypoint.OnClick"](nil, "LeftButton")`);
+    expect(await s.list("way")).toEqual(["set|1429|0.25|0.75", "track|true"]);
+    expect(await s.run("return live.position.x")).toBe(0.9);
+  } finally {
+    s.close();
+  }
+});
+
+it("clears the waypoint when it is still ours", async () => {
+  const s = await pins(LIVE_WAYPOINT);
+  try {
+    await s.cmd("");
+    await s.run(`scripts["MinMaxQuestNativeWaypoint.OnClick"](nil, "LeftButton")`);
+    expect(await s.list("way")).toEqual(["set|1429|0.25|0.75", "track|true", "clear"]);
+  } finally {
+    s.close();
+  }
+});
+
+it("does not overwrite a waypoint the user already set", async () => {
+  const s = await pins(`${LIVE_WAYPOINT}
+    live = { uiMapID = 1429, position = { x = 0.9, y = 0.9 } }
+  `);
+  try {
+    await s.refresh();
+    expect(await s.list("way")).toEqual([]);
+    expect(await s.run("return live.position.x")).toBe(0.9);
+  } finally {
+    s.close();
+  }
+});
+
 it("sets no Blizzard waypoint when the option starts off", async () => {
   const s = await pins("MinMaxQuestCharDB.nativeWaypoint = false");
   try {
