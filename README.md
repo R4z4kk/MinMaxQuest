@@ -56,6 +56,7 @@
 - Shows the nearest target, the next one, and the remaining quests with their estimated travel time.
 - Progress counters for the zone and in total.
 - **Grey** and **Elite** filters. Quests you can't take yet are never shown.
+- Repeatable quests and holiday or event quests (Darkmoon Faire, Winter Veil, Lunar Festival...) are never suggested, in Completion or in the route. At max level, cloth donation quests are hidden too.
 
 ### Access tab
 - Lists every unlockable for your faction (70 entries in total, 39 for each faction) in four collapsible groups (**Dungeons**, **Raids**, **Keys**, **Misc**), each header showing done / total.

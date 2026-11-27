@@ -7,7 +7,7 @@ function quest(overrides: Partial<QuestInfo> = {}): QuestInfo {
     id: 100, name: "Q", level: 10, requiredLevel: 8, requiredMaxLevel: null, races: 0, classes: 0,
     preGroup: [], preSingle: [], exclusiveTo: [], nextInChain: null, children: [],
     starterNpcs: [], starterObjects: [], finisherNpcs: [], finisherObjects: [],
-    objectives: [], baseXp: 0, hasUnsupportedRequirement: false, isElite: false, zoneAreaId: null,
+    objectives: [], baseXp: 0, hasUnsupportedRequirement: false, repeatable: false, seasonal: false, clothDonation: false, isElite: false, zoneAreaId: null,
     ...overrides,
   };
 }
@@ -20,6 +20,11 @@ describe("isAvailable", () => {
   it("accepts a quest with all requirements met", () => {
     const q = quest({ preGroup: [1, 2], preSingle: [3, 4], exclusiveTo: [5] });
     expect(isAvailable(q, player({ completed: new Set([1, 2, 4]) }))).toBe(true);
+  });
+
+  it("rejects repeatable and event quests", () => {
+    expect(isAvailable(quest({ repeatable: true }), player())).toBe(false);
+    expect(isAvailable(quest({ seasonal: true }), player())).toBe(false);
   });
 
   it("rejects below required level", () => {

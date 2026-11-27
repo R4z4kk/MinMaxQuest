@@ -22,7 +22,7 @@ function quest(sourceItemId: number | null, requiredSourceItems: number[]): Ques
     finisherObjects: [],
     objectives: [],
     baseXp: null,
-    hasUnsupportedRequirement: false,
+    hasUnsupportedRequirement: false, repeatable: false, seasonal: false, clothDonation: false,
     isElite: false,
     zoneAreaId: null,
     sourceItemId,

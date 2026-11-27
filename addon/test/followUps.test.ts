@@ -24,7 +24,7 @@ function quest(id: number, over: Partial<QuestInfo> = {}): QuestInfo {
     finisherObjects: [],
     objectives: [],
     baseXp: 1000,
-    hasUnsupportedRequirement: false,
+    hasUnsupportedRequirement: false, repeatable: false, seasonal: false, clothDonation: false,
     isElite: false,
     zoneAreaId: null,
     ...over,

@@ -18,7 +18,7 @@ function quest(overrides: Partial<QuestInfo> = {}): QuestInfo {
     id: 100, name: "Q", level: 10, requiredLevel: 8, requiredMaxLevel: null, races: 0, classes: 0,
     preGroup: [], preSingle: [], exclusiveTo: [], nextInChain: null, children: [],
     starterNpcs: [], starterObjects: [], finisherNpcs: [], finisherObjects: [],
-    objectives: [], baseXp: 0, hasUnsupportedRequirement: false, isElite: false, zoneAreaId: null,
+    objectives: [], baseXp: 0, hasUnsupportedRequirement: false, repeatable: false, seasonal: false, clothDonation: false, isElite: false, zoneAreaId: null,
     ...overrides,
   };
 }
@@ -28,7 +28,7 @@ const player = (overrides: Partial<PlayerQuestState> = {}): PlayerQuestState => 
 });
 
 const opts = (overrides: Partial<CompletionOptions> = {}): CompletionOptions => ({
-  mode: "proximity", zoneAreaId: null, showTrivial: true, showElite: true, minLevelGap: null, pinnedQuestId: null,
+  mode: "proximity", zoneAreaId: null, showTrivial: true, showElite: true, minLevelGap: null, pinnedQuestId: null, maxLevel: 60,
   ...overrides,
 });
 
@@ -51,6 +51,20 @@ const objective = (index: number) => ({ kind: "npc" as const, id: index, require
 const logged = (complete: boolean, done: number[] = []) => ({ complete, objectivesDone: new Set<number>(done) });
 
 describe("selectTargets", () => {
+  it("never offers repeatable quests", () => {
+    const targets = selectTargets(input([quest({ id: 1, repeatable: true })], { "1:accept:null": [at(5)] }), opts());
+    expect(targets).toEqual([]);
+  });
+
+  it("drops cloth donations at max level only, and keeps one already in the log", () => {
+    const cloth = quest({ id: 1, clothDonation: true });
+    const positions: Positions = { "1:accept:null": [at(5)], "1:turnin:null": [at(5)] };
+    expect(selectTargets(input([cloth], positions, { player: player({ level: 59 }) }), opts())).toHaveLength(1);
+    expect(selectTargets(input([cloth], positions, { player: player({ level: 60 }) }), opts())).toEqual([]);
+    const inLog = input([cloth], positions, { player: player({ level: 60 }), log: new Map([[1, logged(true)]]) });
+    expect(selectTargets(inLog, opts()).map((t) => t.kind)).toEqual(["turnin"]);
+  });
+
   it("sorts by seconds ascending with Infinity and NaN last", () => {
     const quests = [quest({ id: 1 }), quest({ id: 2 }), quest({ id: 3 }), quest({ id: 4 })];
     const positions: Positions = {

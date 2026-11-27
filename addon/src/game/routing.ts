@@ -117,7 +117,7 @@ export function createRouting(
           penaltyOf: (p) => hearthPenaltyOf(current.plan, current.graph, p, current.ctx),
         },
         {
-          mode, zoneAreaId, showTrivial, showElite, minLevelGap: db.minLevelGap, pinnedQuestId: db.pinnedQuestId,
+          mode, zoneAreaId, showTrivial, showElite, minLevelGap: db.minLevelGap, pinnedQuestId: db.pinnedQuestId, maxLevel: snap.maxLevel,
           ...(mode === "proximity" && nearby != null ? { nearbyMaps: nearby.maps() } : {}),
         },
       );
