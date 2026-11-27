@@ -1,8 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { travel as travelFixture } from "./fixtures";
 import { SCENARIOS } from "../model/constants";
-import type { RouteQuest } from "../model/world";
+import type { RouteQuest, World } from "../model/world";
 import { allVariants, buildFaction, variantKey, type FactionRoutes } from "../opt/variants";
+import { buildRoute, type Variant } from "../opt/build";
 import { initialState, simulate } from "../sim/simulate";
 import { kill, place, quest, worldOf } from "./fixtures";
 
@@ -38,6 +39,11 @@ function world() {
   });
 }
 
+beforeAll(() => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+});
+afterAll(() => vi.restoreAllMocks());
+
 describe("variants", () => {
   it("lists 16 unique keys and formats them", () => {
     const keys = allVariants().map(variantKey);
@@ -52,10 +58,8 @@ describe("buildFaction", () => {
   let routes: FactionRoutes;
   const w = world();
   beforeAll(() => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
     routes = buildFaction(w, { beamWidth: 4, branching: 3 }, data);
   });
-  afterAll(() => vi.restoreAllMocks());
 
   it("fills every variant for the segment and the trunk", () => {
     const keys = allVariants().map(variantKey);
@@ -105,5 +109,76 @@ describe("buildFaction", () => {
       startZones: [{ key: "start", faction: "A", raceMask: RACE_A, areaId: 12, start: place(0, 0, 1) }],
     });
     expect(() => buildFaction(blocked, { beamWidth: 2, branching: 2 }, data)).toThrow(/start e0d0x0 fast/);
+  });
+});
+
+function candidateAverages(w: World, variant: Variant): number[] {
+  const start = () => initialState(place(5, 5, 2), 10, [2], null);
+  const options = { maxLevelGap: variant.maxLevelGap, tolerant: false, raceMask: w.raceMask };
+  return SCENARIOS.map((built) => {
+    const { steps } = buildRoute({ world: w, scenario: built, variant, start: start(), targetLevel: 60, areaIds: null, beamWidth: 4, branching: 3 }, data);
+    const times = SCENARIOS.map((s) => simulate(steps, start(), w, s, options, data).state.seconds);
+    return times.reduce((a, b) => a + b, 0) / times.length;
+  });
+}
+
+const trunkOnly = (quests: RouteQuest[]) =>
+  worldOf(quests, { raceMask: RACE_A, raceMasks: [RACE_A], taxiPlaces: new Map([[2, place(5, 5, 2)]]) });
+
+describe("scenario selection", () => {
+  const big = { baseXp: 900000, level: 60, requiredLevel: 10 };
+  const mk = (id: number, x: number, xp: number, count: number): RouteQuest => {
+    const task = { ...kill(place(x, 30, 2), 60), count };
+    return quest(id, place(x, 0, 2), { ...big, baseXp: xp }, [task]);
+  };
+
+  it("keeps the candidate with the lowest average over the three scenarios", () => {
+    const w = trunkOnly([mk(1, 0, 900000, 1), mk(2, 40, 900000, 1), mk(3, 80, 900000, 1), mk(4, 120, 900000, 1), mk(5, 1200, 300, 40), mk(6, 1240, 300, 40)]);
+    const routes = buildFaction(w, { beamWidth: 4, branching: 3 }, data);
+    let differing = 0;
+    for (const variant of allVariants()) {
+      const averages = candidateAverages(w, variant);
+      if (Math.max(...averages) - Math.min(...averages) > 1) differing++;
+      expect(routes.trunk[variantKey(variant)].average).toBeCloseTo(Math.min(...averages), 6);
+    }
+    expect(differing).toBeGreaterThan(0);
+  });
+
+  it("throws when a candidate violates a strict rule under another scenario", () => {
+    const collect = quest(1, place(5, 5, 2), { baseXp: 100, level: 5, requiredLevel: 10, objectives: [{ index: 0, kind: "item" as const, id: 1, required: 20 }] }, [
+      { kind: "collect", objectiveIndex: 0, count: 20, cluster: { center: place(0, 30, 2), loop: [place(0, 30, 2), place(0, 60, 2)] }, mobLevel: 12, elite: false, dropChance: 0, assumedDropChance: true },
+    ]);
+    const gated = quest(2, place(10, 0, 2), { baseXp: 100, level: 10, requiredLevel: 10 });
+    const filler = quest(3, place(20, 0, 2), { baseXp: 50, level: 5, requiredLevel: 10 }, [kill(place(20, 30, 2), 9)]);
+    expect(() => buildFaction(trunkOnly([collect, gated, filler]), { beamWidth: 4, branching: 3 }, data)).toThrow(
+      /trunk e0d0x1 slow route, scenario fast: step \d+: accept 2: maxLevelGap/,
+    );
+  });
+});
+
+describe("race check inputs", () => {
+  const zoneQuests = [0, 1, 2, 3].map((i) => quest(10 + i, place(i * 40, 0, 1), { baseXp: 9000, level: 5 }, [kill(place(i * 40, 30, 1), 5)]));
+  const gated = quest(20, place(10, 0, 1), { baseXp: 9000, level: 5, races: RACE_A }, [kill(place(10, 30, 1), 5)]);
+  const worldWith = (zoneMask: number, masks: number[]) =>
+    worldOf([...zoneQuests, gated, ...trunkQuests], {
+      raceMask: RACE_A + RACE_B,
+      raceMasks: masks,
+      taxiPlaces: new Map([[2, place(5, 5, 2)]]),
+      areaUiMap: new Map([[12, 1], [40, 2]]),
+      startZones: [{ key: "start", faction: "A", raceMask: zoneMask, areaId: 12, start: place(0, 0, 1) }],
+    });
+
+  it("checks only the races of the start zone", () => {
+    const routes = buildFaction(worldWith(RACE_A, [RACE_A, RACE_B]), { beamWidth: 4, branching: 3 }, data);
+    const e = routes.segments.start.e0d1x0;
+    expect(e.steps.some((s) => s.questId === 20)).toBe(true);
+    expect(e.worstRace.raceMask).toBe(RACE_A);
+    expect(e.worstRace.skipped).toBe(0);
+  });
+
+  it("throws naming the segment and zone mask when no race applies", () => {
+    expect(() => buildFaction(worldWith(RACE_B, [RACE_A]), { beamWidth: 4, branching: 3 }, data)).toThrow(/start \(zone mask 4\) has no race/);
+    expect(() => buildFaction(worldWith(RACE_A, []), { beamWidth: 4, branching: 3 }, data)).toThrow(/start \(zone mask 1\) has no race/);
+    expect(() => buildFaction({ ...worldWith(RACE_A, []), startZones: [] }, { beamWidth: 4, branching: 3 }, data)).toThrow(/trunk has no race/);
   });
 });

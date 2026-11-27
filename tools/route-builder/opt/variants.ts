@@ -48,6 +48,7 @@ interface Segment {
   targetLevel: number;
   areaIds: Set<number> | null;
   raceMasks: number[];
+  zoneMask: number | null;
 }
 
 function nearestInn(world: World, to: Place): Place | null {
@@ -76,6 +77,7 @@ function segments(world: World): Segment[] {
       hearth: nearestInn(world, zone.start),
       targetLevel: BUILDER.segmentEndLevel.value,
       areaIds,
+      zoneMask: zone.raceMask,
       raceMasks: world.raceMasks.filter((mask) => maskAllows(zone.raceMask, mask)),
     };
   });
@@ -89,6 +91,7 @@ function segments(world: World): Segment[] {
     hearth: nearestInn(world, capital),
     targetLevel: TRUNK_TARGET_LEVEL,
     areaIds: null,
+    zoneMask: null,
     raceMasks: world.raceMasks,
   });
   return out;
@@ -133,6 +136,10 @@ function evaluate(
 
   const checked = SCENARIOS.find((s) => s.name === RACE_CHECK_SCENARIO);
   if (checked == null) throw new Error(`buildFaction: scenario ${RACE_CHECK_SCENARIO} missing`);
+  if (seg.raceMasks.length === 0) {
+    const zone = seg.zoneMask == null ? "" : ` (zone mask ${seg.zoneMask})`;
+    throw new Error(`buildFaction: ${seg.name}${zone} has no race to check, faction masks [${world.raceMasks.join(",")}]`);
+  }
   for (const raceMask of seg.raceMasks) {
     const result = simulate(best.steps, start(), world, checked, { ...strict, tolerant: true, raceMask }, travel);
     const skipped = result.state.skipped.size;
