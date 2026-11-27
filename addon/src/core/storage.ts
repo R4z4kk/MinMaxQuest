@@ -1,5 +1,8 @@
+export type LanguageSetting = "auto" | "enUS" | "frFR";
+
 export interface AccountDb {
   version: 1;
+  locale: LanguageSetting;
 }
 
 export interface CharDb {
@@ -30,7 +33,7 @@ export interface CharDb {
   dungeonReturns: number[];
 }
 
-export const ACCOUNT_DEFAULTS: AccountDb = { version: 1 };
+export const ACCOUNT_DEFAULTS: AccountDb = { version: 1, locale: "auto" };
 
 export const CHAR_DEFAULTS: CharDb = {
   version: 1,
@@ -118,5 +121,7 @@ export function loadCharDb(saved: unknown): CharDb {
 }
 
 export function loadAccountDb(saved: unknown): AccountDb {
-  return withDefaults(saved, ACCOUNT_DEFAULTS);
+  const db = withDefaults(saved, ACCOUNT_DEFAULTS);
+  if (db.locale !== "auto" && db.locale !== "enUS" && db.locale !== "frFR") db.locale = ACCOUNT_DEFAULTS.locale;
+  return db;
 }

@@ -1,8 +1,8 @@
 import { createArrow, playerPosition, type ArrowApi, type ArrowTarget } from "./arrow/arrowFrame";
 import { corpseTarget, type CorpseDeps } from "./arrow/corpse";
-import { t } from "./core/l10n";
+import { applyLanguage, t } from "./core/l10n";
 import { guard, isDisabled, reportOnce } from "./core/report";
-import { loadCharDb, type CharDb } from "./core/storage";
+import { loadAccountDb, loadCharDb, type AccountDb, type CharDb } from "./core/storage";
 import { TRAVEL } from "./data/generated/travel";
 import { createQuestRepository, type QuestInfo, type QuestRepository, type RepoResult } from "./data/questRepository";
 import { createCommands } from "./game/commands";
@@ -40,9 +40,21 @@ interface Game {
   refreshPins(): void;
 }
 
+let accountDb: AccountDb | null = null;
+
+function getAccountDb(): AccountDb {
+  if (accountDb == null) {
+    accountDb = loadAccountDb(_G.MinMaxQuestDB);
+    _G.MinMaxQuestDB = accountDb;
+    applyLanguage(accountDb.locale);
+  }
+  return accountDb;
+}
+
 let db: CharDb | null = null;
 
 function getDb(): CharDb {
+  getAccountDb();
   if (db == null) {
     db = loadCharDb(_G.MinMaxQuestCharDB);
     _G.MinMaxQuestCharDB = db;
@@ -110,7 +122,7 @@ function clearArrow(): void {
   guard("arrow", () => getArrow().setTarget(null));
 }
 
-const ui = createUi({ db: () => getDb(), game: () => start(), arrow: () => getArrow() });
+const ui = createUi({ db: () => getDb(), account: () => getAccountDb(), game: () => start(), arrow: () => getArrow() });
 
 const commands = createCommands({
   repository: () => getRepository(),
@@ -216,6 +228,7 @@ function start(): Game | null {
 
 function onEvent(event: string, arg1: unknown, arg3: unknown): void {
   if (event === "PLAYER_LOGIN") {
+    getAccountDb();
     start();
     return;
   }

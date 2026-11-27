@@ -1,7 +1,7 @@
 import { formatDistance, formatDuration } from "../core/geometry";
-import { currentLocale, t } from "../core/l10n";
+import { currentLocale, resolveLanguage, t } from "../core/l10n";
 import { guard } from "../core/report";
-import type { CharDb } from "../core/storage";
+import type { AccountDb, CharDb, LanguageSetting } from "../core/storage";
 import type { QuestRepository } from "../data/questRepository";
 import type { ArrowApi } from "../arrow/arrowFrame";
 import type { Engine } from "../game/engine";
@@ -13,6 +13,7 @@ import { CONTENT_TOP, type TabView } from "./window";
 
 export interface QuestDeps {
   db: CharDb;
+  account: AccountDb;
   engine: Engine;
   arrow(): ArrowApi;
   repo: QuestRepository;
@@ -36,7 +37,13 @@ const LINE = 16;
 const CHECK_HEIGHT = 14;
 const FOOTER_ROOM = 26;
 const GAP_ROW_Y = SECTION_Y - 5 * LINE - 20;
-const OPTIONS_HEIGHT = CONTENT_TOP - GAP_ROW_Y + BUTTON_HEIGHT + FOOTER_ROOM;
+const LANGUAGE_ROW_Y = GAP_ROW_Y - BUTTON_HEIGHT - 22;
+const OPTIONS_HEIGHT = CONTENT_TOP - LANGUAGE_ROW_Y + BUTTON_HEIGHT + FOOTER_ROOM;
+const LANGUAGES: { value: LanguageSetting; caption: string | null }[] = [
+  { value: "auto", caption: null },
+  { value: "enUS", caption: "English" },
+  { value: "frFR", caption: "Français" },
+];
 const SECONDS_PER_HOUR = 3600;
 
 type Section = "options" | "dungeons";
@@ -46,12 +53,14 @@ function remainingText(seconds: number): string {
 }
 
 export function createQuestTab(deps: QuestDeps): TabView {
-  const { db, follower } = deps;
+  const { db, account, follower } = deps;
   let root: WowFrame | null = null;
   // Both sections start closed so the tab opens at its 270 x 262 size.
   let open: Section | null = null;
   const checks: Checkbox[] = [];
   const gapButtons: Button[] = [];
+  const languageButtons: Button[] = [];
+  let reloadButton: Button | null = null;
   const optionWidgets: WowRegion[] = [];
   const dungeonBoxes = new Map<number, Checkbox>();
   const routeWidgets: WowRegion[] = [];
@@ -87,7 +96,9 @@ export function createQuestTab(deps: QuestDeps): TabView {
   const drawOptions = (): void => {
     checks.forEach((box, i) => box.set(stored[i]()));
     gapButtons.forEach((gapButton, i) => gapButton.setPrimary(GAPS[i] === (db.minLevelGap ?? 0)));
+    languageButtons.forEach((languageButton, i) => languageButton.setPrimary(LANGUAGES[i].value === account.locale));
     for (const widget of optionWidgets) setShown(widget, open === "options");
+    if (reloadButton != null) setShown(reloadButton.frame, open === "options" && resolveLanguage(account.locale) !== currentLocale());
     dungeonBoxes.forEach((box, areaId) => {
       box.set(db.dungeonReturns.includes(areaId));
       setShown(box.frame, open === "dungeons");
@@ -254,6 +265,26 @@ export function createQuestTab(deps: QuestDeps): TabView {
         gapButtons.push(gapButton);
         optionWidgets.push(gapButton.frame);
       }
+
+      const languageLabel = text(parent, SIZE.small, COLOR.sub);
+      languageLabel.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, LANGUAGE_ROW_Y + 16);
+      languageLabel.SetText(t("language"));
+      optionWidgets.push(languageLabel);
+      let previousLanguage: WowFrame | null = null;
+      for (const language of LANGUAGES) {
+        const languageButton = button(parent, `MinMaxQuestLanguage${language.value}`, language.caption ?? t("languageAuto"), () => {
+          account.locale = language.value;
+          draw();
+        });
+        if (previousLanguage == null) languageButton.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, LANGUAGE_ROW_Y);
+        else languageButton.frame.SetPoint("LEFT", previousLanguage, "RIGHT", 4, 0);
+        previousLanguage = languageButton.frame;
+        languageButtons.push(languageButton);
+        optionWidgets.push(languageButton.frame);
+      }
+      reloadButton = button(parent, "MinMaxQuestReload", t("reload"), () => ReloadUI());
+      reloadButton.setPrimary(true);
+      reloadButton.frame.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, LANGUAGE_ROW_Y + 18);
 
       const dungeons = follower.returnDungeons();
       dungeons.forEach((areaId, i) => {

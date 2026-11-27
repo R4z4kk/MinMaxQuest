@@ -1,3 +1,5 @@
+import type { LanguageSetting } from "./storage";
+
 export type L10nKey =
   | "questieMissing"
   | "questNotFound"
@@ -102,7 +104,10 @@ export type L10nKey =
   | "routeChainUnknown"
   | "bannerRoutesBuild"
   | "corpse"
-  | "corpseUnknown";
+  | "corpseUnknown"
+  | "language"
+  | "languageAuto"
+  | "reload";
 
 const EN: Record<L10nKey, string> = {
   questieMissing: "QuestieDB is required",
@@ -209,6 +214,9 @@ const EN: Record<L10nKey, string> = {
   bannerRoutesBuild: "Routes built for build {build}",
   corpse: "Your corpse",
   corpseUnknown: "corpse position unknown",
+  language: "Language",
+  languageAuto: "Auto",
+  reload: "Reload",
 };
 
 const FR: Record<L10nKey, string> = {
@@ -316,12 +324,27 @@ const FR: Record<L10nKey, string> = {
   bannerRoutesBuild: "Routes générées pour le build {build}",
   corpse: "Ton corps",
   corpseUnknown: "position du corps inconnue",
+  language: "Langue",
+  languageAuto: "Auto",
+  reload: "Recharger",
 };
 
 let french: boolean | null = null;
 
 export function setLocale(locale: string): void {
   french = locale === "frFR";
+}
+
+function clientLocale(): "frFR" | "enUS" {
+  return typeof GetLocale === "function" && GetLocale() === "frFR" ? "frFR" : "enUS";
+}
+
+export function resolveLanguage(setting: LanguageSetting): "frFR" | "enUS" {
+  return setting === "auto" ? clientLocale() : setting;
+}
+
+export function applyLanguage(setting: LanguageSetting): void {
+  setLocale(resolveLanguage(setting));
 }
 
 function isFrench(): boolean {

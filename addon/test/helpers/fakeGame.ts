@@ -36,7 +36,10 @@ end
 CreateFrame = function(kind, name) created = created + 1; return fake(name) end
 UIParent = {}
 GetLocale = function() return "enUS" end
+MinMaxQuestDB = {}
 MinMaxQuestCharDB = {}
+reloads = 0
+ReloadUI = function() reloads = reloads + 1 end
 -- No route file installed: quest mode falls back to completion. QUEST_MODE loads the real one.
 MinMaxQuestRoutes = false
 now = 100

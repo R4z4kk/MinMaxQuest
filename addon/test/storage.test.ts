@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CHAR_DEFAULTS, type CharDb, loadCharDb, withDefaults } from "../src/core/storage";
+import { ACCOUNT_DEFAULTS, CHAR_DEFAULTS, type CharDb, loadAccountDb, loadCharDb, withDefaults } from "../src/core/storage";
 
 const D = { a: 1, b: "x", c: { d: true, e: [] as number[] }, f: null as number | null };
 
@@ -104,5 +104,20 @@ describe("route state", () => {
     expect(db.dungeonReturns).toEqual([]);
     expect(loadCharDb({ route: { startIndex: 2.5, skippedSteps: "x" } }).route).toEqual({ variant: null, startIndex: 0, skippedSteps: [] });
     expect(loadCharDb({ dungeonReturns: { a: 1 } }).dungeonReturns).toEqual([]);
+  });
+});
+
+describe("loadAccountDb", () => {
+  it("defaults the language to auto", () => {
+    expect(ACCOUNT_DEFAULTS.locale).toBe("auto");
+    expect(loadAccountDb(null).locale).toBe("auto");
+  });
+  it("keeps a valid language", () => {
+    expect(loadAccountDb({ locale: "frFR" }).locale).toBe("frFR");
+    expect(loadAccountDb({ locale: "enUS" }).locale).toBe("enUS");
+  });
+  it("repairs an invalid language", () => {
+    expect(loadAccountDb({ locale: "deDE" }).locale).toBe("auto");
+    expect(loadAccountDb({ locale: 3 }).locale).toBe("auto");
   });
 });

@@ -182,6 +182,55 @@ it("stores the Quest tab options and opens Completion from the empty state", asy
   }
 });
 
+it("shows the Quest tab in French when French is stored on an English client", async () => {
+  const s = await ui(`MinMaxQuestDB = { locale = "frFR" }`);
+  try {
+    await s.cmd("");
+    const texts = await s.texts();
+    expect(texts).toContain("Quête");
+    expect(texts).not.toContain("Quest");
+  } finally {
+    s.close();
+  }
+});
+
+it("stores the language from the Options buttons and offers a reload only when it differs", async () => {
+  const s = await ui();
+  const reloadShown = async () => (await s.visibilityOf("MinMaxQuestReload")) === "MinMaxQuestReload|Show";
+  try {
+    await s.cmd("");
+    await s.click("MinMaxQuestSectionOptions");
+    expect(await s.run("return MinMaxQuestDB.locale")).toBe("auto");
+    expect(await reloadShown()).toBe(false);
+    await s.click("MinMaxQuestLanguagefrFR");
+    expect(await s.run("return MinMaxQuestDB.locale")).toBe("frFR");
+    expect(await reloadShown()).toBe(true);
+    await s.click("MinMaxQuestLanguageenUS");
+    expect(await s.run("return MinMaxQuestDB.locale")).toBe("enUS");
+    expect(await reloadShown()).toBe(false);
+    await s.click("MinMaxQuestLanguagefrFR");
+    expect(await s.run("return reloads")).toBe(0);
+    await s.click("MinMaxQuestReload");
+    expect(await s.run("return reloads")).toBe(1);
+    await s.click("MinMaxQuestLanguageauto");
+    expect(await reloadShown()).toBe(false);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("repairs an invalid stored language", async () => {
+  const s = await ui(`MinMaxQuestDB = { locale = "xx" }`);
+  try {
+    await s.cmd("");
+    expect(await s.run("return MinMaxQuestDB.locale")).toBe("auto");
+    expect(await s.texts()).toContain("Quest");
+  } finally {
+    s.close();
+  }
+});
+
 it("locks the arrow from the Options checkbox and from the slash commands", async () => {
   const s = await ui();
   const locked = () => s.run("return MinMaxQuestCharDB.arrow and MinMaxQuestCharDB.arrow.locked");
@@ -537,6 +586,18 @@ it("opens at 270x262 and fits every option above the footer while Options is ope
       inside(x, y, width, buttonHeight);
       x += width + 4;
     }
+    const language = lastCall("MinMaxQuestLanguageauto|SetPoint|");
+    let languageX = Number(language[5]);
+    for (const code of ["auto", "enUS", "frFR"]) {
+      const width = Number(lastCall(`MinMaxQuestLanguage${code}|SetWidth|`)[2]);
+      const buttonHeight = Number(lastCall(`MinMaxQuestLanguage${code}|SetHeight|`)[2]);
+      inside(languageX, Number(language[6]), width, buttonHeight);
+      languageX += width + 4;
+    }
+    const reload = lastCall("MinMaxQuestReload|SetPoint|");
+    const reloadWidth = Number(lastCall("MinMaxQuestReload|SetWidth|")[2]);
+    inside(270 + Number(reload[5]) - reloadWidth, Number(reload[6]), reloadWidth, 16);
+    expect(270 + Number(reload[5]) - reloadWidth).toBeGreaterThan(0);
     await s.click("MinMaxQuestSectionOptions");
     expect(await s.last("MinMaxQuestWindow|SetHeight|")).toBe("MinMaxQuestWindow|SetHeight|262");
   } finally {

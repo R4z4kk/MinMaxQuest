@@ -27,7 +27,7 @@
 - Each tab resizes the window to fit its content.
 - The window and the last opened tab are remembered across sessions.
 - Black background with a muted gold accent and simple fonts.
-- Available in English and French (frFR).
+- Available in English and French. The **Language** row in the Quest tab Options (Auto, English, Français) is saved account-wide; Auto follows the game client. A **Reload** button appears when a change needs a UI reload. Quest, NPC and zone names always follow the game client language.
 
 ### Guide arrow
 - **What it points to:** quest givers, quest items, objects and mob areas, with the distance and the step label.

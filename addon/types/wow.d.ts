@@ -1,6 +1,7 @@
 declare const _G: Record<string, unknown>;
 declare const SlashCmdList: Record<string, (message: string) => void>;
 declare function GetLocale(): string;
+declare function ReloadUI(): void;
 declare const UIParent: WowFrame;
 declare function UnitPosition(unit: string): LuaMultiReturn<[number, number, number, number] | []>;
 declare function GetPlayerFacing(): number | null;

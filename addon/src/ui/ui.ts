@@ -1,7 +1,7 @@
 import type { ArrowApi } from "../arrow/arrowFrame";
 import { t } from "../core/l10n";
 import { guard } from "../core/report";
-import type { CharDb } from "../core/storage";
+import type { AccountDb, CharDb } from "../core/storage";
 import type { QuestInfo, QuestRepository } from "../data/questRepository";
 import type { Engine } from "../game/engine";
 import type { RouteFollower } from "../route/follower";
@@ -23,6 +23,7 @@ export interface UiGame {
 
 export interface UiContext {
   db(): CharDb;
+  account(): AccountDb;
   game(): UiGame | null;
   arrow(): ArrowApi;
 }
@@ -44,12 +45,13 @@ function noticeTab(message: string): TabView {
   };
 }
 
-function gameTabs(db: CharDb, game: UiGame, arrow: UiContext["arrow"], setTab: (tab: TabId) => void, resize: (height: number) => void): Record<TabId, TabView> {
+function gameTabs(db: CharDb, account: AccountDb, game: UiGame, arrow: UiContext["arrow"], setTab: (tab: TabId) => void, resize: (height: number) => void): Record<TabId, TabView> {
   const { engine, repo } = game;
   const maps = wowMapDeps(repo);
   return {
     quest: createQuestTab({
       db,
+      account,
       engine,
       arrow,
       repo,
@@ -76,7 +78,7 @@ export function createUi(ctx: UiContext): Ui {
     const tabs =
       game == null
         ? { quest: notice, access: notice, completion: notice }
-        : gameTabs(db, game, () => ctx.arrow(), (tab) => window?.setTab(tab), (height) => window?.frame.SetHeight(height));
+        : gameTabs(db, ctx.account(), game, () => ctx.arrow(), (tab) => window?.setTab(tab), (height) => window?.frame.SetHeight(height));
     window = createWindow(db, tabs);
     return { window, banner: createBanner(window.frame, () => (game == null ? null : game.follower.routesBuild())) };
   };
