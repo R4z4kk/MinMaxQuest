@@ -116,6 +116,15 @@ describe("createQuestRepository", () => {
     expect(result.repo.get(1)?.hasUnsupportedRequirement).toBe(true);
   });
 
+  it("treats a zero required spell as no requirement", () => {
+    const result = createQuestRepository(
+      fakeLib({ 1: { name: "A", questLevel: 1, requiredSpell: 0 }, 2: { name: "B", questLevel: 1, requiredSpell: -1230656 } }),
+    );
+    if (!result.ok) throw new Error(result.message);
+    expect(result.repo.get(1)?.hasUnsupportedRequirement).toBe(false);
+    expect(result.repo.get(2)?.hasUnsupportedRequirement).toBe(true);
+  });
+
   it("returns null for unknown or malformed quests without throwing", () => {
     const result = createQuestRepository(fakeLib({ 1: { name: "A" }, 2: { __throw: true } }));
     if (!result.ok) throw new Error(result.message);

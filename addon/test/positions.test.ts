@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { WorldPos } from "../src/core/geometry";
 import type { AreaPoint, QuestInfo, QuestRepository } from "../src/data/questRepository";
-import { createPositions } from "../src/game/positions";
+import { createPositions, isFriendlyTo } from "../src/game/positions";
 
 function quest(over: Partial<QuestInfo>): QuestInfo {
   return {
@@ -99,5 +99,12 @@ describe("positionsFor", () => {
     positionsFor(q, "objective", 1);
     positionsFor(q, "objective", 1);
     expect(calls.items).toBe(1);
+  });
+});
+
+describe("isFriendlyTo", () => {
+  it("counts nil, both sides and the own side as friendly", () => {
+    const reads: ("A" | "H" | "AH" | null)[] = [null, "AH", "A", "H"];
+    expect(reads.map((read) => isFriendlyTo(read, "A"))).toEqual([true, true, true, false]);
   });
 });

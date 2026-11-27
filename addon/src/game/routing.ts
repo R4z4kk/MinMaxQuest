@@ -31,7 +31,7 @@ export function travelSpeed(level: number): number {
   return CONSTANTS.runSpeed.value;
 }
 
-function graphKey(ctx: TravelContext, knownTaxiNodes: number[]): string {
+export function graphKey(ctx: TravelContext, knownTaxiNodes: number[]): string {
   const hearth = ctx.hearth.pos;
   const hearthKey = hearth == null ? "none" : `${hearth.continent}:${hearth.x}:${hearth.y}`;
   return `${ctx.faction}|${hearthKey}|${knownTaxiNodes.join(",")}`;

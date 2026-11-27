@@ -3,6 +3,7 @@ package-as: MinMaxQuest
 ignore:
   - .github
   - addon
+  - data
   - docs
   - reports
   - research_notes
