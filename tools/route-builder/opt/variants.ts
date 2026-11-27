@@ -40,7 +40,7 @@ export function allVariants(): Variant[] {
   return out;
 }
 
-interface Segment {
+export interface Segment {
   name: string;
   start: Place;
   level: number;
@@ -65,7 +65,7 @@ function nearestInn(world: World, to: Place): Place | null {
   return best;
 }
 
-function segments(world: World): Segment[] {
+export function segments(world: World): Segment[] {
   const out: Segment[] = world.startZones.map((zone) => {
     const uiMapId = world.areaUiMap.get(zone.areaId);
     if (uiMapId == null) throw new Error(`buildFaction: start zone ${zone.key} area ${zone.areaId} has no uiMap`);
