@@ -161,7 +161,7 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
       try {
         block = decodeReturnBlock(r, areaId);
       } catch (error) {
-        reportOnce(`routeReturn:${areaId}`, `${t("routesMissing")} (${String(error)})`);
+        reportOnce(`routeReturn:${areaId}`, `${t("routeReturnUnreadable").replace("{id}", String(areaId))} (${String(error)})`);
         continue;
       }
       let minLevel = 0;
@@ -201,15 +201,22 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
       return false;
     }
     const previous = steps;
-    const fresh = stamp !== stored;
+    const fresh = stored == null || stamp !== stored.split("#")[0];
     if (fresh) {
-      db.route.variant = stamp;
       db.route.startIndex = resyncIndex(base, snap.state.level, 0);
       db.route.skippedSteps = [];
     }
+    baseIndex = new Map();
+    base.forEach((s, i) => baseIndex.set(s, i));
     const list = insertBlocks(base, db.route.startIndex, chainBlocks(r, base), toWorld);
     const listIndex = new Map<EmittedStep, number>();
-    list.forEach((s, i) => listIndex.set(s, i));
+    let insertedIds = 0;
+    list.forEach((s, i) => {
+      listIndex.set(s, i);
+      if (!baseIndex.has(s)) insertedIds += s.questId ?? 0;
+    });
+    // Saved travel skips are list indexes: they only hold for the same inserted steps.
+    const signed = `${stamp}#${list.length}/${insertedIds}`;
     if (!fresh && previous.length > 0) {
       const kept: number[] = [];
       for (const i of db.route.skippedSteps) {
@@ -217,9 +224,8 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
         if (index != null) kept.push(index);
       }
       db.route.skippedSteps = kept;
-    }
-    baseIndex = new Map();
-    base.forEach((s, i) => baseIndex.set(s, i));
+    } else if (!fresh && signed !== stored) db.route.skippedSteps = [];
+    db.route.variant = signed;
     hearthSteps = [];
     list.forEach((s, i) => {
       if (s.type === "hearth") hearthSteps.push(i);

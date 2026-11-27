@@ -418,14 +418,42 @@ it("shows objective progress and the distance to the next step", async () => {
 });
 
 it("skips the displayed step, not the arrow target, from the Quest tab", async () => {
-  const s = await routeTab();
+  const s = await routeTab("quests[33].requiredLevel = 5");
   try {
-    await s.run("player = { 900000, 2000 }; now = now + 3");
+    await s.run("now = now + 3");
     await s.tick();
+    expect(await s.texts()).toContain("Wolves Across the Border · pick up");
+    await s.printed();
+    await s.cmd("targets");
+    expect((await s.printed()).split("\n")[0]).not.toContain("[33]");
     const before = await s.run("return #MinMaxQuestCharDB.route.skippedSteps + #MinMaxQuestCharDB.skippedQuests");
     await s.click("MinMaxQuestRouteSkip");
     expect(await s.run("return MinMaxQuestCharDB.skippedQuests[1]")).toBe(33);
     expect(before).toBe(0);
+  } finally {
+    s.close();
+  }
+});
+
+it("shows no progress for an objective without a required count", async () => {
+  const s = await routeTab(`
+    logQuests = { 33 }
+    objectives[33] = { { finished = false } }
+  `);
+  try {
+    await s.event('"QUEST_ACCEPTED"');
+    await s.run("now = now + 3");
+    await s.tick();
+    expect(await s.texts()).not.toContain("0/0");
+  } finally {
+    s.close();
+  }
+});
+
+it("prints route decode errors, unlike the missing route file notice", async () => {
+  const s = await routeTab(`MinMaxQuestRoutes.Alliance.trunk.e0d0x0 = "z;1;2"`);
+  try {
+    expect(await s.printed()).toContain("Routes not installed - use Completion meanwhile (Error: Route data A e0d0x0 (trunk)");
   } finally {
     s.close();
   }

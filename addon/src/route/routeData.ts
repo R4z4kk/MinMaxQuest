@@ -17,6 +17,7 @@ export type RoutesResult = { ok: true; routes: FactionRoutes } | { ok: false; me
 export interface CharacterRoute { key: string; segmentKey: string | null; steps: EmittedStep[]; segmentLength: number }
 
 const FACTION_TABLES = { A: "Alliance", H: "Horde" };
+const OTHER_FACTION = { A: "H", H: "A" } as const;
 
 export function variantKey(o: RouteOptions): string {
   return "e" + (o.elites ? 1 : 0) + "d" + (o.dungeons ? 1 : 0) + "x" + (o.minLevelGap ?? 0);
@@ -77,6 +78,8 @@ function parseRoutes(faction: "A" | "H", raw: unknown): RoutesResult {
 export function readRoutes(faction: "A" | "H"): RoutesResult {
   const all = (globalThis as unknown as Record<string, unknown>).MinMaxQuestRoutes;
   if (!isTable(all)) return { ok: false, message: "Route data missing: MinMaxQuestRoutes is not loaded (" + FACTION_TABLES[faction] + ")" };
+  // The faction never changes in a session: let the garbage collector reclaim the other one.
+  delete all[FACTION_TABLES[OTHER_FACTION[faction]]];
   return parseRoutes(faction, all[FACTION_TABLES[faction]]);
 }
 

@@ -92,6 +92,14 @@ it("reads valid routes from the global", () => {
   if (result.ok) expect(result.routes.faction).toBe("A");
 });
 
+it("frees the other faction's table once one is read", () => {
+  const { faction: _faction, ...table } = routes;
+  const all: Record<string, unknown> = { Alliance: table, Horde: table };
+  (globalThis as Record<string, unknown>).MinMaxQuestRoutes = all;
+  expect(readRoutes("A").ok).toBe(true);
+  expect(Object.keys(all)).toEqual(["Alliance"]);
+});
+
 it("reports a missing global, faction or trunk", () => {
   expect(readRoutes("A")).toEqual({ ok: false, message: expect.stringContaining("Alliance") });
   (globalThis as Record<string, unknown>).MinMaxQuestRoutes = { Horde: {} };

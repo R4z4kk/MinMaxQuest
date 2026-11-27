@@ -97,6 +97,7 @@ export type L10nKey =
   | "routeStepsRemoved"
   | "routeStepUnplaced"
   | "routeChainUnplaceable"
+  | "routeReturnUnreadable"
   | "routeChainUnknown"
   | "bannerRoutesBuild";
 
@@ -199,6 +200,7 @@ const EN: Record<L10nKey, string> = {
   routeStepsRemoved: "{n} route step(s) removed: not doable by this character",
   routeStepUnplaced: "route step {n} has no usable position, skipped",
   routeChainUnplaceable: "{name}: {n} quest(s) could not be placed in the route",
+  routeReturnUnreadable: "Dungeon return #{id} could not be read and is left out of the route",
   routeChainUnknown: "tracked chain {id} is unknown",
   bannerRoutesBuild: "Routes built for build {build}",
 };
@@ -302,6 +304,7 @@ const FR: Record<L10nKey, string> = {
   routeStepsRemoved: "{n} étape(s) de route retirée(s) : impossibles pour ce personnage",
   routeStepUnplaced: "étape de route {n} sans position utilisable, sautée",
   routeChainUnplaceable: "{name} : {n} quête(s) impossibles à placer dans la route",
+  routeReturnUnreadable: "Le retour en donjon #{id} est illisible et reste hors de la route",
   routeChainUnknown: "chaîne suivie {id} inconnue",
   bannerRoutesBuild: "Routes générées pour le build {build}",
 };

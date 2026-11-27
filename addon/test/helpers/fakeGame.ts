@@ -6,7 +6,7 @@ math.atan2 = math.atan2 or math.atan
 printed = {}
 routeNotices = {}
 print = function(line)
-  if string.find(line, "Routes not installed", 1, true) then table.insert(routeNotices, line) else table.insert(printed, line) end
+  if string.find(line, "Route data missing", 1, true) then table.insert(routeNotices, line) else table.insert(printed, line) end
 end
 calls = {}
 created = 0

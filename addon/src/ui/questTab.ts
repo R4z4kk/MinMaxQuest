@@ -98,10 +98,10 @@ export function createQuestTab(deps: QuestDeps): TabView {
     if (resync != null) setShown(resync.frame, off);
     viewed = view;
     currentText?.SetText(view.currentText ?? "");
-    const progress = view.currentProgress;
+    const progress = view.currentProgress != null && view.currentProgress.need > 0 ? view.currentProgress : null;
     progressText?.SetText(progress == null ? "" : `${progress.have}/${progress.need}`);
     progressBar?.setShown(progress != null);
-    progressBar?.setFraction(progress == null || progress.need <= 0 ? 0 : progress.have / progress.need);
+    progressBar?.setFraction(progress == null ? 0 : progress.have / progress.need);
     nextDistance?.SetText(view.nextDistance == null ? "" : formatDistance(view.nextDistance, currentLocale()));
     nextTexts.forEach((line, i) => line.SetText(view.nextTexts[i] ?? ""));
     footer?.SetText(

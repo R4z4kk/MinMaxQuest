@@ -81,7 +81,7 @@ it("follows segment then trunk from step 0 at level 1", () => {
   const f = follower(db);
   const list = f.targets(snapshot(1));
   expect(list?.[0]).toMatchObject({ questId: null, kind: "route", route: { index: 0, type: "grind", label: "Grind to level 2" } });
-  expect(db.route).toMatchObject({ variant: "e0d0x0:seg:1@2026-11-27", startIndex: 0 });
+  expect(db.route).toMatchObject({ variant: "e0d0x0:seg:1@2026-11-27#6/0", startIndex: 0 });
   expect(f.view()).toMatchObject({ current: 0, total: 6, currentText: "Grind to level 2" });
 });
 
@@ -89,13 +89,13 @@ it("starts on the trunk, re-synced, when first loaded at level 12, and keeps a s
   install();
   const late = loadCharDb(null);
   follower(late).targets(snapshot(12));
-  expect(late.route).toMatchObject({ variant: "e0d0x0::1@2026-11-27", startIndex: 1 });
+  expect(late.route).toMatchObject({ variant: "e0d0x0::1@2026-11-27#4/0", startIndex: 1 });
 
   const early = loadCharDb(null);
   follower(early).targets(snapshot(1));
   const reloaded = follower(early);
   reloaded.targets(snapshot(12));
-  expect(early.route.variant).toBe("e0d0x0:seg:1@2026-11-27");
+  expect(early.route.variant).toBe("e0d0x0:seg:1@2026-11-27#6/0");
   expect(reloaded.view()?.total).toBe(6);
 });
 
@@ -133,10 +133,10 @@ it("waits for the end of combat to change the variant", () => {
   combat.on = true;
   db.routeElites = true;
   expect(f.targets(snapshot(1))?.[0].route?.index).toBe(0);
-  expect(db.route.variant).toBe("e0d0x0:seg:1@2026-11-27");
+  expect(db.route.variant).toBe("e0d0x0:seg:1@2026-11-27#6/0");
   combat.on = false;
   f.targets(snapshot(1));
-  expect(db.route.variant).toBe("e1d0x0:seg:1@2026-11-27");
+  expect(db.route.variant).toBe("e1d0x0:seg:1@2026-11-27#6/0");
 });
 
 it("completes a setHearth step on HEARTHSTONE_BOUND only while it is current", () => {
@@ -258,4 +258,37 @@ it("is unavailable when the first variant fails to decode", () => {
   const f = follower(loadCharDb(null));
   expect(f.targets(snapshot(12))).toBeNull();
   expect(f.unavailable()).toContain("e0d0x0");
+});
+
+type RoutesGlobal = Record<string, { Alliance: { returnBlocks: Record<number, string> } }>;
+
+it("reports an unreadable dungeon return on its own and keeps the route", () => {
+  install();
+  (globalThis as unknown as RoutesGlobal).MinMaxQuestRoutes.Alliance.returnBlocks[7] = "z;1;2";
+  const db = loadCharDb(null);
+  db.dungeonReturns = [7];
+  const f = follower(db);
+  expect(f.targets(snapshot(11))).not.toBeNull();
+  expect(f.unavailable()).toBeNull();
+  expect(reports).toHaveLength(1);
+  expect(reports[0]).toContain("MinMaxQuest: Dungeon return #7 could not be read and is left out of the route");
+  expect(reports[0]).not.toContain("Routes not installed");
+});
+
+it("drops saved travel skips when the inserted steps changed since they were saved", () => {
+  install();
+  const db = loadCharDb(null);
+  db.dungeonReturns = [7];
+  follower(db).targets(snapshot(11));
+  db.route.skippedSteps = [4];
+  const startIndex = db.route.startIndex;
+  follower(db).targets(snapshot(11));
+  expect(db.route.skippedSteps).toEqual([4]);
+  const accept = { ...grind(0, 25, "accept"), questId: 900 };
+  (globalThis as unknown as RoutesGlobal).MinMaxQuestRoutes.Alliance.returnBlocks[7] = encodeSteps([accept, { ...accept, type: "turnin" }]);
+  const reloaded = follower(db);
+  reloaded.targets(snapshot(11));
+  expect(db.route.skippedSteps).toEqual([]);
+  expect(db.route.startIndex).toBe(startIndex);
+  expect(reloaded.view()?.total).toBe(6);
 });
