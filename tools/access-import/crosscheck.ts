@@ -1,3 +1,4 @@
+import type { Denylist } from "./denylist";
 import type { AccessChainDef } from "./legacyChains";
 import { maskAllows } from "../../addon/src/quests/availability";
 import { INSTANCE_PARTY } from "../route-builder/ingest/instances";
@@ -26,6 +27,8 @@ export interface CrossCheckReport {
   skippedClassQuests: { areaId: number; quest: number }[];
   skippedFlaggedQuests: { areaId: number; quest: number; flag: "repeatable" | "event" }[];
   chains: { id: string; mergedInto: string[] }[];
+  excludedQuests: { quest: number; reason: string; removed: number }[];
+  excludedSteps: { entry: string; step: number; ref: number; reason: string; rewired: number[] }[];
 }
 
 export interface CrossCheckInput {
@@ -33,6 +36,7 @@ export interface CrossCheckInput {
   snapshot: QuestieSnapshot;
   instanceTypes: Map<number, number>;
   chains: AccessChainDef[];
+  denylist: Denylist;
 }
 
 const SIDES: Side[] = ["A", "H"];
@@ -95,6 +99,40 @@ function chainEntry(def: AccessChainDef, s: QuestieSnapshot): AccessEntry {
   return { id: def.id, group: def.kind, faction, levels: def.levelRange, name: { enUS: def.name.enUS, frFR: def.name.frFR }, steps };
 }
 
+// Removes denied steps; follows pointing at a removed step now point at its own follows, keeping the chain connected.
+function applyDenylist(entries: AccessEntry[], list: Denylist, report: CrossCheckReport, denied: Map<number, { removed: number }>): void {
+  for (const entry of entries) {
+    const removed = new Map<number, AccessStep>();
+    for (const step of entry.steps) {
+      const quest = QUEST_KINDS.has(step.kind) ? denied.get(step.ref) : null;
+      const scoped = list.steps.find((x) => x.entry === entry.id && x.quest === step.ref && x.steps.includes(step.id));
+      if (quest != null) {
+        quest.removed++;
+        removed.set(step.id, step);
+      } else if (scoped != null) {
+        removed.set(step.id, step);
+        report.excludedSteps.push({ entry: entry.id, step: step.id, ref: step.ref, reason: scoped.reason, rewired: [] });
+      }
+    }
+    if (removed.size === 0) continue;
+    const resolve = (ids: number[], seen: Set<number>): number[] =>
+      ids.flatMap((id) => {
+        const gone = removed.get(id);
+        if (gone == null) return [id];
+        if (seen.has(id)) return [];
+        return resolve(gone.follows, new Set([...seen, id]));
+      });
+    entry.steps = entry.steps
+      .filter((step) => !removed.has(step.id))
+      .map((step) => {
+        if (!step.follows.some((id) => removed.has(id))) return step;
+        const follows = [...new Set(resolve(step.follows, new Set()))];
+        for (const x of report.excludedSteps) if (x.entry === entry.id && step.follows.includes(x.step)) x.rewired.push(step.id);
+        return { ...step, follows };
+      });
+  }
+}
+
 export function crossCheck(input: CrossCheckInput): { entries: AccessEntry[]; report: CrossCheckReport } {
   const s = input.snapshot;
   const masks: Record<Side, number> = { A: raceUnion(s, FACTION_RACES.A), H: raceUnion(s, FACTION_RACES.H) };
@@ -117,7 +155,11 @@ export function crossCheck(input: CrossCheckInput): { entries: AccessEntry[]; re
     skippedClassQuests: [],
     skippedFlaggedQuests: [],
     chains: [],
+    excludedQuests: input.denylist.quests.map((x) => ({ ...x, removed: 0 })),
+    excludedSteps: [],
   };
+  const denied = new Map(report.excludedQuests.map((x) => [x.quest, x]));
+  applyDenylist(entries, input.denylist, report, denied);
 
   for (const entry of entries) {
     for (const step of entry.steps) {
@@ -158,6 +200,11 @@ export function crossCheck(input: CrossCheckInput): { entries: AccessEntry[]; re
     }
     const referenced = new Set(entries.flatMap(questRefs));
     const eligible = quests.filter((quest) => {
+      const block = denied.get(quest);
+      if (block != null) {
+        block.removed++;
+        return false;
+      }
       const flags = questNumber(s, quest, "specialFlags");
       const flag = hasFlag(flags, REPEATABLE_FLAG) ? "repeatable" : hasFlag(flags, EVENT_FLAG) ? "event" : null;
       const classQuest = questNumber(s, quest, "requiredClasses") !== 0;

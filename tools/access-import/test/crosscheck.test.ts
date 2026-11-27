@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ACCESS_CHAINS } from "../legacyChains";
+import { NO_DENYLIST } from "../denylist";
 import { parseAttune } from "../attune";
 import { crossCheck, sortEntries } from "../crosscheck";
 import type { AccessEntry } from "../types";
@@ -9,7 +10,7 @@ const ALLIANCE_RACES = 1 + 4 + 8 + 64 + 4294967296;
 
 async function run(snapshot = snapshotFixture(), keep: (e: AccessEntry) => boolean = () => true) {
   const { entries } = await parseAttune(ATTUNE_FILES, RACE_MASKS);
-  return crossCheck({ entries: entries.filter(keep), snapshot, instanceTypes: INSTANCE_TYPES, chains: ACCESS_CHAINS });
+  return crossCheck({ entries: entries.filter(keep), snapshot, instanceTypes: INSTANCE_TYPES, chains: ACCESS_CHAINS, denylist: NO_DENYLIST });
 }
 
 describe("crossCheck", () => {

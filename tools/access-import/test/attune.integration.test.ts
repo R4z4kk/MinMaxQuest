@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { DENYLIST } from "../denylist";
 import { describe, expect, it } from "vitest";
 import { ACCESS_CHAINS } from "../legacyChains";
 import { loadInstanceTypes } from "../../route-builder/ingest/instances";
@@ -18,7 +19,7 @@ describe("Attune import on the installed addon", () => {
       const snapshot = readCachedSnapshot();
       if (snapshot == null) throw new Error(`${snapshotPath()} is stale, run npm run gen:routes`);
       const { entries: attune } = await parseAttune(readAttuneFiles(ATTUNE.path), snapshot.raceMaskById);
-      const { entries } = crossCheck({ entries: attune, snapshot, instanceTypes: loadInstanceTypes(), chains: ACCESS_CHAINS });
+      const { entries } = crossCheck({ entries: attune, snapshot, instanceTypes: loadInstanceTypes(), chains: ACCESS_CHAINS, denylist: DENYLIST });
       expect(entries.filter((e) => e.group === "dungeon").length).toBeGreaterThanOrEqual(50);
       const moltenCore = entries.find((e) => e.name.enUS === "Molten Core");
       expect(moltenCore?.steps.some((s) => s.ref === MOLTEN_CORE_ATTUNEMENT)).toBe(true);

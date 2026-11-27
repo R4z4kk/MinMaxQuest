@@ -77,11 +77,9 @@ export const ACCESS: AccessData = {
     ]},
     {"id":"166","group":"dungeon","faction":"H","levels":[13,20],"name":{"enUS":"The Hall of Thanes","frFR":"La salle des Thanes"},"steps":[
       {"id":10,"kind":"level","ref":10,"follows":[],"origin":"attune"},
-      {"id":120,"kind":"pickUp","ref":96403,"follows":[10],"origin":"attune"},
-      {"id":130,"kind":"item","ref":274289,"follows":[120],"origin":"attune","count":8},
-      {"id":140,"kind":"turnIn","ref":96403,"follows":[130],"origin":"attune"},
+      {"id":130,"kind":"item","ref":274289,"follows":[10],"origin":"attune","count":8},
       {"id":220,"kind":"quest","ref":96395,"follows":[],"origin":"attune","optional":true},
-      {"id":150,"kind":"end","ref":0,"follows":[140,220],"origin":"attune"},
+      {"id":150,"kind":"end","ref":0,"follows":[130,220],"origin":"attune"},
     ]},
     {"id":"183","group":"dungeon","faction":"A","levels":[15,22],"name":{"enUS":"Ruins of Lordaeron","frFR":"Ruines de Lordaeron"},"steps":[
       {"id":10,"kind":"level","ref":15,"follows":[],"origin":"attune"},
@@ -223,7 +221,6 @@ export const ACCESS: AccessData = {
       {"id":240,"kind":"turnIn","ref":1275,"follows":[230],"origin":"attune"},
       {"id":140,"kind":"turnIn","ref":971,"follows":[130],"origin":"attune"},
       {"id":350,"kind":"end","ref":0,"follows":[520,340,240,140],"origin":"attune"},
-      {"id":521,"kind":"quest","ref":78916,"follows":[],"origin":"questiedb"},
     ]},
     {"id":"210","group":"dungeon","faction":"H","levels":[24,32],"name":{"enUS":"Blackfathom Deeps","frFR":"Profondeurs de Brassenoire"},"steps":[
       {"id":10,"kind":"level","ref":17,"follows":[],"origin":"attune"},
@@ -243,7 +240,6 @@ export const ACCESS: AccessData = {
       {"id":500,"kind":"quest","ref":6922,"follows":[],"origin":"attune","optional":true},
       {"id":370,"kind":"end","ref":0,"follows":[340,260,150,520,500],"origin":"attune"},
       {"id":521,"kind":"quest","ref":1198,"follows":[],"origin":"questiedb"},
-      {"id":522,"kind":"quest","ref":78917,"follows":[],"origin":"questiedb"},
     ]},
     {"id":"220","group":"dungeon","faction":"A","levels":[26,29],"name":{"enUS":"The Stockade","frFR":"La Prison"},"steps":[
       {"id":10,"kind":"level","ref":16,"follows":[],"origin":"attune"},
@@ -371,11 +367,6 @@ export const ACCESS: AccessData = {
       {"id":570,"kind":"end","ref":0,"follows":[540,440,340,260,160,111,630,620,610,600],"origin":"attune"},
       {"id":910,"kind":"quest","ref":2948,"follows":[620],"origin":"attune","optional":true},
       {"id":911,"kind":"quest","ref":2952,"follows":[],"origin":"questiedb"},
-      {"id":912,"kind":"quest","ref":4601,"follows":[],"origin":"questiedb"},
-      {"id":913,"kind":"quest","ref":4602,"follows":[],"origin":"questiedb"},
-      {"id":914,"kind":"quest","ref":4605,"follows":[],"origin":"questiedb"},
-      {"id":915,"kind":"quest","ref":4606,"follows":[],"origin":"questiedb"},
-      {"id":916,"kind":"quest","ref":80324,"follows":[],"origin":"questiedb"},
     ]},
     {"id":"240","group":"dungeon","faction":"H","levels":[29,38],"name":{"enUS":"Gnomeregan","frFR":"Gnomeregan"},"steps":[
       {"id":10,"kind":"level","ref":20,"follows":[],"origin":"attune"},
@@ -392,11 +383,6 @@ export const ACCESS: AccessData = {
       {"id":300,"kind":"quest","ref":2951,"follows":[],"origin":"attune","optional":true},
       {"id":270,"kind":"end","ref":0,"follows":[260,130,330,320,310,300],"origin":"attune"},
       {"id":331,"kind":"quest","ref":2952,"follows":[],"origin":"questiedb"},
-      {"id":332,"kind":"quest","ref":4601,"follows":[],"origin":"questiedb"},
-      {"id":333,"kind":"quest","ref":4602,"follows":[],"origin":"questiedb"},
-      {"id":334,"kind":"quest","ref":4605,"follows":[],"origin":"questiedb"},
-      {"id":335,"kind":"quest","ref":4606,"follows":[],"origin":"questiedb"},
-      {"id":336,"kind":"quest","ref":80325,"follows":[],"origin":"questiedb"},
     ]},
     {"id":"250","group":"dungeon","faction":"A","levels":[29,38],"name":{"enUS":"Razorfen Kraul","frFR":"Kraal de Tranchebauge"},"steps":[
       {"id":10,"kind":"level","ref":20,"follows":[],"origin":"attune"},
@@ -773,11 +759,10 @@ export const ACCESS: AccessData = {
     ]},
     {"id":"351","group":"dungeon","faction":"H","levels":[44,54],"name":{"enUS":"Zul'Farrak","frFR":"Zul'Farrak"},"steps":[
       {"id":10,"kind":"level","ref":40,"follows":[],"origin":"attune"},
-      {"id":725,"kind":"quest","ref":2769,"follows":[10],"origin":"attune"},
       {"id":325,"kind":"quest","ref":2861,"follows":[10],"origin":"attune"},
       {"id":125,"kind":"quest","ref":2864,"follows":[10],"origin":"attune"},
       {"id":920,"kind":"pickUp","ref":2768,"follows":[10],"origin":"attune"},
-      {"id":720,"kind":"pickUp","ref":2770,"follows":[725],"origin":"attune"},
+      {"id":720,"kind":"pickUp","ref":2770,"follows":[10],"origin":"attune"},
       {"id":620,"kind":"quest","ref":3520,"follows":[10],"origin":"attune"},
       {"id":420,"kind":"item","ref":9321,"follows":[10],"origin":"attune"},
       {"id":320,"kind":"pickUp","ref":2846,"follows":[325],"origin":"attune"},
@@ -914,8 +899,6 @@ export const ACCESS: AccessData = {
       {"id":100,"kind":"end","ref":0,"follows":[930,810,730,140,130,125],"origin":"attune"},
       {"id":1510,"kind":"quest","ref":95454,"follows":[125],"origin":"attune","optional":true},
       {"id":1500,"kind":"quest","ref":96369,"follows":[1510],"origin":"attune","optional":true},
-      {"id":1490,"kind":"quest","ref":96377,"follows":[1500],"origin":"attune","optional":true},
-      {"id":1480,"kind":"quest","ref":95262,"follows":[1490],"origin":"attune","optional":true},
     ]},
     {"id":"370","group":"dungeon","faction":"A","levels":[50,60],"name":{"enUS":"The Temple of Atal'Hakkar","frFR":"Le Temple d'Atal'Hakkar"},"steps":[
       {"id":10,"kind":"level","ref":38,"follows":[],"origin":"attune"},
@@ -1031,7 +1014,6 @@ export const ACCESS: AccessData = {
       {"id":1604,"kind":"quest","ref":9015,"follows":[],"origin":"attune","optional":true},
       {"id":1300,"kind":"end","ref":0,"follows":[10,1230,1040,850,780,590,450,340,240,1120,1110,1100,1601,1602,1603,1604],"origin":"attune"},
       {"id":1605,"kind":"quest","ref":4324,"follows":[],"origin":"questiedb"},
-      {"id":1606,"kind":"quest","ref":82062,"follows":[],"origin":"questiedb"},
     ]},
     {"id":"400","group":"dungeon","faction":"H","levels":[52,60],"name":{"enUS":"Blackrock Depths","frFR":"Profondeurs de Rochenoire"},"steps":[
       {"id":10,"kind":"level","ref":48,"follows":[],"origin":"attune"},
@@ -1078,7 +1060,6 @@ export const ACCESS: AccessData = {
       {"id":1509,"kind":"quest","ref":4122,"follows":[],"origin":"questiedb"},
       {"id":1510,"kind":"quest","ref":4133,"follows":[],"origin":"questiedb"},
       {"id":1511,"kind":"quest","ref":4324,"follows":[],"origin":"questiedb"},
-      {"id":1512,"kind":"quest","ref":82062,"follows":[],"origin":"questiedb"},
     ]},
     {"id":"340","group":"dungeon","faction":"A","levels":[55,60],"name":{"enUS":"Dire Maul","frFR":"Hache-tripes"},"steps":[
       {"id":10,"kind":"level","ref":54,"follows":[],"origin":"attune"},
@@ -1110,7 +1091,6 @@ export const ACCESS: AccessData = {
       {"id":907,"kind":"quest","ref":8950,"follows":[],"origin":"questiedb"},
       {"id":908,"kind":"quest","ref":8967,"follows":[],"origin":"questiedb"},
       {"id":909,"kind":"quest","ref":8990,"follows":[],"origin":"questiedb"},
-      {"id":910,"kind":"quest","ref":84555,"follows":[],"origin":"questiedb"},
     ]},
     {"id":"341","group":"dungeon","faction":"H","levels":[55,60],"name":{"enUS":"Dire Maul","frFR":"Hache-tripes"},"steps":[
       {"id":10,"kind":"level","ref":54,"follows":[],"origin":"attune"},
@@ -1141,7 +1121,6 @@ export const ACCESS: AccessData = {
       {"id":906,"kind":"quest","ref":8950,"follows":[],"origin":"questiedb"},
       {"id":907,"kind":"quest","ref":8967,"follows":[],"origin":"questiedb"},
       {"id":908,"kind":"quest","ref":8990,"follows":[],"origin":"questiedb"},
-      {"id":909,"kind":"quest","ref":84555,"follows":[],"origin":"questiedb"},
     ]},
     {"id":"345","group":"dungeon","faction":"A","levels":[55,60],"name":{"enUS":"Lower Blackrock Spire","frFR":"Bas du Pic Rochenoire"},"steps":[
       {"id":10,"kind":"level","ref":55,"follows":[],"origin":"attune"},

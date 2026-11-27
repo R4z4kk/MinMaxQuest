@@ -1,5 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { DENYLIST } from "./denylist";
 import { ACCESS_CHAINS } from "./legacyChains";
 import { expiredRecords } from "../../addon/src/core/constants";
 import { loadInstanceTypes } from "../route-builder/ingest/instances";
@@ -84,6 +85,14 @@ function renderReport(data: AccessData, report: CrossCheckReport, notes: AttuneN
     "The snapshot only holds items that QuestieDB quests reference, so an item listed here may still exist in the game.",
     "",
     ...bullets(report.unknownItems.map(stepLine)),
+    "## Excluded by review",
+    "",
+    "`tools/access-import/denylist.ts`, applied before the checks below and before the QuestieDB completion. Quests: steps removed from every entry, plus completion candidates blocked (occurrences).",
+    "",
+    ...bullets(report.excludedQuests.map((x) => `quest ${quest(x.quest)}: ${x.reason} (${x.removed})`)),
+    "Steps removed from one entry (follows of later steps rewired to the removed step's own follows):",
+    "",
+    ...bullets(report.excludedSteps.map((x) => `${name(x.entry)}, step ${x.step}: quest ${quest(x.ref)}, ${x.reason}${x.rewired.length > 0 ? `; rewired steps ${x.rewired.join(", ")}` : ""}`)),
     "## Faction conflicts",
     "",
     ...bullets(report.factionConflicts.map(stepQuestLine)),
@@ -158,7 +167,7 @@ async function main(): Promise<void> {
   }
   const snapshot = await cachedSnapshot();
   const attune = await parseAttune(readAttuneFiles(ATTUNE.path), snapshot.raceMaskById);
-  const { entries, report } = crossCheck({ entries: attune.entries, snapshot, instanceTypes: loadInstanceTypes(), chains: ACCESS_CHAINS });
+  const { entries, report } = crossCheck({ entries: attune.entries, snapshot, instanceTypes: loadInstanceTypes(), chains: ACCESS_CHAINS, denylist: DENYLIST });
   const data: AccessData = {
     source: { name: "Attune", version, questieDb: QUESTIE_DB.tag, verifiedOn: ATTUNE.verifiedOn, expiresOn: ATTUNE.expiresOn },
     entries,

@@ -7,13 +7,13 @@ Review this report with the diff of `addon/src/data/generated/access.ts` before 
 
 | Group | A | H | AH | Entries | Steps |
 |---|---|---|---|---|---|
-| dungeon | 27 | 27 | 0 | 54 | 1361 |
+| dungeon | 27 | 27 | 0 | 54 | 1340 |
 | raid | 1 | 1 | 3 | 5 | 88 |
 | key | 2 | 2 | 3 | 7 | 66 |
 | misc | 1 | 1 | 2 | 4 | 128 |
-| all | 31 | 31 | 8 | 70 | 1643 |
+| all | 31 | 31 | 8 | 70 | 1622 |
 
-Completions: 0 dungeon entries and 60 dungeon quests added from QuestieDB.
+Completions: 0 dungeon entries and 44 dungeon quests added from QuestieDB.
 
 ## Attune quest ids absent from QuestieDB
 
@@ -45,13 +45,32 @@ The snapshot only holds items that QuestieDB quests reference, so an item listed
 - 100 Scepter of the Shifting Sands (AH), step 564: 21109
 - 100 Scepter of the Shifting Sands (AH), step 568: 21110
 
+## Excluded by review
+
+`tools/access-import/denylist.ts`, applied before the checks below and before the QuestieDB completion. Quests: steps removed from every entry, plus completion candidates blocked (occurrences).
+
+- quest 78916 The Heart of the Void: Season of Discovery quest, not on Forever (1)
+- quest 78917 The Heart of the Void: Season of Discovery quest, not on Forever (1)
+- quest 80324 The Mad King: Season of Discovery quest, not on Forever (1)
+- quest 80325 The Mad King: Season of Discovery quest, not on Forever (1)
+- quest 82062 Ever After: Season of Discovery quest, not on Forever (1)
+- quest 84555 Nostro's Compendium: Season of Discovery quest, not on Forever (1)
+- quest 4601 The Sparklematic 5200!: Duplicate of quest 2952 (identical in QuestieDB: both factions, not repeatable, no class); only 2952 is kept (1)
+- quest 4602 The Sparklematic 5200!: Duplicate of quest 2952 (identical in QuestieDB: both factions, not repeatable, no class); only 2952 is kept (1)
+- quest 4605 The Sparklematic 5200!: Duplicate of quest 2952 (identical in QuestieDB: both factions, not repeatable, no class); only 2952 is kept (1)
+- quest 4606 The Sparklematic 5200!: Duplicate of quest 2952 (identical in QuestieDB: both factions, not repeatable, no class); only 2952 is kept (1)
+
+Steps removed from one entry (follows of later steps rewired to the removed step's own follows):
+
+- 166 The Hall of Thanes (H), step 120: quest 96403 Important Heirlooms, Alliance-only quest listed in a Horde entry; rewired steps 130
+- 166 The Hall of Thanes (H), step 140: quest 96403 Important Heirlooms, Alliance-only quest listed in a Horde entry; rewired steps 150
+- 351 Zul'Farrak (H), step 725: quest 2769 The Brassbolts Brothers, Alliance-only quest listed in a Horde entry; rewired steps 720
+- 356 Alcaz Prison (H), step 1490: quest 96377 State Secrets, Alliance-only quest listed in a Horde entry
+- 356 Alcaz Prison (H), step 1480: quest 95262 The Secret Prison, Alliance-only quest listed in a Horde entry
+
 ## Faction conflicts
 
-- 166 The Hall of Thanes (H), step 120: quest 96403 Important Heirlooms is A
-- 166 The Hall of Thanes (H), step 140: quest 96403 Important Heirlooms is A
-- 351 Zul'Farrak (H), step 725: quest 2769 The Brassbolts Brothers is A
-- 356 Alcaz Prison (H), step 1490: quest 96377 State Secrets is A
-- 356 Alcaz Prison (H), step 1480: quest 95262 The Secret Prison is A
+None.
 
 ## One-faction quests in entries for both factions
 
@@ -89,21 +108,9 @@ None of their quests has a party dungeon as `zoneOrSort`; no quest was added to 
 
 ## Dungeon quests added from QuestieDB
 
-- 200 Blackfathom Deeps (A): quest 78916 The Heart of the Void
 - 210 Blackfathom Deeps (H): quest 1198 In Search of Thaelrid
-- 210 Blackfathom Deeps (H): quest 78917 The Heart of the Void
 - 230 Gnomeregan (A): quest 2952 The Sparklematic 5200!
-- 230 Gnomeregan (A): quest 4601 The Sparklematic 5200!
-- 230 Gnomeregan (A): quest 4602 The Sparklematic 5200!
-- 230 Gnomeregan (A): quest 4605 The Sparklematic 5200!
-- 230 Gnomeregan (A): quest 4606 The Sparklematic 5200!
-- 230 Gnomeregan (A): quest 80324 The Mad King
 - 240 Gnomeregan (H): quest 2952 The Sparklematic 5200!
-- 240 Gnomeregan (H): quest 4601 The Sparklematic 5200!
-- 240 Gnomeregan (H): quest 4602 The Sparklematic 5200!
-- 240 Gnomeregan (H): quest 4605 The Sparklematic 5200!
-- 240 Gnomeregan (H): quest 4606 The Sparklematic 5200!
-- 240 Gnomeregan (H): quest 80325 The Mad King
 - 320 Uldaman (A): quest 704 Agmond's Fate
 - 330 Uldaman (H): quest 2338 Translating the Journal
 - 345 Lower Blackrock Spire (A): quest 4765 Delivery to Ridgewell
@@ -117,11 +124,9 @@ None of their quests has a party dungeon as `zoneOrSort`; no quest was added to 
 - 346 Lower Blackrock Spire (H): quest 8995 Mea Culpa, Lord Valthalak
 - 346 Lower Blackrock Spire (H): quest 98325 Blood and Thunder
 - 390 Blackrock Depths (A): quest 4324 Yuka Screwspigot
-- 390 Blackrock Depths (A): quest 82062 Ever After
 - 400 Blackrock Depths (H): quest 4122 Grark Lorkrub
 - 400 Blackrock Depths (H): quest 4133 Vivian Lagrave
 - 400 Blackrock Depths (H): quest 4324 Yuka Screwspigot
-- 400 Blackrock Depths (H): quest 82062 Ever After
 - 360 Stratholme (A): quest 8945 Dead Man's Plea
 - 360 Stratholme (A): quest 8968 The Left Piece of Lord Valthalak's Amulet
 - 360 Stratholme (A): quest 8991 The Right Piece of Lord Valthalak's Amulet
@@ -139,14 +144,12 @@ None of their quests has a party dungeon as `zoneOrSort`; no quest was added to 
 - 340 Dire Maul (A): quest 8950 The Instigator's Enchantment
 - 340 Dire Maul (A): quest 8967 The Left Piece of Lord Valthalak's Amulet
 - 340 Dire Maul (A): quest 8990 The Right Piece of Lord Valthalak's Amulet
-- 340 Dire Maul (A): quest 84555 Nostro's Compendium
 - 341 Dire Maul (H): quest 7877 The Treasure of the Shen'dralar
 - 341 Dire Maul (H): quest 8948 Anthion's Old Friend
 - 341 Dire Maul (H): quest 8949 Falrin's Vendetta
 - 341 Dire Maul (H): quest 8950 The Instigator's Enchantment
 - 341 Dire Maul (H): quest 8967 The Left Piece of Lord Valthalak's Amulet
 - 341 Dire Maul (H): quest 8990 The Right Piece of Lord Valthalak's Amulet
-- 341 Dire Maul (H): quest 84555 Nostro's Compendium
 - 195 Excavation Site: Wetlands (A): quest 98824 Prehistoric Prism
 - 196 Excavation Site: Wetlands (H): quest 98823 Earthen Echo
 
