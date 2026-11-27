@@ -25,6 +25,10 @@ describe("zones", () => {
     await expect(parseZones(`local _, ns = ... ns.Zones = { [1] = { map = 0, minX = 1 } }`)).rejects.toThrow(/Zones.lua.*1/);
   });
 
+  it("names the zone when a bound is missing mid-row", async () => {
+    await expect(parseZones(`local _, ns = ... ns.Zones = { [7] = { map = 0, minX = 1, maxX = 2, maxY = 3 } }`)).rejects.toThrow(/Zones.lua.*7/);
+  });
+
   it("loads the vendored file", async () => {
     const zones = await loadZones();
     expect(zones.get(1411)?.continent).toBe(1);

@@ -21,7 +21,7 @@ export interface UiMapRect {
 const EXTRACT = `
 local out = {}
 for id, z in pairs(ns.Zones) do
-  out[#out + 1] = { id, z.map, z.minX, z.minY, z.maxX, z.maxY, z.low, z.high }
+  out[#out + 1] = { id = id, map = z.map, minX = z.minX, minY = z.minY, maxX = z.maxX, maxY = z.maxY, low = z.low, high = z.high }
 end
 return out
 `;
@@ -54,8 +54,9 @@ export async function parseZones(lua: string): Promise<Map<number, UiMapRect>> {
   if (!Array.isArray(rows)) throw new Error(`${FILE_LABEL}: ns.Zones is not a table`);
 
   const zones = new Map<number, UiMapRect>();
-  for (const row of rows as unknown[][]) {
-    const [id, map, minX, minY, maxX, maxY, low, high] = row;
+  for (const row of rows) {
+    if (typeof row !== "object" || row === null) throw new Error(`${FILE_LABEL}: malformed zone row`);
+    const { id, map, minX, minY, maxX, maxY, low, high } = row as Record<string, unknown>;
     const uiMapId = requiredNumber(id, "id", id);
     zones.set(uiMapId, {
       uiMapId,
