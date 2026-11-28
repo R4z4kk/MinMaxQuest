@@ -179,7 +179,7 @@ interface WowFrame extends WowRegion {
 }
 
 interface WowSecureButton extends WowFrame {
-  SetAttribute(name: string, value: string | null): void;
+  SetAttribute(name: string, value: string | boolean | null): void;
   RegisterForClicks(...buttons: string[]): void;
 }
 

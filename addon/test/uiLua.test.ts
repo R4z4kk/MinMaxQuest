@@ -1105,7 +1105,8 @@ it("drags the item button by its icon only while unlocked and out of combat, and
     return (await s.calls()).includes("MinMaxQuestItemHolder|StartMoving");
   };
   try {
-    expect(await s.calls()).toContain("MinMaxQuestItemButton|RegisterForClicks|AnyUp");
+    expect(await s.calls()).toContain("MinMaxQuestItemButton|RegisterForClicks|AnyUp|AnyDown");
+    expect(await s.calls()).toContain("MinMaxQuestItemButton|SetAttribute|useOnKeyDown|false");
     expect(await s.calls()).toContain("MinMaxQuestItemButton|RegisterForDrag|LeftButton");
     await s.cmd("arrow lock");
     expect(await drag()).toBe(false);

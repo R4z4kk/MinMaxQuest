@@ -62,8 +62,10 @@ export function createItemButton(db: CharDb, anchor: () => WowFrame): ItemButton
   const button = CreateFrame("Button", BUTTON_NAME, holder, "SecureActionButtonTemplate");
   button.SetSize(BUTTON_SIZE, BUTTON_SIZE);
   button.SetPoint("CENTER", holder, "CENTER", 0, 0);
-  // Release only: a drag that starts on the icon must not use the item.
-  button.RegisterForClicks("AnyUp");
+  // Both: with ActionButtonUseKeyDown on (the default), a secure button registered for up only never fires.
+  // useOnKeyDown false asks the template to act on release so a drag does not use the item.
+  button.RegisterForClicks("AnyUp", "AnyDown");
+  button.SetAttribute("useOnKeyDown", false);
   button.RegisterForDrag("LeftButton");
   button.SetAttribute("type", "item");
 
