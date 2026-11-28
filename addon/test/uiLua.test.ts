@@ -92,7 +92,7 @@ it("switches the three tabs and saves the tab", async () => {
     expect(texts).toContain("Eastern Kingdoms · 0 / 3");
     await s.click("MinMaxQuestTabaccess");
     expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|320|480");
-    expect((await s.texts()).some((line) => line.startsWith("KEYS · "))).toBe(true);
+    expect((await s.texts()).some((line) => line.startsWith("0 / "))).toBe(true);
     await s.click("MinMaxQuestTabquest");
     expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|320|480");
     expect(await s.run("return MinMaxQuestCharDB.tab")).toBe("quest");
@@ -225,7 +225,7 @@ it("labels the Completion sub-tabs in both locales", async () => {
 });
 
 const ALLIANCE_DUNGEONS = entriesFor("A").filter((entry) => entry.group === "dungeon");
-const ROW_POOL = 20;
+const ROW_POOL = 22;
 
 async function accessTab(setup = "") {
   const s = await ui(setup);
@@ -234,13 +234,17 @@ async function accessTab(setup = "") {
   return s;
 }
 
-it("lists the access groups with counts for an Alliance character and no Horde-only entry", async () => {
+it("renders Access groups as section headers with done / total for an Alliance character and no Horde-only entry", async () => {
   const s = await accessTab();
   try {
-    const headers = (await s.texts()).map((line) => /^([A-Z]+) · \d+\/(\d+) /.exec(line)).filter((match) => match != null);
+    const all = await s.texts();
+    const headers = all.flatMap((line, i) => {
+      const match = /^0 \/ (\d+)/.exec(line);
+      return match == null ? [] : [{ label: all[i - 1], total: Number(match[1]) }];
+    });
     const total = (group: string) => entriesFor("A").filter((entry) => entry.group === group).length;
-    expect(headers.map((match) => match[1])).toEqual(["DUNGEONS", "RAIDS", "KEYS", "MISC"]);
-    expect(headers.map((match) => Number(match[2]))).toEqual([total("dungeon"), total("raid"), total("key"), total("misc")]);
+    expect(headers.map((header) => header.label)).toEqual(["Dungeons", "Raids", "Keys", "Misc"]);
+    expect(headers.map((header) => header.total)).toEqual([total("dungeon"), total("raid"), total("key"), total("misc")]);
     expect(await s.texts()).not.toContain(ALLIANCE_DUNGEONS[0].name.enUS);
     await s.click("MinMaxQuestAccessRow1");
     const texts = await s.texts();

@@ -3,7 +3,7 @@ import { currentLocale, t, type L10nKey } from "../core/l10n";
 import type { AccessEntry, AccessGroup, AccessStep } from "../data/generated/access";
 import type { QuestInfo } from "../data/questRepository";
 import { questLabel } from "../game/engine";
-import { upper } from "./theme";
+import type { IconKind } from "./theme";
 
 export interface StepView {
   text: string;
@@ -19,13 +19,14 @@ export interface ChainView {
   expanded: boolean;
   tracked: boolean;
   complete: boolean;
+  started: boolean;
   count: string;
   steps: StepView[];
 }
 
 export type AccessLine =
-  | { kind: "group"; group: AccessGroup; text: string; open: boolean }
-  | { kind: "entry"; view: ChainView }
+  | { kind: "group"; group: AccessGroup; label: string; count: string; open: boolean }
+  | { kind: "entry"; view: ChainView; icon: IconKind }
   | { kind: "step"; step: StepView }
   | { kind: "track"; view: ChainView };
 
@@ -94,6 +95,7 @@ export function accessView(entries: AccessEntry[], ctx: AccessContext): ChainVie
       expanded,
       tracked: ctx.tracked.includes(entry.id),
       complete: progress.complete,
+      started: progress.done > 0 && !progress.complete,
       count: t("stepsCount").replace("{done}", String(progress.done)).replace("{total}", String(progress.total)),
       steps,
     };
@@ -108,10 +110,10 @@ export function accessLines(views: ChainView[], open: Set<AccessGroup>): AccessL
     if (members.length === 0) continue;
     const done = members.filter((view) => view.complete).length;
     const isOpen = open.has(group);
-    lines.push({ kind: "group", group, text: `${upper(t(GROUP_LABEL[group]))} · ${done}/${members.length}`, open: isOpen });
+    lines.push({ kind: "group", group, label: t(GROUP_LABEL[group]), count: `${done} / ${members.length}`, open: isOpen });
     if (!isOpen) continue;
     for (const view of members) {
-      lines.push({ kind: "entry", view });
+      lines.push({ kind: "entry", view, icon: view.complete ? "done" : view.started ? "progress" : "empty" });
       if (!view.expanded) continue;
       for (const step of view.steps) lines.push({ kind: "step", step });
       lines.push({ kind: "track", view });

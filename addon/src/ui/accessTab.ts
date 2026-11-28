@@ -8,7 +8,8 @@ import type { Engine } from "../game/engine";
 import { clientFactionName, clientItemName, clientQuestTitle, itemCount, repEarned } from "../game/playerState";
 import { accessLines, accessView, trackedGroups, trackedText, type AccessLine } from "./accessModel";
 import {
-  bar, checkbox, COLOR, fill, GLYPH, hline, onClick, paint, PAD, SIZE, text, UI_FEATURE, WINDOW_HEIGHT, WINDOW_WIDTH, type Bar, type Checkbox,
+  bar, checkbox, COLOR, createKindIcon, createSectionHeader, fill, GLYPH, hline, onClick, paint, PAD, SIZE, text, UI_FEATURE, WINDOW_HEIGHT,
+  WINDOW_WIDTH, type Bar, type Checkbox, type KindIcon, type SectionHeader,
 } from "./theme";
 import { CONTENT_TOP, type TabView } from "./window";
 
@@ -21,13 +22,16 @@ export interface AccessDeps {
 
 const FOOTER = 28;
 const LIST_HEIGHT = WINDOW_HEIGHT - CONTENT_TOP - FOOTER;
-const ROW = 20;
+const ROW = 18;
 const POOL = Math.floor(LIST_HEIGHT / ROW);
 const GUTTER = 6;
 const ROW_WIDTH = WINDOW_WIDTH - GUTTER;
 const INNER = ROW_WIDTH - 2 * PAD;
-const STEP_INDENT = 12;
-const RANGE_ROOM = 44;
+const STEP_INDENT = 22;
+const ICON_ROOM = 22;
+const BAR_WIDTH = 60;
+const RIGHT_ROOM = BAR_WIDTH + 6;
+const BAR_Y = -7;
 const WHEEL_LINES = 3;
 
 interface Row {
@@ -35,6 +39,8 @@ interface Row {
   highlight: WowTexture;
   left: WowFontString;
   right: WowFontString;
+  header: SectionHeader;
+  icon: KindIcon;
   strike: WowTexture;
   bar: Bar;
   track: Checkbox;
@@ -87,33 +93,38 @@ export function createAccessTab(deps: AccessDeps): TabView {
     row.bar.setShown(false);
     row.track.frame.Hide();
     row.right.Hide();
+    row.header.frame.Hide();
+    row.icon.frame.Hide();
+    row.left.Show();
     row.left.ClearAllPoints();
     const inBlock = line.kind === "step" || line.kind === "track" || (line.kind === "entry" && line.view.expanded);
     if (inBlock) row.highlight.Show();
     else row.highlight.Hide();
     if (line.kind === "group") {
-      row.left.SetPoint("LEFT", row.frame, "LEFT", PAD, 0);
-      row.left.SetWidth(INNER);
-      row.left.SetText(`${line.text} ${line.open ? GLYPH.dropdown : GLYPH.current}`);
-      paint(row.left, COLOR.accent);
+      row.left.Hide();
+      row.header.set(line.label, `${line.count} ${line.open ? GLYPH.dropdown : GLYPH.current}`);
+      row.header.frame.Show();
     } else if (line.kind === "entry") {
       const view = line.view;
-      row.left.SetPoint("TOPLEFT", row.frame, "TOPLEFT", PAD, -3);
-      row.left.SetWidth(INNER - RANGE_ROOM);
+      row.icon.set(line.icon);
+      row.icon.frame.Show();
+      row.left.SetPoint("LEFT", row.frame, "LEFT", PAD + ICON_ROOM, 0);
+      row.left.SetWidth(INNER - ICON_ROOM - RIGHT_ROOM);
       row.left.SetText(view.name);
-      paint(row.left, view.tracked ? COLOR.accent : COLOR.text);
-      if (view.range != null) {
+      paint(row.left, view.tracked ? COLOR.accent : view.complete ? COLOR.done : COLOR.rowText);
+      if (view.started) {
+        row.bar.setShown(true);
+        row.bar.setFraction(view.fraction);
+      } else if (view.range != null) {
         row.right.SetText(view.range);
         row.right.Show();
       }
-      row.bar.setShown(true);
-      row.bar.setFraction(view.fraction);
     } else if (line.kind === "step") {
       const { state } = line.step;
       row.left.SetPoint("LEFT", row.frame, "LEFT", PAD + STEP_INDENT, 0);
       row.left.SetWidth(INNER - STEP_INDENT);
       row.left.SetText((state === "current" ? GLYPH.current : "") + line.step.text);
-      paint(row.left, state === "done" ? COLOR.sub : state === "current" ? COLOR.accent : COLOR.stepText);
+      paint(row.left, state === "done" ? COLOR.done : state === "current" ? COLOR.accent : COLOR.stepText);
       if (state === "done") {
         row.strike.SetWidth(Math.min(row.left.GetStringWidth(), INNER - STEP_INDENT));
         row.strike.Show();
@@ -195,14 +206,18 @@ export function createAccessTab(deps: AccessDeps): TabView {
     highlight.SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0);
     const left = text(frame, SIZE.body, COLOR.text);
     const right = text(frame, SIZE.small, COLOR.sub, "RIGHT");
-    right.SetPoint("TOPRIGHT", frame, "TOPRIGHT", -PAD, -3);
+    right.SetPoint("RIGHT", frame, "RIGHT", -PAD, 0);
+    const header = createSectionHeader(frame, INNER);
+    header.frame.SetPoint("LEFT", frame, "LEFT", PAD, 0);
+    const icon = createKindIcon(frame);
+    icon.frame.SetPoint("LEFT", frame, "LEFT", PAD, 0);
     const strike = frame.CreateTexture(null, "OVERLAY");
-    fill(strike, COLOR.sub);
+    fill(strike, COLOR.done);
     strike.SetHeight(1);
     strike.SetPoint("LEFT", left, "LEFT", 0, 0);
     const row: Row = {
-      frame, highlight, left, right, strike,
-      bar: bar(frame, INNER, PAD, -15),
+      frame, highlight, left, right, header, icon, strike,
+      bar: bar(frame, BAR_WIDTH, ROW_WIDTH - PAD - BAR_WIDTH, BAR_Y),
       track: checkbox(frame, `${name}Track`, t("trackInRoute"), () => {
         const line = row.line;
         if (line != null && line.kind === "track") toggleTracked(line.view.id);
