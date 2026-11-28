@@ -1,13 +1,11 @@
 import { t, type L10nKey } from "../core/l10n";
 import { guard } from "../core/report";
 import type { CharDb } from "../core/storage";
-import { COLOR, fill, hline, onClick, paint, panel, PAD, SIZE, text, UI_FEATURE } from "./theme";
+import { COLOR, FONT_TITLE, fill, hline, onClick, paint, panel, PAD, SIZE, text, UI_FEATURE, WINDOW_HEIGHT, WINDOW_WIDTH } from "./theme";
 
 export type TabId = CharDb["tab"];
 
 export interface TabView {
-  width: number;
-  height: number;
   render(parent: WowFrame): void;
   refresh(): void;
 }
@@ -46,7 +44,7 @@ export function createTabButton(parent: WowFrame, name: string, value: string, h
   return {
     frame,
     setActive(active) {
-      paint(caption, active ? COLOR.text : COLOR.sub);
+      paint(caption, active ? COLOR.title : COLOR.sub);
       if (active) underline.Show();
       else underline.Hide();
     },
@@ -84,9 +82,9 @@ export function createWindow(db: CharDb, tabs: Record<TabId, TabView>, hideAll: 
     });
   });
 
-  const title = text(frame, SIZE.small, COLOR.accent);
-  title.SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -8);
-  title.SetText("MINMAXQUEST");
+  const title = text(frame, SIZE.title, COLOR.title, "LEFT", FONT_TITLE);
+  title.SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -5);
+  title.SetText("MinMaxQuest");
 
   const gear = CreateFrame("Button", null, frame);
   gear.SetSize(14, 14);
@@ -135,8 +133,8 @@ export function createWindow(db: CharDb, tabs: Record<TabId, TabView>, hideAll: 
     db.tab = tab;
     if (tab !== "access") db.activeMode = tab;
     const view = tabs[tab];
-    frame.SetSize(view.width, view.height);
-    placeTabs(frame, buttons, view.width, -HEADER_HEIGHT);
+    frame.SetSize(WINDOW_WIDTH, WINDOW_HEIGHT);
+    placeTabs(frame, buttons, WINDOW_WIDTH, -HEADER_HEIGHT);
     TAB_ORDER.forEach((id, i) => {
       const active = id === tab;
       buttons[i].setActive(active);

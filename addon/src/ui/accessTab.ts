@@ -8,7 +8,7 @@ import type { Engine } from "../game/engine";
 import { clientFactionName, clientItemName, clientQuestTitle, itemCount, repEarned } from "../game/playerState";
 import { accessLines, accessView, trackedGroups, trackedText, type AccessLine } from "./accessModel";
 import {
-  bar, checkbox, COLOR, fill, GLYPH, hline, onClick, paint, PAD, SIZE, text, UI_FEATURE, type Bar, type Checkbox,
+  bar, checkbox, COLOR, fill, GLYPH, hline, onClick, paint, PAD, SIZE, text, UI_FEATURE, WINDOW_HEIGHT, WINDOW_WIDTH, type Bar, type Checkbox,
 } from "./theme";
 import { CONTENT_TOP, type TabView } from "./window";
 
@@ -19,14 +19,12 @@ export interface AccessDeps {
   areaName(areaId: number): string | null;
 }
 
-const WIDTH = 320;
-const HEIGHT = 420;
 const FOOTER = 28;
-const LIST_HEIGHT = HEIGHT - CONTENT_TOP - FOOTER;
+const LIST_HEIGHT = WINDOW_HEIGHT - CONTENT_TOP - FOOTER;
 const ROW = 20;
 const POOL = Math.floor(LIST_HEIGHT / ROW);
 const GUTTER = 6;
-const ROW_WIDTH = WIDTH - GUTTER;
+const ROW_WIDTH = WINDOW_WIDTH - GUTTER;
 const INNER = ROW_WIDTH - 2 * PAD;
 const STEP_INDENT = 12;
 const RANGE_ROOM = 44;
@@ -224,12 +222,10 @@ export function createAccessTab(deps: AccessDeps): TabView {
   engine.onChange(() => guard(UI_FEATURE, refresh));
 
   return {
-    width: WIDTH,
-    height: HEIGHT,
     render(parent) {
       content = parent;
       const list = CreateFrame("Frame", "MinMaxQuestAccessList", parent);
-      list.SetSize(WIDTH, LIST_HEIGHT);
+      list.SetSize(WINDOW_WIDTH, LIST_HEIGHT);
       list.SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0);
       onWheel(list);
       for (let i = 0; i < POOL; i++) rows.push(createRow(list, i));

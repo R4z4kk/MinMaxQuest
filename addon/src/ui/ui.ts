@@ -38,8 +38,6 @@ export interface Ui {
 
 function noticeTab(message: string): TabView {
   return {
-    width: 270,
-    height: 90,
     render(parent) {
       const line = text(parent, SIZE.body, COLOR.sub);
       line.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -14);
@@ -49,7 +47,7 @@ function noticeTab(message: string): TabView {
   };
 }
 
-function gameTabs(db: CharDb, account: AccountDb, game: UiGame, arrow: UiContext["arrow"], setTab: (tab: TabId) => void, resize: (height: number) => void): Record<TabId, TabView> {
+function gameTabs(db: CharDb, account: AccountDb, game: UiGame, arrow: UiContext["arrow"], setTab: (tab: TabId) => void): Record<TabId, TabView> {
   const { engine, repo } = game;
   const maps = wowMapDeps(repo);
   return {
@@ -64,7 +62,6 @@ function gameTabs(db: CharDb, account: AccountDb, game: UiGame, arrow: UiContext
       refreshTargets: () => engine.refreshTargets(true),
       refreshPins: () => game.refreshPins(),
       openCompletion: () => setTab("completion"),
-      resize: (height) => resize(height),
     }),
     access: createAccessTab({ db, engine, repo, areaName: (areaId) => maps.areaName(areaId) }),
     completion: createCompletionTab({ db, engine, repo, quests: () => game.quests(), maps }),
@@ -82,7 +79,7 @@ export function createUi(ctx: UiContext): Ui {
     const tabs =
       game == null
         ? { quest: notice, access: notice, completion: notice }
-        : gameTabs(db, ctx.account(), game, () => ctx.arrow(), (tab) => window?.setTab(tab), (height) => window?.frame.SetHeight(height));
+        : gameTabs(db, ctx.account(), game, () => ctx.arrow(), (tab) => window?.setTab(tab));
     window = createWindow(db, tabs, () => ctx.hideAll());
     return { window, banner: createBanner(window.frame, () => (game == null ? null : game.follower.routesBuild())), access: tabs.access };
   };

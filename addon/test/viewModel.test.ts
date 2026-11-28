@@ -234,7 +234,7 @@ describe("rowLines", () => {
 
 describe("colorCode", () => {
   it("encodes a theme colour as a WoW colour escape", () => {
-    expect(colorCode(COLOR.sub)).toBe("|cff8b8b8b");
+    expect(colorCode(COLOR.sub)).toBe("|cff9d95c4");
     expect(colorCode(COLOR.accent)).toBe("|cffc9a75a");
   });
 });

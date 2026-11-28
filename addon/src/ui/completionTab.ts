@@ -8,7 +8,7 @@ import { zoneTotals, type ZoneProgress } from "../targets/completion";
 import { createZoneIndex, zoneEntries, type MapDeps, type ZoneIndex } from "./maps";
 import { confirmSkip } from "./skipDialog";
 import {
-  bar, button, checkbox, COLOR, GLYPH, hline, label, paint, PAD, setLabel, SIZE, text, UI_FEATURE,
+  bar, button, checkbox, COLOR, GLYPH, hline, label, paint, PAD, setLabel, SIZE, text, UI_FEATURE, WINDOW_HEIGHT, WINDOW_WIDTH,
 } from "./theme";
 import { CONTENT_TOP, createTabButton, placeTabs, TAB_HEIGHT, type TabButton, type TabView } from "./window";
 import {
@@ -25,13 +25,11 @@ export interface CompletionDeps {
   maps: MapDeps;
 }
 
-const WIDTH = 300;
-const HEIGHT = 480;
 const MAX_ROWS = 10;
 const ROW_HEIGHT = 15;
-const INNER = WIDTH - 2 * PAD;
+const INNER = WINDOW_WIDTH - 2 * PAD;
 const ZONE_HEADER_WIDTH = INNER - 180;
-const BODY_HEIGHT = HEIGHT - CONTENT_TOP - TAB_HEIGHT;
+const BODY_HEIGHT = WINDOW_HEIGHT - CONTENT_TOP - TAB_HEIGHT;
 const EMPTY: ZoneProgress = { done: 0, total: 0 };
 
 interface Row {
@@ -145,7 +143,7 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
         selectMode(mode, openPicker);
       }),
     );
-    placeTabs(content, modeTabs, WIDTH, 0);
+    placeTabs(content, modeTabs, WINDOW_WIDTH, 0);
     setLabel(label(parent, PAD, -60), t("nearestTarget"));
     const pinned = button(parent, "MinMaxQuestCompletionUnpin", `${t("pinnedTag")} · ${GLYPH.close}`, () => {
       engine.pin(null);
@@ -265,8 +263,6 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
   });
 
   return {
-    width: WIDTH,
-    height: HEIGHT,
     render(parent) {
       root = parent;
       ui = build(parent);

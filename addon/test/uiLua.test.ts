@@ -34,11 +34,11 @@ it("toggles the window with /mmq and opens the Quest tab by default", async () =
   try {
     await s.cmd("");
     expect(await s.visibility()).toBe("MinMaxQuestWindow|Show");
-    expect(await s.calls()).toContain("MinMaxQuestWindow|SetSize|270|262");
+    expect(await s.calls()).toContain("MinMaxQuestWindow|SetSize|320|480");
     const texts = await s.texts();
-    expect(texts).toContain("MINMAXQUEST");
-    expect(texts.slice(texts.indexOf("MINMAXQUEST"), texts.indexOf("MINMAXQUEST") + 4)).toEqual([
-      "MINMAXQUEST", "Quest", "Access", "Completion",
+    expect(texts).toContain("MinMaxQuest");
+    expect(texts.slice(texts.indexOf("MinMaxQuest"), texts.indexOf("MinMaxQuest") + 4)).toEqual([
+      "MinMaxQuest", "Quest", "Access", "Completion",
     ]);
     expect(texts).toContain("Routes not installed - use Completion meanwhile");
     await s.cmd("");
@@ -49,12 +49,40 @@ it("toggles the window with /mmq and opens the Quest tab by default", async () =
   }
 });
 
-it("switches the three tabs, resizing the window and saving the tab", async () => {
+it("sizes the window 320 x 480 on every tab", async () => {
+  for (const locale of ["enUS", "frFR"]) {
+    const s = await ui(`GetLocale = function() return "${locale}" end`);
+    try {
+      await s.cmd("");
+      for (const tab of ["completion", "access", "quest"]) {
+        await s.click(`MinMaxQuestTab${tab}`);
+        expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|320|480");
+      }
+    } finally {
+      s.close();
+    }
+  }
+});
+
+it("titles the window in Friz Quadrata", async () => {
+  for (const locale of ["enUS", "frFR"]) {
+    const s = await ui(`GetLocale = function() return "${locale}" end`);
+    try {
+      await s.cmd("");
+      expect(await s.calls()).toContain("font|SetFont|Fonts\\FRIZQT__.TTF|16|");
+      expect(await s.texts()).toContain("MinMaxQuest");
+    } finally {
+      s.close();
+    }
+  }
+});
+
+it("switches the three tabs and saves the tab", async () => {
   const s = await ui();
   try {
     await s.cmd("");
     await s.click("MinMaxQuestTabcompletion");
-    expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|300|480");
+    expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|320|480");
     expect(await s.run("return MinMaxQuestCharDB.tab")).toBe("completion");
     const texts = await s.texts();
     expect(texts).toContain("Elwynn Forest");
@@ -63,10 +91,10 @@ it("switches the three tabs, resizing the window and saving the tab", async () =
     expect(texts).toContain("pick up · <1 min · 22 m");
     expect(texts).toContain("Eastern Kingdoms · 0 / 3");
     await s.click("MinMaxQuestTabaccess");
-    expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|320|420");
+    expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|320|480");
     expect((await s.texts()).some((line) => line.startsWith("KEYS · "))).toBe(true);
     await s.click("MinMaxQuestTabquest");
-    expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|270|262");
+    expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|320|480");
     expect(await s.run("return MinMaxQuestCharDB.tab")).toBe("quest");
     expect(await s.printed()).toBe("");
   } finally {
@@ -189,7 +217,7 @@ it("labels the Completion sub-tabs in both locales", async () => {
       const texts = await s.texts();
       for (const label of labels) expect(texts).toContain(label);
       const calls = await s.calls();
-      for (const mode of ["proximity", "zone", "log"]) expect(calls).toContain(`MinMaxQuestCompletionTab${mode}|SetSize|100.0|24`);
+      for (const mode of ["proximity", "zone", "log"]) expect(calls.some((c) => c.startsWith(`MinMaxQuestCompletionTab${mode}|SetSize|106.6`) && c.endsWith("|24"))).toBe(true);
     } finally {
       s.close();
     }
@@ -197,7 +225,7 @@ it("labels the Completion sub-tabs in both locales", async () => {
 });
 
 const ALLIANCE_DUNGEONS = entriesFor("A").filter((entry) => entry.group === "dungeon");
-const ROW_POOL = 17;
+const ROW_POOL = 20;
 
 async function accessTab(setup = "") {
   const s = await ui(setup);
@@ -218,7 +246,7 @@ it("lists the access groups with counts for an Alliance character and no Horde-o
     const texts = await s.texts();
     expect(texts).toContain(ALLIANCE_DUNGEONS[0].name.enUS);
     expect(texts).not.toContain("Ragefire Chasm");
-    expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|320|420");
+    expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|320|480");
     expect(await s.printed()).toBe("");
   } finally {
     s.close();
@@ -686,7 +714,7 @@ it("prints route decode errors, unlike the missing route file notice", async () 
   }
 });
 
-it("fits eleven dungeons in the window and grows it only while the list is open", async () => {
+it("fits eleven dungeons in the fixed window", async () => {
   const s = await routeTab(`
     local text = MinMaxQuestRoutes.Alliance.returnBlocks[721]
     local blocks = {}
@@ -695,39 +723,33 @@ it("fits eleven dungeons in the window and grows it only while the list is open"
   `);
   try {
     await s.click("MinMaxQuestSectionDungeons");
-    const height = Number((await s.last("MinMaxQuestWindow|SetHeight|"))?.split("|")[2]);
+    const height = 480;
     const calls = await s.calls();
     for (let i = 1; i <= 11; i++) {
       const name = `MinMaxQuestDungeon${5000 + i}`;
       const point = calls.filter((c) => c.startsWith(`${name}|SetPoint|`)).pop()?.split("|") ?? [];
       const size = calls.filter((c) => c.startsWith(`${name}|SetSize|`)).pop()?.split("|") ?? [];
       const [x, y, width, boxHeight] = [Number(point[5]), Number(point[6]), Number(size[2]), Number(size[3])];
-      expect(x + width).toBeLessThanOrEqual(270);
+      expect(x + width).toBeLessThanOrEqual(320);
       expect(50 - y + boxHeight).toBeLessThanOrEqual(height);
     }
-    expect(height).toBeGreaterThan(262);
-    await s.click("MinMaxQuestSectionDungeons");
-    expect(await s.last("MinMaxQuestWindow|SetHeight|")).toBe("MinMaxQuestWindow|SetHeight|262");
-    await s.click("MinMaxQuestSectionDungeons");
-    await s.click("MinMaxQuestTabcompletion");
-    await s.click("MinMaxQuestTabquest");
-    expect(await s.last("MinMaxQuestWindow|SetSize|")).toBe(`MinMaxQuestWindow|SetSize|270|${height}`);
+    expect(calls.some((c) => c.startsWith("MinMaxQuestWindow|SetHeight|"))).toBe(false);
   } finally {
     s.close();
   }
 });
 
-it("opens at 270x262 and fits every option above the footer while Options is open", async () => {
+it("fits every option above the footer in the fixed window while Options is open", async () => {
   const s = await routeTab();
   const FOOTER_TOP = 9 + 11;
   try {
-    expect(await s.last("MinMaxQuestWindow|SetSize|")).toBe("MinMaxQuestWindow|SetSize|270|262");
+    expect(await s.last("MinMaxQuestWindow|SetSize|")).toBe("MinMaxQuestWindow|SetSize|320|480");
     await s.click("MinMaxQuestSectionOptions");
-    const height = Number((await s.last("MinMaxQuestWindow|SetHeight|"))?.split("|")[2]);
+    const height = 480;
     const calls = await s.calls();
     const lastCall = (prefix: string) => calls.filter((c) => c.startsWith(prefix)).pop()?.split("|") ?? [];
     const inside = (x: number, y: number, width: number, boxHeight: number) => {
-      expect(x + width).toBeLessThanOrEqual(270);
+      expect(x + width).toBeLessThanOrEqual(320);
       expect(50 - y + boxHeight).toBeLessThanOrEqual(height - FOOTER_TOP);
     };
     for (const name of ["MinMaxQuestRouteElites", "MinMaxQuestRouteDungeons", "MinMaxQuestAutoFly", "MinMaxQuestNativeWaypoint", "MinMaxQuestLockArrow"]) {
@@ -754,10 +776,10 @@ it("opens at 270x262 and fits every option above the footer while Options is ope
     }
     const reload = lastCall("MinMaxQuestReload|SetPoint|");
     const reloadWidth = Number(lastCall("MinMaxQuestReload|SetWidth|")[2]);
-    inside(270 + Number(reload[5]) - reloadWidth, Number(reload[6]), reloadWidth, 16);
-    expect(270 + Number(reload[5]) - reloadWidth).toBeGreaterThan(0);
+    inside(320 + Number(reload[5]) - reloadWidth, Number(reload[6]), reloadWidth, 16);
+    expect(320 + Number(reload[5]) - reloadWidth).toBeGreaterThan(0);
     await s.click("MinMaxQuestSectionOptions");
-    expect(await s.last("MinMaxQuestWindow|SetHeight|")).toBe("MinMaxQuestWindow|SetHeight|262");
+    expect((await s.calls()).some((c) => c.startsWith("MinMaxQuestWindow|SetHeight|"))).toBe(false);
   } finally {
     s.close();
   }
@@ -769,7 +791,7 @@ local function edge(rec, side)
   local rel = p[2].__rec
   local anchor
   if rel.width == nil then
-    anchor = (p[3] == "LEFT" or p[3] == "TOPLEFT") and 0 or 300
+    anchor = (p[3] == "LEFT" or p[3] == "TOPLEFT") and 0 or 320
   else
     local l, r = (function() local a, b = extentOf(rel) return a, b end)()
     anchor = (p[3] == "LEFT" or p[3] == "TOPLEFT") and l or r
@@ -813,7 +835,7 @@ for (const locale of ["enUS", "frFR"] as const) {
 ${LAYOUT_LUA}`,
         )) as number[];
         const boxes = [[hl, hr], ...(zoneShown === 1 ? [[zl, zr]] : [])];
-        for (const [l, r] of boxes) expect(l >= 0 && r <= 300).toBe(true);
+        for (const [l, r] of boxes) expect(l >= 0 && r <= 320).toBe(true);
         boxes.sort((a, b) => a[0] - b[0]);
         for (let i = 1; i < boxes.length; i++) expect(boxes[i - 1][1] <= boxes[i][0]).toBe(true);
         expect(textW <= headerW).toBe(true);
