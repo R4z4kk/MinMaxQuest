@@ -61,7 +61,7 @@ function paintLine(line: Line, data: CompletionLine | null): void {
   const section = data != null && data.kind === "section";
   const row = data != null && data.kind === "row";
   showIf(line.header.frame, section);
-  showIf(line.icon.frame, row);
+  showIf(line.icon.frame, row && data.tone !== "more");
   showIf(line.level, row);
   showIf(line.name, row);
   showIf(line.time, row);
@@ -75,7 +75,7 @@ function paintLine(line: Line, data: CompletionLine | null): void {
   line.name.SetText(data.name);
   line.time.SetText(data.time);
   const grey = data.tone === "grey";
-  paint(line.name, grey ? COLOR.grey : data.tone === "more" ? COLOR.sub : data.tone === "target" ? COLOR.accent : COLOR.rowText);
+  paint(line.name, grey ? COLOR.grey : data.tone === "more" ? COLOR.sub : data.tone === "target" ? COLOR.title : COLOR.rowText);
   paint(line.level, grey ? COLOR.grey : COLOR.sub);
   paint(line.time, grey ? COLOR.grey : COLOR.sub);
 }

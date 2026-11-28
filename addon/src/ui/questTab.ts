@@ -288,7 +288,7 @@ export function createQuestTab(deps: QuestDeps): TabView {
       footer.SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", PAD, 9);
       routeWidgets.push(
         currentHeader.frame, currentIcon.frame, currentText, skip.frame, progressText, nextHeader.frame, nextDistance, footer,
-        ...nextRows.map((row) => row.text),
+        ...nextRows.flatMap((row) => [row.icon.frame, row.text]),
       );
 
       optionsHeader = section(parent, "options", "MinMaxQuestSectionOptions", OPTIONS_Y).header;

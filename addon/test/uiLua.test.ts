@@ -665,6 +665,67 @@ it("shows Route finished at the maximum level", async () => {
   }
 });
 
+const shownKindIcons = (s: Awaited<ReturnType<typeof routeTab>>) =>
+  s.run(`local n = 0 for _, r in ipairs(layout) do if r.name == "anon" and r.width == 16 and r.height == 16 and r.shown then n = n + 1 end end return n`);
+
+it("paints the target row with the title color", async () => {
+  const s = await ui();
+  try {
+    await s.cmd("");
+    await s.click("MinMaxQuestTabcompletion");
+    expect(await s.run(`for _, r in ipairs(layout) do if r.name == "font" and r.shown and r.text == "» Test Quest" then return r.color end end`)).toBe("0.95|0.91|0.78");
+  } finally {
+    s.close();
+  }
+});
+
+it("hides the kind icon on the more row", async () => {
+  const s = await ui(`
+    for id = 200, 240 do quests[id] = { name = "Q" .. id, questLevel = 10, requiredLevel = 1, zoneOrSort = 12, startedBy = { { 501 } } } end
+    LibQuestieDB.Quest.GetAllIds = function() local ids = { 100, 101, 102 } for id = 200, 240 do ids[#ids + 1] = id end return ids end
+  `);
+  try {
+    await s.cmd("");
+    await s.click("MinMaxQuestTabcompletion");
+    expect(
+      await s.run(`
+        for i, r in ipairs(layout) do
+          if r.name == "font" and r.shown and string.find(r.text, "more...", 1, true) then
+            for j = i, 1, -1 do
+              local f = layout[j]
+              if f.name == "anon" and f.width == 16 and f.height == 16 then return f.shown end
+            end
+          end
+        end
+        return "no more row"`),
+    ).toBe(false);
+  } finally {
+    s.close();
+  }
+});
+
+it("shows no kind icon on Route finished", async () => {
+  const s = await routeTab("UnitLevel = function() return 60 end");
+  try {
+    await s.run("now = now + 3");
+    await s.tick();
+    expect(await shownKindIcons(s)).toBe(0);
+  } finally {
+    s.close();
+  }
+});
+
+it("shows no kind icon when the routes are missing", async () => {
+  const s = await routeTab(`MinMaxQuestRoutes.Alliance.trunk.e0d0x0 = "z;1;2"`);
+  try {
+    await s.run("now = now + 3");
+    await s.tick();
+    expect(await shownKindIcons(s)).toBe(0);
+  } finally {
+    s.close();
+  }
+});
+
 it("shows the real active mode in the Access tab footer", async () => {
   const s = await routeTab();
   try {

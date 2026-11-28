@@ -56,7 +56,7 @@
 - **Zone** mode shows one zone, picked from a zone list (the picker only appears in this mode).
 - **Log** mode only targets quests already in your quest log: objectives and turn-ins, sorted by travel time. No new quests; the Grey and Elite filters and the zone are ignored.
 - Targets are grouped in sections: **To turn in**, **Objectives** and **To pick up** (empty sections are hidden; counts are totals), each sorted by estimated travel time.
-- The row the arrow points to is highlighted with » and always stays visible, even in a long list. **Skip** and the pinned quest sit in a strip under the header.
+- The row the arrow points to is highlighted with » and always stays visible, even in a long list. **Skip** and the **Pinned · ×** unpin button sit in a strip under the header.
 - Progress counters for the zone and in total.
 - **Grey** and **Elite** filters. Quests you can't take yet are never shown.
 
@@ -84,7 +84,7 @@
 - **Access entries:** tracked Access tab entries have their quests inserted into the route.
 - **Dungeons:** a named list with one checkbox per dungeon that has a return trip. Tick one to add its return trip to the route. All are unticked by default.
 - **Active mode:** the arrow follows whichever of the Quest or Completion tabs you opened last.
-- **Options** (variants, auto-fly, Blizzard map waypoint, lock arrow) and **Dungeons** are sections you open with a click, closed by default. The window grows while one is open.
+- **Options** (variants, auto-fly, Blizzard map waypoint, lock arrow) and **Dungeons** are sections you open with a click, closed by default. Only one is open at a time.
 - **Route finished** shows at level 60, with a button to open the Completion tab.
 - If the route files are missing or can't be read, a message says so and offers a button to open the Completion tab.
 

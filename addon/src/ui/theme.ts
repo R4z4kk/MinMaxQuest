@@ -110,28 +110,6 @@ export function text(parent: WowFrame, size: number, c: Color, justify: "LEFT" |
   return fontString;
 }
 
-export function label(parent: WowFrame, x: number, y: number): WowFontString {
-  const fontString = text(parent, SIZE.label, COLOR.sub);
-  fontString.SetPoint("TOPLEFT", parent, "TOPLEFT", x, y);
-  return fontString;
-}
-
-// Lua string.upper leaves UTF-8 accented letters untouched.
-const ACCENTS: [string, string][] = [
-  ["à", "À"], ["â", "Â"], ["ç", "Ç"], ["é", "É"], ["è", "È"], ["ê", "Ê"], ["ë", "Ë"], ["î", "Î"], ["ï", "Ï"],
-  ["ô", "Ô"], ["ù", "Ù"], ["û", "Û"],
-];
-
-export function upper(value: string): string {
-  let out = value.toUpperCase();
-  for (const [lower, capital] of ACCENTS) out = out.split(lower).join(capital);
-  return out;
-}
-
-export function setLabel(fontString: WowFontString, value: string): void {
-  fontString.SetText(upper(value));
-}
-
 export function onClick(frame: WowFrame, handler: () => void): void {
   frame.SetScript("OnClick", () => {
     guard(UI_FEATURE, handler);

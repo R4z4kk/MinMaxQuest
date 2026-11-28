@@ -11,7 +11,7 @@ Prérequis : `npm test` (construit `build/MinMaxQuest.lua`), puis lancer WoW For
 - [ ] `/mmq` affiche/cache ensemble la fenêtre, la flèche et le bouton d'objet ; onglets Quête | Accès | Complétion, taille fixe 320 × 480 ; position et onglet gardés après `/reload`.
 - [ ] Rendu : fond violet, accent doré, Arial Narrow et Friz Quadrata ; les petits symboles (✓, », ×, flèche ▾) s'affichent (pas de carrés). Vérifier aussi le tiret « — » quand une cible est injoignable.
 - [ ] Bouton œil (à gauche de l'engrenage) : cache fenêtre, flèche, bouton d'objet, repères carte/minicarte et vol auto ; état gardé après `/reload` ; `/mmq` fait tout revenir ; un repère posé à la main n'est pas effacé ; l'icône s'affiche (pas de carré vide).
-- [ ] Textes en français sur client frFR (accents en majuscules : « RESTANT À PROXIMITÉ »).
+- [ ] Textes en français sur client frFR (accents corrects : « À rendre », « Étape en cours »).
 - [ ] Option Langue (Auto / English / Français) : le texte change ; un bouton « Recharger » apparaît si nécessaire et recharge l'interface ; les noms de quêtes, PNJ et zones suivent toujours la langue du client.
 
 ## Look BetterBags
@@ -21,13 +21,13 @@ Prérequis : `npm test` (construit `build/MinMaxQuest.lua`), puis lancer WoW For
 - [ ] Fenêtre en 320 × 480 sur chaque onglet, en frFR comme en enUS.
 - [ ] Complétion : sections À rendre / Objectifs / À prendre (vides cachées), ligne de la cible surlignée avec « » et toujours visible dans une longue liste.
 - [ ] Accès : sections repliables avec fait / total, icône d'entrée (fait, en cours, intact), niveau à droite ou barre dorée quand commencée.
-- [ ] Quête : sections Étape actuelle et Suivante avec icônes, Options et Donjons repliables, une seule ouverte à la fois.
+- [ ] Quête : sections « Étape en cours » et « Ensuite » avec icônes, Options et Donjons repliables, une seule ouverte à la fois.
 - [ ] Fenêtres annexes (sélecteur de zone, confirmation de saut, bandeau de version) dans la même palette.
 
 ## Complétion
-- [ ] Liste triée par « ~temps » ; la flèche suit la première cible.
+- [ ] Liste triée par « ~temps » ; la flèche suit la ligne surlignée dans les sections.
 - [ ] Sous-onglets Proximité | Zone | Journal (même style que Quête / Accès / Complétion) : un clic change de mode ; le sélecteur de zone n'apparaît qu'en mode Zone, il liste les zones et filtre.
-- [ ] Proximité : seulement la zone actuelle et les zones voisines (plus de liste du continent entier) ; le compteur « restantes » suit ; une quête de donjon prise chez un PNJ d'une zone voisine apparaît.
+- [ ] Proximité : seulement la zone actuelle et les zones voisines (plus de liste du continent entier) ; les compteurs des sections suivent ; une quête de donjon prise chez un PNJ d'une zone voisine apparaît.
 - [ ] Pierre de foyer en Complétion : proposée seulement si elle fait gagner ~15 min ; le temps affiché ne compte pas la pénalité.
 - [ ] Filtres Grises / Élites ; aucune quête bloquée n'apparaît.
 - [ ] Les objectifs « tuer X » : la flèche parcourt les points du groupe de mobs et passe au suivant à ~25 m.
