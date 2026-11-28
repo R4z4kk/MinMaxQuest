@@ -6,7 +6,7 @@ import { stepStatus, type ProgressContext, type QuestLookup, type RouteCursor } 
 export const OFF_ROUTE_WINDOW = 15;
 export const OFF_ROUTE_MIN_SECONDS = 120;
 export const OFF_ROUTE_GAIN_SECONDS = 60;
-export const ON_THE_WAY_SECONDS = 10;
+export const ON_THE_WAY_SECONDS = 60;
 export const LEVEL_BANNER_GAP = 3;
 const NEXT_COUNT = 3;
 const QUEST_STEPS: Partial<Record<EmittedStep["type"], boolean>> = { accept: true, complete: true, turnin: true };

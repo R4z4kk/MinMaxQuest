@@ -127,15 +127,15 @@ describe("target", () => {
     expect(run([at(50), quest7("turnin", 30), kill(10)], { ctx }).target).toBe(2);
   });
 
-  it("accepts a detour of up to 10 s for a quest step", () => {
+  it("accepts a detour of up to 60 s for a quest step", () => {
     const ctx = context({ log: inLog() });
-    expect(run([at(50), quest7("turnin", -5)], { ctx }).target).toBe(1);
-    expect(run([at(50), quest7("turnin", -6)], { ctx }).target).toBe(0);
+    expect(run([at(50), quest7("turnin", -30)], { ctx }).target).toBe(1);
+    expect(run([at(50), quest7("turnin", -31)], { ctx }).target).toBe(0);
   });
 
   it("stays on a near current when the nearer quest step is off the way", () => {
     const ctx = context({ log: inLog() });
-    expect(run([at(50), quest7("turnin", 0, { y: 30 })], { ctx }).target).toBe(0);
+    expect(run([at(50), quest7("turnin", 0, { y: 45 })], { ctx }).target).toBe(0);
   });
 
   it("never leaves a near current for a travel step on the way", () => {
