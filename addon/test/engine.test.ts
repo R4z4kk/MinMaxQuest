@@ -322,6 +322,13 @@ describe("arrowTarget", () => {
     expect(engine.arrowTarget()).toEqual({ pos: at(600), label: "Take the boat" });
   });
 
+  it("points at the portal when the route starts with one", () => {
+    const { engine, world } = setup([target(1)], [quest(1)]);
+    world.hop = { kind: "portal", pos: at(700), taxiNodeId: null };
+    engine.refreshTargets(true);
+    expect(engine.arrowTarget()).toEqual({ pos: at(700), label: "Take the portal" });
+  });
+
   it("asks to use the hearthstone when the route starts with it", () => {
     const { engine, world } = setup([target(1)], [quest(1)]);
     world.hop = { kind: "hearth", pos: at(0), taxiNodeId: null };

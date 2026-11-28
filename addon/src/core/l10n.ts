@@ -15,6 +15,7 @@ export type L10nKey =
   | "targetTurnin"
   | "goFlightMaster"
   | "goBoat"
+  | "takePortal"
   | "noTarget"
   | "skipConfirm"
   | "lostXp"
@@ -140,6 +141,7 @@ const EN: Record<L10nKey, string> = {
   targetTurnin: "turn in",
   goFlightMaster: "Go to the flight master",
   goBoat: "Take the boat",
+  takePortal: "Take the portal",
   noTarget: "no target",
   skipConfirm: "{quest}: {n} follow-up quest(s) would be lost ({xp}): type /mmq skip confirm",
   lostXp: "about {xp} XP",
@@ -266,6 +268,7 @@ const FR: Record<L10nKey, string> = {
   targetTurnin: "rendre",
   goFlightMaster: "Aller au maître de vol",
   goBoat: "Prendre le bateau",
+  takePortal: "Prends le portail",
   noTarget: "aucune cible",
   skipConfirm: "{quest} : {n} quête(s) de suite seraient perdues ({xp}) : tapez /mmq skip confirm",
   lostXp: "environ {xp} XP",

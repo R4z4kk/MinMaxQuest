@@ -13,9 +13,10 @@ export const REFRESH_INTERVAL_SEC = 2;
 export const LOOP_ADVANCE_YARDS = 25;
 export const IDLE_YARDS = 10;
 
-const HOP_LABEL: Record<"taxi" | "boat" | "hearth", L10nKey> = {
+const HOP_LABEL: Record<"taxi" | "boat" | "portal" | "hearth", L10nKey> = {
   taxi: "goFlightMaster",
   boat: "goBoat",
+  portal: "takePortal",
   hearth: "useHearth",
 };
 

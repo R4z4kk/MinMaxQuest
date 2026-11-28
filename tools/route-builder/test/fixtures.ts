@@ -38,10 +38,11 @@ export function zones(): Map<number, UiMapRect> {
 
 export function travel(overrides: Partial<TravelData> = {}): TravelData {
   return {
-    source: { name: "Shortest Path Forever", version: "test", build: "test", verifiedOn: "2026-11-27", expiresOn: "2026-12-27" },
+    source: { name: "Shortest Path Forever", version: "test", build: "test", cmangosCommit: "test", wagoBuild: "test", verifiedOn: "2026-11-27", expiresOn: "2026-12-27" },
     taxiNodes: [],
     taxiEdges: [],
     transports: [],
+    portals: [],
     ...overrides,
   };
 }

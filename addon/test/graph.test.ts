@@ -13,11 +13,13 @@ const SOURCE: TravelData["source"] = {
   name: "Shortest Path Forever",
   version: "test",
   build: "test",
+  cmangosCommit: "test",
+  wagoBuild: "test",
   verifiedOn: "2026-11-27", expiresOn: "2026-12-27",
 };
 
 function data(partial: Partial<TravelData>): TravelData {
-  return { source: SOURCE, taxiNodes: [], taxiEdges: [], transports: [], ...partial };
+  return { source: SOURCE, taxiNodes: [], taxiEdges: [], transports: [], portals: [], ...partial };
 }
 
 function context(partial: Partial<TravelContext> = {}): TravelContext {
@@ -95,6 +97,28 @@ describe("travel graph", () => {
     it("skips boats of the other faction", () => {
       const horde = data({ transports: [{ ...boat.transports[0], faction: "H" }] });
       expect(evaluate(horde, context(), pos(0, 0), pos(70, 0, 1)).time).toBe(Infinity);
+    });
+  });
+
+  describe("portals", () => {
+    const portal = data({ portals: [{ name: "test", from: pos(100, 0), to: pos(3000, 0) }] });
+
+    it("takes a portal when walking to it plus the portal time beats walking", () => {
+      const { time, hop } = evaluate(portal, context(), pos(0, 0), pos(3050, 0));
+      expect(time).toBeCloseTo(100 * WALK + CONSTANTS.portalSec.value + 50 * WALK);
+      expect(hop).toEqual({ kind: "portal", pos: pos(100, 0), taxiNodeId: null });
+    });
+
+    it("walks when the portal does not help", () => {
+      const { time, hop } = evaluate(portal, context(), pos(0, 0), pos(50, 0));
+      expect(time).toBeCloseTo(50 * WALK);
+      expect(hop?.kind).toBe("walk");
+    });
+
+    it("is one-way", () => {
+      const { time, hop } = evaluate(portal, context(), pos(3000, 0), pos(0, 0));
+      expect(time).toBeCloseTo(3000 * WALK);
+      expect(hop?.kind).toBe("walk");
     });
   });
 

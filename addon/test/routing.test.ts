@@ -35,10 +35,11 @@ const repo: QuestRepository = {
 };
 
 const NO_TRAVEL: TravelData = {
-  source: { name: "Shortest Path Forever", version: "test", build: "test", verifiedOn: "2026-11-27", expiresOn: "2026-12-27" },
+  source: { name: "Shortest Path Forever", version: "test", build: "test", cmangosCommit: "test", wagoBuild: "test", verifiedOn: "2026-11-27", expiresOn: "2026-12-27" },
   taxiNodes: [],
   taxiEdges: [],
   transports: [],
+  portals: [],
 };
 
 const snapshot = (pos: WorldPos | null): PlayerSnapshot => ({

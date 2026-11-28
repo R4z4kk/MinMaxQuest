@@ -28,11 +28,11 @@ Attune access data (data/generated/access.ts, tools/access-import)
   Attune declares no license; its data is reused with credit.
 
 wago.tools DB2 tables (vendor/wago)
-  UiMapAssignment, Map and AreaTable CSVs of build 1.60.1.71139, retrieved from
+  UiMapAssignment, Map, AreaTable and AreaTrigger CSVs of build 1.60.1.71139, retrieved from
   https://wago.tools. Game data (c) Blizzard Entertainment.
 
 cmangos classic-db (build time only, not redistributed)
-  quest_template objective counts read by tools/route-builder at a pinned commit. GPL-3.0.
+  quest_template objective counts and areatrigger_teleport destinations read by tools at a pinned commit. GPL-3.0.
   https://github.com/cmangos/classic-db
 
 Details and checksums for the vendored libraries: libs/HereBeDragons/SOURCES.txt.

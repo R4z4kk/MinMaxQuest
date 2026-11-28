@@ -1,10 +1,14 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { LuaFactory } from "wasmoon";
+import { fetchCmangos, readSqlFile } from "../route-builder/ingest/cmangos";
+import { CMANGOS_CLASSIC_DB, WAGO_DB2 } from "../route-builder/sources";
+import { importPortals } from "./portals";
 import type { WorldPos } from "../../addon/src/core/geometry";
 import type { TravelData } from "../../addon/src/data/generated/travel";
 
 const VENDOR_DIR = "vendor/shortest-path-forever";
+const WAGO_DIR = "vendor/wago";
 const OUTPUT_FILE = "addon/src/data/generated/travel.ts";
 const LUA_FILES = ["Taxi.lua", "Routes.lua", "Transports.lua"];
 const TRANSPORT_KINDS = ["boat", "zeppelin", "tram"];
@@ -155,24 +159,48 @@ export async function generateTravel(vendorDir: string): Promise<TravelData> {
     }
   }
 
+  const cmangosFile = fetchCmangos();
+  const areaTriggerFile = join(WAGO_DIR, `AreaTrigger-${WAGO_DB2.build}.csv`);
+  const mapFile = join(WAGO_DIR, `Map-${WAGO_DB2.build}.csv`);
+  const { portals, candidates, noTrigger } = importPortals({
+    cmangosSql: readSqlFile(cmangosFile),
+    cmangosLabel: cmangosFile,
+    areaTriggerCsv: readFileSync(areaTriggerFile, "utf8"),
+    areaTriggerLabel: areaTriggerFile,
+    mapCsv: readFileSync(mapFile, "utf8"),
+    mapLabel: mapFile,
+  });
+
+  console.log(`gen-travel: ${portals.length} portals kept of ${candidates} free open-world teleports (${noTrigger.length} without a wago trigger row: ${noTrigger.join(",")})`);
   return {
     source: {
       name: "Shortest Path Forever",
       version,
       build: readHeaderBuild(taxiSource),
+      cmangosCommit: CMANGOS_CLASSIC_DB.commit,
+      wagoBuild: WAGO_DB2.build,
       verifiedOn,
-      expiresOn: addDays(verifiedOn, VALID_DAYS),
+      expiresOn: [addDays(verifiedOn, VALID_DAYS), CMANGOS_CLASSIC_DB.expiresOn, WAGO_DB2.expiresOn].sort()[0],
     },
     taxiNodes,
     taxiEdges,
     transports,
+    portals,
   };
 }
 
 const INTERFACE_TEXT = `import type { WorldPos } from "../../core/geometry";
 
 export interface TravelData {
-  source: { name: "Shortest Path Forever"; version: string; build: string; verifiedOn: string; expiresOn: string };
+  source: {
+    name: "Shortest Path Forever";
+    version: string;
+    build: string;
+    cmangosCommit: string;
+    wagoBuild: string;
+    verifiedOn: string;
+    expiresOn: string;
+  };
   taxiNodes: { id: number; name: string; pos: WorldPos; faction: "A" | "H" | "AH" }[];
   taxiEdges: { from: number; to: number; seconds: number }[];
   transports: {
@@ -182,6 +210,7 @@ export interface TravelData {
     periodSec: number;
     faction?: "A" | "H";
   }[];
+  portals: { name: string; from: WorldPos; to: WorldPos }[];
 }
 `;
 
@@ -197,6 +226,7 @@ export const TRAVEL: TravelData = {
   taxiNodes: ${renderList(data.taxiNodes)},
   taxiEdges: ${renderList(data.taxiEdges)},
   transports: ${renderList(data.transports)},
+  portals: ${renderList(data.portals)},
 };
 `;
 }
@@ -205,7 +235,7 @@ async function main(): Promise<void> {
   const data = await generateTravel(VENDOR_DIR);
   writeFileSync(OUTPUT_FILE, renderTravel(data));
   console.log(
-    `gen-travel: ${data.taxiNodes.length} nodes, ${data.taxiEdges.length} edges, ${data.transports.length} transport legs -> ${OUTPUT_FILE}`,
+    `gen-travel: ${data.taxiNodes.length} nodes, ${data.taxiEdges.length} edges, ${data.transports.length} transport legs, ${data.portals.length} portals -> ${OUTPUT_FILE}`,
   );
 }
 

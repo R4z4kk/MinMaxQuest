@@ -2,7 +2,15 @@
 import type { WorldPos } from "../../core/geometry";
 
 export interface TravelData {
-  source: { name: "Shortest Path Forever"; version: string; build: string; verifiedOn: string; expiresOn: string };
+  source: {
+    name: "Shortest Path Forever";
+    version: string;
+    build: string;
+    cmangosCommit: string;
+    wagoBuild: string;
+    verifiedOn: string;
+    expiresOn: string;
+  };
   taxiNodes: { id: number; name: string; pos: WorldPos; faction: "A" | "H" | "AH" }[];
   taxiEdges: { from: number; to: number; seconds: number }[];
   transports: {
@@ -12,10 +20,11 @@ export interface TravelData {
     periodSec: number;
     faction?: "A" | "H";
   }[];
+  portals: { name: string; from: WorldPos; to: WorldPos }[];
 }
 
 export const TRAVEL: TravelData = {
-  source: {"name":"Shortest Path Forever","version":"1.48.0","build":"1.60.1.71139","verifiedOn":"2026-11-27","expiresOn":"2026-12-27"},
+  source: {"name":"Shortest Path Forever","version":"1.48.0","build":"1.60.1.71139","cmangosCommit":"64adf9f62008df8d530e5d88e3c89aa85e42dc38","wagoBuild":"1.60.1.71139","verifiedOn":"2026-11-27","expiresOn":"2026-12-27"},
   taxiNodes: [
     {"id":2,"name":"Stormwind, Elwynn","pos":{"continent":0,"x":-8832.8,"y":478.6},"faction":"A"},
     {"id":4,"name":"Sentinel Hill, Westfall","pos":{"continent":0,"x":-10628.9,"y":1036.7},"faction":"A"},
@@ -407,5 +416,9 @@ export const TRAVEL: TravelData = {
     {"fromDock":{"continent":0,"x":-4840.3,"y":-1330.5},"toDock":{"continent":0,"x":-8346.5,"y":514},"seconds":59,"periodSec":143},
     {"fromDock":{"continent":0,"x":-4840.3,"y":-1330.5},"toDock":{"continent":0,"x":-8346.5,"y":514},"seconds":59,"periodSec":143},
     {"fromDock":{"continent":0,"x":-8346.5,"y":514},"toDock":{"continent":0,"x":-4840.3,"y":-1330.5},"seconds":59,"periodSec":143},
+  ],
+  portals: [
+    {"name":"Teddrassil - Ruth Theran","from":{"continent":1,"x":9947.5,"y":2630},"to":{"continent":1,"x":8785.8,"y":967}},
+    {"name":"Teddrassil - Darnassus","from":{"continent":1,"x":8799.4,"y":969.8},"to":{"continent":1,"x":9946.3,"y":2613}},
   ],
 };

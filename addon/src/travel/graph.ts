@@ -23,7 +23,7 @@ export interface TaxiLeg {
 }
 
 export interface TravelHop {
-  kind: "walk" | "taxi" | "boat" | "hearth";
+  kind: "walk" | "taxi" | "boat" | "portal" | "hearth";
   pos: WorldPos;
   taxiNodeId: number | null;
 }
@@ -55,6 +55,7 @@ const WALK = 0;
 const TAXI = 1;
 const BOAT = 2;
 const HEARTH = 3;
+const PORTAL = 4;
 const DIRECT = -100;
 const UNREACHABLE = -101;
 
@@ -124,6 +125,7 @@ export function buildGraph(data: TravelData, ctx: TravelContext): TravelGraph {
     if (!factionAllowed(leg.faction == null ? null : leg.faction, ctx.faction)) continue;
     addEdge(dockSlot(leg.fromDock), dockSlot(leg.toDock), leg.periodSec / 2 + leg.seconds, BOAT);
   }
+  for (const portal of data.portals) addEdge(dockSlot(portal.from), dockSlot(portal.to), CONSTANTS.portalSec.value, PORTAL);
   const hearthSlot = ctx.hearth.pos == null ? -1 : addNode(HEARTH_ID, ctx.hearth.pos);
 
   const originSlot = addNode(ORIGIN_ID, { continent: -1, x: 0, y: 0 });
@@ -362,6 +364,7 @@ export function firstHop(plan: TravelPlan, graph: TravelGraph, target: WorldPos,
   if (departurePos == null || departureKind === WALK) return walkTo;
   if (departureKind === TAXI) return { kind: "taxi", pos: departurePos, taxiNodeId: departure };
   if (departureKind === BOAT) return { kind: "boat", pos: departurePos, taxiNodeId: null };
+  if (departureKind === PORTAL) return { kind: "portal", pos: departurePos, taxiNodeId: null };
   return { kind: "hearth", pos: departurePos, taxiNodeId: null };
 }
 
