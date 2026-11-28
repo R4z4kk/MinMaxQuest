@@ -1,4 +1,4 @@
-import type { WorldPos } from "../core/geometry";
+import { distance, type WorldPos } from "../core/geometry";
 import type { AreaPoint, QuestRepository } from "../data/questRepository";
 import type { PlaceFor } from "../route/insert";
 import type { CompletionInput } from "../targets/completion";
@@ -30,14 +30,30 @@ export function isFriendlyTo(read: "A" | "H" | "AH" | null, side: "A" | "H"): bo
 const FRIENDLY = "friendly";
 const HOSTILE = "hostile";
 
-// First convertible spawn of the quest's starter, objective source or finisher, for route insertion.
-export function createPlaceFor(repo: QuestRepository, faction: () => "A" | "H" | null): PlaceFor {
+// Spawn of the quest's starter, objective source or finisher for route insertion: the one nearest to the
+// player (a battleground quest's finisher stands in every capital), else the first convertible one.
+export function createPlaceFor(
+  repo: QuestRepository,
+  faction: () => "A" | "H" | null,
+  near: () => WorldPos | null,
+  toWorld: (uiMapId: number, x: number, y: number) => WorldPos | null = uiMapToWorld,
+): PlaceFor {
   const first = (points: AreaPoint[]): { uiMapId: number; x: number; y: number } | null => {
+    const from = near();
+    let best: { uiMapId: number; x: number; y: number } | null = null;
+    let bestYards = Infinity;
     for (const point of points) {
       const uiMapId = repo.uiMapIdForArea(point.areaId);
-      if (uiMapId != null && uiMapToWorld(uiMapId, point.x, point.y) != null) return { uiMapId, x: point.x, y: point.y };
+      const pos = uiMapId == null ? null : toWorld(uiMapId, point.x, point.y);
+      if (uiMapId == null || pos == null) continue;
+      if (from == null) return { uiMapId, x: point.x, y: point.y };
+      const yards = distance(from, pos);
+      if (best == null || yards < bestYards) {
+        best = { uiMapId, x: point.x, y: point.y };
+        bestYards = yards;
+      }
     }
-    return null;
+    return best;
   };
   const from = (npcs: number[], objects: number[], friendlyOnly: boolean): { uiMapId: number; x: number; y: number } | null => {
     const side = faction();

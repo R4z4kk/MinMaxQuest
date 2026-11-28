@@ -222,7 +222,7 @@ function start(): Game | null {
     faction: () => playerFaction(),
     quest: (id) => repo.get(id),
     toWorld: (uiMapId, x, y) => uiMapToWorld(uiMapId, x, y),
-    place: createPlaceFor(repo, () => playerFaction()),
+    place: createPlaceFor(repo, () => playerFaction(), () => playerPosition()),
     positionsFor,
     timeTo: (snap) => routing.timeTo(snap),
     inCombat: () => InCombatLockdown(),
