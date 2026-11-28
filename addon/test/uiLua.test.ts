@@ -804,8 +804,9 @@ it("shows the current and next steps as sections with icons", async () => {
     const names = ["MinMaxQuestSectionOptions", "MinMaxQuestSectionDungeons"];
     for (const name of names) expect(calls.some((c) => c.startsWith(`${name}|SetSize|300|`))).toBe(true);
     await s.click("MinMaxQuestSectionOptions");
-    await s.click("MinMaxQuestSectionDungeons");
     expect(await s.visibilityOf("MinMaxQuestRouteElites")).toBe("MinMaxQuestRouteElites|Show");
+    await s.click("MinMaxQuestSectionDungeons");
+    expect(await s.visibilityOf("MinMaxQuestRouteElites")).toBe("MinMaxQuestRouteElites|Hide");
     expect(await s.visibilityOf("MinMaxQuestDungeon721")).toBe("MinMaxQuestDungeon721|Show");
   } finally {
     s.close();
@@ -813,31 +814,48 @@ it("shows the current and next steps as sections with icons", async () => {
 });
 
 for (const locale of ["enUS", "frFR"] as const) {
-  it(`fits the Quest tab in 320 x 480 with Options and Dungeons open, ${locale}`, async () => {
+  it(`fits the Quest tab in 320 x 480 with one section open at a time, ${locale}`, async () => {
     const s = await routeTab(`CHAR_WIDTH = 6
-      MinMaxQuestDB = { locale = "${locale}" }`);
+      MinMaxQuestDB = { locale = "${locale}" }
+      local text = MinMaxQuestRoutes.Alliance.returnBlocks[721]
+      local blocks = {}
+      for i = 1, 11 do blocks[5000 + i] = text end
+      MinMaxQuestRoutes.Alliance.returnBlocks = blocks`);
     const FOOTER_TOP = 9 + 11;
+    const dungeons = Array.from({ length: 11 }, (_, i) => `MinMaxQuestDungeon${5001 + i}`);
+    const options = ["MinMaxQuestRouteElites", "MinMaxQuestRouteDungeons", "MinMaxQuestAutoFly", "MinMaxQuestNativeWaypoint", "MinMaxQuestLockArrow"];
     try {
-      await s.click("MinMaxQuestSectionOptions");
-      await s.click("MinMaxQuestSectionDungeons");
-      const calls = await s.calls();
-      const lastCall = (prefix: string) => calls.filter((c) => c.startsWith(prefix)).pop()?.split("|") ?? [];
-      const inside = (what: string, x: number, y: number, width: number, height: number) => {
+      const shown = async (name: string) => (await s.visibilityOf(name)) === `${name}|Show`;
+      const inside = async (what: string, x: number, y: number, width: number, height: number) => {
         expect([what, x >= 0 && x + width <= 320]).toEqual([what, true]);
         expect([what, 50 - y + height <= 480 - FOOTER_TOP]).toEqual([what, true]);
       };
-      for (const name of ["MinMaxQuestRouteElites", "MinMaxQuestRouteDungeons", "MinMaxQuestAutoFly", "MinMaxQuestNativeWaypoint", "MinMaxQuestLockArrow", "MinMaxQuestDungeon721"]) {
-        const point = lastCall(`${name}|SetPoint|`);
-        const size = lastCall(`${name}|SetSize|`);
-        inside(name, Number(point[5]), Number(point[6]), Number(size[2]), Number(size[3]));
-      }
+      const fits = async (names: string[]) => {
+        const calls = await s.calls();
+        const lastCall = (prefix: string) => calls.filter((c) => c.startsWith(prefix)).pop()?.split("|") ?? [];
+        for (const name of names) {
+          const point = lastCall(`${name}|SetPoint|`);
+          const size = lastCall(`${name}|SetSize|`);
+          await inside(name, Number(point[5]), Number(point[6]), Number(size[2]), Number(size[3]));
+        }
+        return lastCall;
+      };
+      await s.click("MinMaxQuestSectionDungeons");
+      expect(await shown("MinMaxQuestDungeon5001")).toBe(true);
+      await fits(dungeons);
+      await s.click("MinMaxQuestSectionOptions");
+      expect(await shown("MinMaxQuestRouteElites")).toBe(true);
+      expect(await shown("MinMaxQuestDungeon5001")).toBe(false);
+      const lastCall = await fits(options);
+      const language = lastCall("MinMaxQuestLanguageauto|SetPoint|");
+      await inside("language row", Number(language[5]), Number(language[6]), 300, 16);
       const header = lastCall("MinMaxQuestSectionDungeons|SetPoint|");
-      inside("dungeons header", Number(header[5]), Number(header[6]), 300, 18);
-      const last = lastCall("MinMaxQuestLanguageauto|SetPoint|");
-      inside("language row", Number(last[5]), Number(last[6]), 300, 16);
-      const optionsY = Number(lastCall("MinMaxQuestSectionOptions|SetPoint|")[6]);
-      expect(Number(lastCall("MinMaxQuestRouteElites|SetPoint|")[6])).toBeLessThan(optionsY);
-      expect(Number(header[6])).toBeLessThan(Number(last[6]));
+      expect(Number(header[6])).toBeLessThan(Number(language[6]));
+      await inside("dungeons header", Number(header[5]), Number(header[6]), 300, 18);
+      await s.click("MinMaxQuestSectionDungeons");
+      expect(await shown("MinMaxQuestRouteElites")).toBe(false);
+      expect(await shown("MinMaxQuestDungeon5001")).toBe(true);
+      await fits(dungeons);
     } finally {
       s.close();
     }

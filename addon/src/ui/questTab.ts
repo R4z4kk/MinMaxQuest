@@ -90,7 +90,7 @@ function remainingText(seconds: number): string {
 export function createQuestTab(deps: QuestDeps): TabView {
   const { db, account, follower } = deps;
   let root: WowFrame | null = null;
-  // Both sections start closed so the route stays in view.
+  // One section at a time; both start closed so the route stays in view.
   const opened: Record<Section, boolean> = { options: false, dungeons: false };
   const checks: Checkbox[] = [];
   const gapButtons: Button[] = [];
@@ -218,7 +218,10 @@ export function createQuestTab(deps: QuestDeps): TabView {
     const header = createSectionHeader(frame, INNER);
     header.frame.SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0);
     onClick(frame, () => {
-      opened[which] = !opened[which];
+      const wasOpen = opened[which];
+      opened.options = false;
+      opened.dungeons = false;
+      opened[which] = !wasOpen;
       placeDungeons();
       draw();
     });
