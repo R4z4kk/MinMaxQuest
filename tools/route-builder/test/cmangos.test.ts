@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { loadCmangosCounts } from "../ingest/cmangos";
+import { loadCmangosCounts, parseCmangosLoot } from "../ingest/cmangos";
 
 const CREATE = [
   "CREATE TABLE `quest_template` (",
@@ -86,5 +86,44 @@ describe("loadCmangosCounts", () => {
   it("throws when the quest_template table is missing", () => {
     const file = dump(["INSERT INTO `other_table` VALUES (1);"]);
     expect(() => loadCmangosCounts(file)).toThrow(`${file}: no quest_template`);
+  });
+});
+
+describe("parseCmangosLoot", () => {
+  const sql = [
+    "CREATE TABLE `creature_template` (",
+    "  `Entry` mediumint unsigned NOT NULL DEFAULT '0',",
+    "  `Name` char(100) NOT NULL DEFAULT '',",
+    "  `LootId` mediumint unsigned NOT NULL DEFAULT '0',",
+    "  PRIMARY KEY (`Entry`)",
+    ") ENGINE=MyISAM;",
+    "INSERT INTO `creature_template` VALUES (10,'Thug',10),(11,'Boss, Big',50),(12,'Rabbit',0);",
+    "CREATE TABLE `creature_loot_template` (",
+    "  `entry` mediumint unsigned NOT NULL DEFAULT '0',",
+    "  `item` mediumint unsigned NOT NULL DEFAULT '0',",
+    "  `ChanceOrQuestChance` float NOT NULL DEFAULT '100',",
+    "  `groupid` tinyint unsigned NOT NULL DEFAULT '0',",
+    "  `mincountOrRef` mediumint NOT NULL DEFAULT '1',",
+    "  `maxcount` tinyint unsigned NOT NULL DEFAULT '1',",
+    "  PRIMARY KEY (`entry`,`item`)",
+    ") ENGINE=MyISAM;",
+    "INSERT INTO `creature_loot_template` VALUES (10,900,4,0,1,1),(50,900,-25,0,1,1),(10,901,0,1,1,1),(10,902,0,1,1,1),(10,903,20,1,1,1),(10,904,100,0,-7,1);",
+  ].join("\n");
+  const loot = parseCmangosLoot(sql, "dump.sql");
+
+  it("reads a creature's chance through its loot id", () => {
+    expect(loot.dropRate(900, 10)).toBeCloseTo(0.04);
+    expect(loot.dropRate(900, 11)).toBeCloseTo(0.25);
+  });
+
+  it("shares a group's remaining chance between its zero-chance entries", () => {
+    expect(loot.dropRate(901, 10)).toBeCloseTo(0.4);
+    expect(loot.dropRate(902, 10)).toBeCloseTo(0.4);
+  });
+
+  it("gives no rate for reference rows, creatures without loot or unknown creatures", () => {
+    expect(loot.dropRate(904, 10)).toBeNull();
+    expect(loot.dropRate(900, 12)).toBeNull();
+    expect(loot.dropRate(900, 99)).toBeNull();
   });
 });

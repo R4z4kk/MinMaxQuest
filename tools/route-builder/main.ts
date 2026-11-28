@@ -4,7 +4,7 @@ import { TRAVEL } from "../../addon/src/data/generated/travel";
 import { benchmarkRxp, type BenchRow } from "./bench/rxp";
 import { emitFaction, emitReport, type EmitMeta } from "./emit/emit";
 import { outputDir } from "./emit/outputDir";
-import { loadPinnedCmangosCounts } from "./ingest/cmangos";
+import { loadPinnedCmangos } from "./ingest/cmangos";
 import { fetchQuestie } from "./ingest/fetchQuestie";
 import { loadInstanceTypes } from "./ingest/instances";
 import { cachedSnapshot } from "./ingest/questie";
@@ -78,7 +78,7 @@ async function main(): Promise<void> {
   const snapshot = await cachedSnapshot();
   const zones = await loadZones();
   const instanceTypes = loadInstanceTypes();
-  const counts = loadPinnedCmangosCounts();
+  const { counts, loot } = loadPinnedCmangos();
 
   const worlds: World[] = [];
   const all: FactionRoutes[] = [];

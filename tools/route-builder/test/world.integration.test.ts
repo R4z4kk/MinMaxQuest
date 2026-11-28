@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { TRAVEL } from "../../../addon/src/data/generated/travel";
-import { loadPinnedCmangosCounts } from "../ingest/cmangos";
+import { loadPinnedCmangos } from "../ingest/cmangos";
 import { questieDir } from "../ingest/fetchQuestie";
 import { loadInstanceTypes } from "../ingest/instances";
 import { cachedSnapshot, snapshotPath } from "../ingest/questie";
@@ -24,7 +24,7 @@ describe("world from the real QuestieDB snapshot", () => {
     async () => {
       const s = await cachedSnapshot();
       const zones = await loadZones();
-      const counts = loadPinnedCmangosCounts();
+      const { counts, loot } = loadPinnedCmangos();
       const instanceTypes = loadInstanceTypes();
       const givers: Record<number, number | null> = {};
       for (const faction of ["A", "H"] as const) {
