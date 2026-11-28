@@ -317,7 +317,7 @@ describe("buildWorld with item-started quests", () => {
     npcs: {
       ...base.npcs,
       120: npc({ 12: [[70, 70], [71, 70]] }, { name: "Old Grizzled", rank: 1, minLevel: 9, maxLevel: 9, npcFlags: 0 }),
-      121: npc({ 12: [[72, 70]] }, { name: "Lonely Rare", minLevel: 9, maxLevel: 9, npcFlags: 0 }),
+      121: npc({ 12: [[72, 70], [20, 20]] }, { name: "Lonely Rare", minLevel: 9, maxLevel: 9, npcFlags: 0 }),
       122: npc({ 12: [[73, 70], [74, 70]] }, { name: "Ranked Rare", rank: 4, minLevel: 9, maxLevel: 9, npcFlags: 0 }),
       201: npc({ 12: [[60, 50], [60.5, 50]] }, { name: "Defias Thug", minLevel: 8, maxLevel: 8, npcFlags: 0 }),
     },

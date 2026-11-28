@@ -388,12 +388,12 @@ export function buildWorld(
 
   // QuestieDB rate first, cmangos loot second: QuestieDB's drop tables hardly know starter items.
   const starterRate: RateOf = (itemId, npcId) => dropRate(s, itemId, npcId) ?? loot.dropRate(itemId, npcId);
-  // QuestieDB ranks: 2 rare elite, 3 boss, 4 rare. A single spawn point is how most rares show up with rank 0.
+  // QuestieDB ranks: 2 rare elite, 3 boss, 4 rare. Most rares have rank 0 but lone spawn points, never a pack.
   const RARE_RANKS = new Set([2, 3, 4]);
   const routableStarter = (task: Task): Task => {
     const npcId = task.cluster.center.npcId;
     if (task.kind === "use" || npcId == null) return task;
-    if (RARE_RANKS.has(s.npcs[npcId]?.rank ?? 0) || npcPlaces(npcId).length < 2) exclude("rareStarter");
+    if (RARE_RANKS.has(s.npcs[npcId]?.rank ?? 0) || task.cluster.loop.length < 2) exclude("rareStarter");
     if (!task.assumedDropChance && killsForItems(1, task.dropChance, COLLECT_QUANTILE) > BUILDER.maxStarterKills.value) exclude("rareStarter");
     return task;
   };
