@@ -15,6 +15,8 @@ export interface WindowApi {
   setTab(tab: TabId): void;
   isShown(): boolean;
   setShown(shown: boolean): void;
+  // Re-applies the tab when the Quest tab availability changed, e.g. on the ding to the maximum level.
+  syncQuestTab(): void;
 }
 
 const TAB_ORDER: TabId[] = ["quest", "access", "completion"];
@@ -60,8 +62,8 @@ export function placeTabs(parent: WowFrame, tabs: TabButton[], width: number, y:
   });
 }
 
-// questAvailable: false once the route is over (max level); the Quest tab is then hidden.
-export function createWindow(db: CharDb, tabs: Record<TabId, TabView>, hideAll: () => void, questAvailable: () => boolean): WindowApi {
+// questAvailable: false once the route is over (max level), the Quest tab is then hidden; null while unknown.
+export function createWindow(db: CharDb, tabs: Record<TabId, TabView>, hideAll: () => void, questAvailable: () => boolean | null): WindowApi {
   const frame = CreateFrame("Frame", "MinMaxQuestWindow", UIParent);
   frame.SetFrameStrata("MEDIUM");
   frame.SetClampedToScreen(true);
@@ -130,8 +132,9 @@ export function createWindow(db: CharDb, tabs: Record<TabId, TabView>, hideAll: 
     return created;
   };
 
+  let quest = true;
   const setTab = (wanted: TabId): void => {
-    const quest = questAvailable();
+    quest = questAvailable() ?? quest;
     const tab = wanted === "quest" && !quest ? "completion" : wanted;
     db.tab = tab;
     if (tab !== "access") db.activeMode = tab;
@@ -164,6 +167,10 @@ export function createWindow(db: CharDb, tabs: Record<TabId, TabView>, hideAll: 
       }
       frame.Show();
       setTab(db.tab);
+    },
+    syncQuestTab() {
+      const known = questAvailable();
+      if (frame.IsShown() && known != null && known !== quest) setTab(db.tab);
     },
   };
   return api;

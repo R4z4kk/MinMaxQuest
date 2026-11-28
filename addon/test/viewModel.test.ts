@@ -171,6 +171,12 @@ describe("completionLines", () => {
     ]);
   });
 
+  it("shows a dash for a row without a position", () => {
+    setLocale("enUS");
+    const rows = completionLines([target(1, { pos: null, seconds: 0 })], null, getQuest, 20).filter((l) => l.kind === "row");
+    expect(rows.map((r) => r.kind === "row" && r.time)).toEqual(["—"]);
+  });
+
   it("carries the quest id of each row", () => {
     setLocale("enUS");
     const rows = completionLines([target(1), target(2, { kind: "turnin" })], null, getQuest, 20).filter((l) => l.kind === "row");

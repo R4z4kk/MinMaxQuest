@@ -109,6 +109,7 @@ export type L10nKey =
   | "routeDungeon"
   | "routeStepsRemoved"
   | "routeStepUnplaced"
+  | "noAuctioneer"
   | "routeChainUnplaceable"
   | "routeReturnUnreadable"
   | "routeChainUnknown"
@@ -240,6 +241,7 @@ const EN: Record<L10nKey, string> = {
   routeDungeon: "Run the dungeon",
   routeStepsRemoved: "{n} route step(s) removed: not doable by this character",
   routeStepUnplaced: "route step {n} has no usable position, skipped",
+  noAuctioneer: "no reachable auction house to buy {item}, back to the quest objective",
   routeChainUnplaceable: "{name}: {n} quest(s) could not be placed in the route",
   routeReturnUnreadable: "Dungeon return #{id} could not be read and is left out of the route",
   routeChainUnknown: "tracked chain {id} is unknown",
@@ -372,6 +374,7 @@ const FR: Record<L10nKey, string> = {
   routeDungeon: "Fais le donjon",
   routeStepsRemoved: "{n} étape(s) de route retirée(s) : impossibles pour ce personnage",
   routeStepUnplaced: "étape de route {n} sans position utilisable, sautée",
+  noAuctioneer: "aucun hôtel des ventes accessible pour acheter {item}, retour à l'objectif de la quête",
   routeChainUnplaceable: "{name} : {n} quête(s) impossibles à placer dans la route",
   routeReturnUnreadable: "Le retour en donjon #{id} est illisible et reste hors de la route",
   routeChainUnknown: "chaîne suivie {id} inconnue",

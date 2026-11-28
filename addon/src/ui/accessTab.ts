@@ -55,6 +55,7 @@ export function createAccessTab(deps: AccessDeps): TabView {
   const rows: Row[] = [];
   let thumb: WowTexture | null = null;
   let lines: AccessLine[] = [];
+  let views: ChainView[] = [];
   let offset = 0;
   // Null until the first draw, which opens the groups holding a tracked entry.
   let openGroups: Set<AccessGroup> | null = null;
@@ -72,9 +73,15 @@ export function createAccessTab(deps: AccessDeps): TabView {
 
   // A pin change redraws through the engine listener.
   const focusEntry = (view: ChainView): boolean => {
-    const opening = db.expandedChain !== view.id;
+    const left = db.expandedChain;
+    const opening = left !== view.id;
     db.expandedChain = opening ? view.id : null;
-    if (view.focusQuestId == null) return false;
+    if (view.focusQuestId == null) {
+      const stale = opening && left != null ? (views.find((other) => other.id === left)?.focusQuestId ?? null) : null;
+      if (stale == null || db.pinnedQuestId !== stale) return false;
+      engine.pin(null);
+      return true;
+    }
     if (opening) engine.pin(view.focusQuestId);
     else if (db.pinnedQuestId === view.focusQuestId) engine.pin(null);
     else return false;
@@ -180,7 +187,7 @@ export function createAccessTab(deps: AccessDeps): TabView {
     footerMode?.SetText(t("activeMode").replace("{mode}", t(db.activeMode === "quest" ? "tabQuest" : "tabCompletion")));
     const snap = engine.snapshot();
     if (root == null || snap == null) return;
-    const views = accessView(entriesFor(snap.faction), {
+    views = accessView(entriesFor(snap.faction), {
       level: snap.state.level,
       raceMask: snap.state.raceMask,
       completed: snap.state.completed,

@@ -451,15 +451,22 @@ describe("route source", () => {
 });
 
 describe("positionless targets", () => {
-  it("are listed but the arrow moves on to the next target, pinned or not", () => {
-    const craft = target(1, { kind: "objective", objectiveIndex: 1, pos: null, seconds: 0, obtain: { how: "craft", item: "Gromsblood", count: 4 } });
-    const { engine, db } = setup([craft, target(2)], [quest(1), quest(2)]);
+  it("are listed but the arrow moves on to the next target when not pinned", () => {
+    const craft = target(1, { kind: "objective", objectiveIndex: 1, pos: null, seconds: Infinity, obtain: { how: "craft", item: "Gromsblood", count: 4 } });
+    const { engine } = setup([target(2), craft], [quest(1), quest(2)]);
     engine.refreshTargets(true);
     expect(engine.targets()).toHaveLength(2);
     expect(engine.current()?.questId).toBe(2);
     expect(engine.arrowTarget()?.pos).toEqual(at(20));
-    db.pinnedQuestId = 1;
+  });
+
+  it("stay current when pinned: the arrow shows their label without a direction", () => {
+    const craft = target(1, { kind: "objective", objectiveIndex: 1, pos: null, seconds: Infinity, obtain: { how: "craft", item: "Gromsblood", count: 4 } });
+    const { engine } = setup([target(2), craft], [quest(1), quest(2)]);
     engine.pin(1);
+    expect(engine.current()?.questId).toBe(1);
+    expect(engine.arrowTarget()).toEqual({ pos: null, label: "Q1 · Craft Gromsblood ×4" });
+    engine.pin(null);
     expect(engine.current()?.questId).toBe(2);
   });
 });

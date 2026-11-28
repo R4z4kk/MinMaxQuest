@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { WorldPos } from "../src/core/geometry";
 import { chooseHop, createSpf, type SpfApi, type SpfVerdict } from "../src/game/spf";
-import type { TravelHop } from "../src/travel/graph";
+import type { Detour, TravelHop } from "../src/travel/graph";
 
 const at = (x: number, y = 0): WorldPos => ({ continent: 0, x, y });
 const walk: TravelHop = { kind: "walk", pos: at(900), taxiNodeId: null };
@@ -9,36 +9,45 @@ const taxi: TravelHop = { kind: "taxi", pos: at(100), taxiNodeId: 1 };
 const seconds = (value: number): SpfVerdict => ({ kind: "seconds", seconds: value });
 
 describe("chooseHop", () => {
+  const flight = (sec: number): Detour => ({ hop: taxi, seconds: sec });
+  const FAR = 900;
+
   it("keeps a first hop that is not a walk, whatever SPF says", () => {
-    expect(chooseHop(taxi, walk, 100, { kind: "unreachable" })).toBe(taxi);
-    expect(chooseHop(taxi, null, 100, seconds(900))).toBe(taxi);
+    expect(chooseHop(taxi, { hop: walk, seconds: 10 }, 100, { kind: "unreachable" }, FAR)).toBe(taxi);
+    expect(chooseHop(taxi, null, 100, seconds(900), FAR)).toBe(taxi);
   });
 
   it("keeps the walk without an SPF answer", () => {
-    expect(chooseHop(walk, taxi, 100, { kind: "none" })).toBe(walk);
+    expect(chooseHop(walk, flight(110), 100, { kind: "none" }, FAR)).toBe(walk);
   });
 
-  it("keeps the walk when SPF agrees with our time", () => {
-    expect(chooseHop(walk, taxi, 100, seconds(100))).toBe(walk);
-    expect(chooseHop(walk, taxi, 100, seconds(125))).toBe(walk);
-    expect(chooseHop(walk, taxi, 100, seconds(40))).toBe(walk);
+  it("takes the detour only when its own time beats SPF's walk", () => {
+    expect(chooseHop(walk, flight(300), 100, seconds(250), FAR)).toBe(walk);
+    expect(chooseHop(walk, flight(300), 100, seconds(300), FAR)).toBe(walk);
+    expect(chooseHop(walk, flight(300), 100, seconds(301), FAR)).toBe(taxi);
+    expect(chooseHop(walk, flight(110), 100, seconds(126), FAR)).toBe(taxi);
   });
 
-  it("prefers the alternative when SPF's trip is more than 25% longer than our walk", () => {
-    expect(chooseHop(walk, taxi, 100, seconds(126))).toBe(taxi);
+  it("keeps the walk when SPF finds it faster than ours and the detour is slower than our walk", () => {
+    expect(chooseHop(walk, flight(120), 100, seconds(40), FAR)).toBe(walk);
   });
 
-  it("prefers the alternative when SPF finds no way", () => {
-    expect(chooseHop(walk, taxi, 100, { kind: "unreachable" })).toBe(taxi);
+  it("takes the detour when SPF finds no way to a target over 100 yards away", () => {
+    expect(chooseHop(walk, flight(900), 100, { kind: "unreachable" }, 101)).toBe(taxi);
+  });
+
+  it("keeps walking to a short off-mesh target SPF cannot reach", () => {
+    expect(chooseHop(walk, flight(900), 100, { kind: "unreachable" }, 100)).toBe(walk);
+    expect(chooseHop(walk, flight(900), 100, { kind: "unreachable" }, 20)).toBe(walk);
   });
 
   it("keeps the walk when there is no alternative", () => {
-    expect(chooseHop(walk, null, 100, seconds(900))).toBe(walk);
-    expect(chooseHop(walk, null, 100, { kind: "unreachable" })).toBe(walk);
+    expect(chooseHop(walk, null, 100, seconds(900), FAR)).toBe(walk);
+    expect(chooseHop(walk, null, 100, { kind: "unreachable" }, FAR)).toBe(walk);
   });
 
   it("is null without a first hop", () => {
-    expect(chooseHop(null, taxi, 100, seconds(900))).toBeNull();
+    expect(chooseHop(null, flight(10), 100, seconds(900), FAR)).toBeNull();
   });
 });
 

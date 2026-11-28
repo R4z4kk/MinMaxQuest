@@ -20,8 +20,8 @@ const UNKNOWN: CorpseTarget = { kind: "unknown" };
 let cached: CorpseTarget & { kind: "corpse" } | null = null;
 
 function reuse(pos: WorldPos, label: string): CorpseTarget & { kind: "corpse" } {
-  const old = cached?.target;
-  if (cached != null && old != null && old.label === label && old.pos.continent === pos.continent && old.pos.x === pos.x && old.pos.y === pos.y) {
+  const old = cached?.target.pos;
+  if (cached != null && old != null && cached.target.label === label && old.continent === pos.continent && old.x === pos.x && old.y === pos.y) {
     return cached;
   }
   cached = { kind: "corpse", target: { pos, label } };

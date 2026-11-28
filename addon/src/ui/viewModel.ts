@@ -129,7 +129,7 @@ function rowLine(target: Target, isCurrent: boolean, getQuest: QuestGetter): Com
     icon: rowIcon(target, getQuest),
     level: String(target.questLevel),
     name: (isCurrent ? GLYPH.current : "") + targetName(target, getQuest) + tag,
-    time: formatDuration(target.seconds - target.penaltySec),
+    time: target.pos == null ? formatDuration(Infinity) : formatDuration(target.seconds - target.penaltySec),
     tone: isCurrent ? "target" : target.trivial ? "grey" : "normal",
     questId: target.questId,
   };

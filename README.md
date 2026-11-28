@@ -6,19 +6,14 @@
 
 ## Latest update
 
-**0.2.0-beta.2**: first working beta. 0.2.0-beta.1 had two problems in game. It did not load, because one function went past a WoW Lua limit. Once loaded, the Access tab failed and blocked the tabs, because a bag item count got a wrong argument. Both are fixed, and the tests now check both causes. Everything below was introduced in 0.2.0-beta.1.
-- **Quest tab follows a full level 1-60 route.** Precomputed for each faction, with return trips for the dungeons you tick, and Re-sync when you leave it.
-- **New BetterBags-style window.** Sections with counts, a type icon on every row, and one fixed size for every tab.
-- **Access tab lists what you have to unlock.** Raid attunements, dungeon keys (Seal of Ascension included) and more, built from Attune and QuestieDB, with step progress and "Track in route".
-- **Completion:**
-  - sub-tabs Proximity, Zone and Log;
-  - Proximity is limited to your zone and its neighbours;
-  - no repeatable or holiday quests.
-- **Arrow:**
-  - loops through every spawn point of a kill or collect objective;
-  - leads you to your corpse;
-  - drags freely and has no frame around it.
-- **More:** a quest item button, an eye button and `/mmq` to hide everything, English or French on demand, and the Hearthstone kept for real zone changes.
+**0.2.0-beta.2**: first working beta, with everything from 0.2.0-beta.1 (which did not load in game) plus:
+- **Base (from beta.1):** a full level 1-60 route in the Quest tab with dungeon return trips and Re-sync; the BetterBags-style window; the Access tab (attunements, keys, Track in route); Completion sub-tabs Proximity, Zone and Log; an arrow that loops through spawn points and leads you to your corpse; the quest item button, the eye button, English or French.
+- **Fixes:** the addon loads (a WoW Lua limit), the Access tab no longer blocks the tabs, the quest item button uses its item through a macro (Nagmara's Vial included) with ActionButtonUseKeyDown on, the arrow texture ships in the package.
+- **Access:** only real unlocks are listed (Seal of Ascension moved to the keys); click an entry or a line to focus its quest.
+- **Travel:** auto-fly to the furthest flight master you know on the way, quests inserted at the spawn nearest to you, teleporters, and walks that follow real paths (Shortest Path Forever's walking times), with an optional trip check through Shortest Path Forever when it is installed.
+- **Professions:** herbs, ores, skins, fish, cloth and crafted goods are gathered, crafted or bought at the Auction House instead of farmed from mobs.
+- **Map:** numbered quest pins with ! and ? badges, and farm areas for kill and collect objectives.
+- **Window:** the Quest tab hides at the maximum level, and a lighter background.
 
 ## Why MinMaxQuest
 
@@ -31,6 +26,7 @@
 ### Window
 - A single window with three tabs: **Quest**, **Access** and **Completion**.
 - Fixed size: 320 × 480 on every tab.
+- At the maximum level the Quest tab is hidden and the window opens on Completion, also when you ding with the Quest tab open.
 - The window and the last opened tab are remembered across sessions.
 - **Eye button** left of the gear: hides the window, the arrow, the quest item button and the map and minimap pins together, and pauses automatic flying. `/mmq` brings them back. The hidden state is saved per character.
 - Dark violet panel with a muted gold accent. The title and section headers use the game's Friz Quadrata font; the rest uses a narrow font.
@@ -53,7 +49,7 @@
 - **Automatic by default:** the nearest useful step is chosen for you. That can be picking up a quest, an objective or a turn-in.
 - **Only quests you can take:** level, race, class, faction, prerequisites and exclusive quests are all taken into account.
 - **Travel:** the route goes through flight masters, boats, teleporters (for example Darnassus ⇄ Rut'theran) and your hearthstone when that is faster (the hearthstone only when it saves at least about 5 minutes, or 15 minutes in Completion). The arrow then says "Go to the flight master", "Take the boat", "Take the portal" or "Use Hearthstone".
-- **Profession items are never farmed from mobs:** for herbs, ores, skins, fish, cloth and crafted goods a quest needs, the arrow goes to the herb or mining nodes (or the creatures to skin) when you have the gathering profession, reads "Craft X ×N" or "Fish X ×N" and moves on to the next target when you have the crafting profession or Fishing, and otherwise reads "Buy X ×N at the Auction House" and points to the nearest auctioneer of your faction (professions are read from your known spells; the level is not checked).
+- **Profession items are never farmed from mobs:** for herbs, ores, skins, fish, cloth and crafted goods a quest needs, the arrow goes to the herb or mining nodes (or the creatures to skin) when you have the gathering profession, reads "Craft X ×N" or "Fish X ×N" and moves on to the next target when you have the crafting profession or Fishing (a pinned quest keeps it: the arrow then shows only that label), and otherwise reads "Buy X ×N at the Auction House" and points to the nearest auctioneer of your faction. With no auctioneer reachable, the step keeps its quest objective and a chat line says so once. Other trade goods (mob meat, hearts, eyes...) are farmed as before. Professions are read from your known spells; the level is not checked.
 - **Travel times:** walking or mount speed is assumed from your level: on foot below 40, mount at 40, epic mount at 60.
 - **Walking follows real paths:** walks between flight masters, docks and teleporters use walking distances precomputed on the game terrain by Shortest Path Forever, so mountains and enclosed zones (Mount Hyjal) are no longer crossed in a straight line. A walk from or to any other point is never estimated shorter than the real path between the nearest of those places, and places with no walking path between them are only reached by flight, boat or teleporter.
 
@@ -63,6 +59,7 @@
 - **Proximity** mode covers the current zone and neighbouring zones (same continent, within about 300 yards of it), sorted by real travel time. Quests without a known zone are left out; with no zone known for your position, the list stays empty.
 - **Zone** mode shows one zone, picked from a zone list (the picker only appears in this mode).
 - **Log** mode only targets quests already in your quest log: objectives and turn-ins, sorted by travel time. No new quests; the Grey and Elite filters and the zone are ignored.
+- Targets without a place (craft, fish) show "—" as their time and come last.
 - Targets are grouped in sections: **To turn in**, **Objectives** and **To pick up** (empty sections are hidden; counts are totals), each sorted by estimated travel time.
 - The row the arrow points to is highlighted with » and always stays visible, even in a long list. **Skip** and the **Pinned · ×** unpin button sit in a strip under the header.
 - **Click a row to focus that quest:** the arrow targets it until you turn it in or click the row again (or **Pinned · ×**).
@@ -73,7 +70,7 @@
 ### Access tab
 - Lists what your faction has to unlock (18 entries in total, 13 for each faction) in three collapsible sections (**Raids**, **Keys**, **Misc**), each header showing done / total. Dungeons that need no key are not listed.
 - Each entry has an icon (done, in progress, untouched) and shows its level range, or a small gold progress bar once started. Click it to expand its steps: done steps are struck through and greyed, the current one is marked ».
-- **Click to focus:** expanding an entry focuses its first unfinished quest, collapsing it releases the focus; click a quest step to focus or release it. The focused name is shown in gold.
+- **Click to focus:** expanding an entry focuses its first unfinished quest, collapsing it or expanding another entry releases the focus; click a quest step to focus or release it. The focused name is shown in gold.
 - **Steps:** quests (names from the game client), items, "Reach level N", Kill / Talk to / Use with the NPC or object name, reputation and profession steps.
 - **Progress:** quests turned in or in your log, items in your bags with their count, level and reputation earned. A step that can't be checked counts as done once a later step is.
 - **Track in route:** tick it to insert the entry's quests into your route at the cheapest spot, without duplicates.
@@ -97,7 +94,7 @@
 - **Dungeons:** a named list with one checkbox per dungeon that has a return trip. Tick one to add its return trip to the route. All are unticked by default.
 - **Active mode:** the arrow follows whichever of the Quest or Completion tabs you opened last.
 - **Options** (variants, auto-fly, Blizzard map waypoint, lock arrow) and **Dungeons** are sections you open with a click, closed by default. Only one is open at a time.
-- **Route finished** shows at level 60, with a button to open the Completion tab.
+- **At the maximum level** the Quest tab is hidden: the window opens on Completion instead.
 - If the route files are missing or can't be read, a message says so and offers a button to open the Completion tab.
 
 ### Quest log pin
@@ -117,7 +114,7 @@
   - Hold **Shift** to stay on the ground.
   - Turn it off in the Quest tab options.
   - If the destination isn't reachable from there, you get a message and nothing happens.
-- **Shortest Path Forever (optional):** if it is installed, MinMaxQuest asks it for the time of the trip to the current target. When the arrow would send you walking and Shortest Path Forever finds that walk clearly longer than expected (or impossible), the arrow points to the flight master, boat or portal instead. Without it, or in combat or during a loading screen, nothing changes.
+- **Shortest Path Forever (optional):** if it is installed, MinMaxQuest asks it for the time of the trip to the current target. When the arrow would send you walking and the best other way (flight master, boat or portal) is faster than Shortest Path Forever's walk, or Shortest Path Forever finds no walk to a target more than 100 yards away, the arrow points to that other way instead. Without it, or in combat or during a loading screen, nothing changes.
 
 ### Map
 - World map pins for the current and next step only: gold teardrop pins in the game's quest yellow, numbered 1 (current) and 2 (next), with a dark outline and a drop shadow.
@@ -155,6 +152,7 @@
 
 - WoW: Forever (Interface 16001)
 - [QuestieDB](https://github.com/Questie/QuestieDB)
+- Optional: [Shortest Path Forever](https://github.com/cjber/shortest-path-forever), for trip checks on walks
 
 ## Roadmap
 
@@ -175,6 +173,7 @@ MinMaxQuest is free software under the **GPL-3.0** license.
 - Optional trip estimate through the public API of [Shortest Path Forever](https://github.com/cjber/shortest-path-forever) when it is installed
 - [HereBeDragons](https://github.com/Nevcairiel/HereBeDragons) (BSD) for map pins
 - Quest data from [QuestieDB](https://github.com/Questie/QuestieDB)
+- Profession data (gathering nodes, skinning and fishing loot, crafts, cloth, auctioneers) built from QuestieDB, [cmangos classic-db](https://github.com/cmangos/classic-db) (GPL-3.0) and wago.tools DB2 tables (game data (c) Blizzard Entertainment)
 - Access entries imported from [Attune](https://warcraftratings.com) by CixiDelmont (version 16001-46). Attune declares no license; its data is reused with credit
 
 Source code and issues: https://github.com/R4z4kk/MinMaxQuest

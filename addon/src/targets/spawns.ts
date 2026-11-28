@@ -8,6 +8,10 @@ export interface SpawnCluster {
 export const CLUSTER_RADIUS_YARDS = 60;
 export const WAYPOINT_RADIUS_YARDS = 250;
 export const WAYPOINT_MAX = 25;
+// Above this many spawns (skinning: hundreds of creatures), only the nearest to the player are clustered, per map cell.
+export const SPAWN_CAP = 200;
+const CAP_CELL_YARDS = 1000;
+const CAPPED: SpawnCluster[] = [];
 
 export function clusterSpawns(points: WorldPos[], radius: number): SpawnCluster[] {
   const valid = points.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
@@ -95,6 +99,35 @@ export function waypointLoop(points: WorldPos[], cluster: SpawnCluster, start: W
   const kept: WorldPos[] = [];
   for (let i = 0; i < near.length && i < max; i++) kept.push(near[i].pos);
   return killLoop({ center: cluster.center, points: kept }, start);
+}
+
+// Clusters of one objective, cached under key; a capped objective is cached per map cell of the player.
+export function nearbyClusters(cache: Map<string, SpawnCluster[]>, key: string, from: WorldPos | null, read: () => WorldPos[]): SpawnCluster[] {
+  const known = cache.get(key);
+  if (known != null && known !== CAPPED) return known;
+  const cell = from == null ? `${key}@` : `${key}@${from.continent}:${Math.floor(from.x / CAP_CELL_YARDS)}:${Math.floor(from.y / CAP_CELL_YARDS)}`;
+  const near = known === CAPPED ? cache.get(cell) : null;
+  if (near != null) return near;
+  const points = read();
+  if (points.length <= SPAWN_CAP) {
+    const clusters = objectiveClusters(points);
+    cache.set(key, clusters);
+    return clusters;
+  }
+  cache.set(key, CAPPED);
+  const clusters = objectiveClusters(nearestPoints(points, from, SPAWN_CAP));
+  cache.set(cell, clusters);
+  return clusters;
+}
+
+// The cap nearest points on from's continent (all points when none is there or from is unknown), by straight distance.
+function nearestPoints(points: WorldPos[], from: WorldPos | null, cap: number): WorldPos[] {
+  if (from == null) return points.slice(0, cap);
+  const here = points.filter((p) => p.continent === from.continent);
+  const pool = here.length > 0 ? here : points;
+  const sorted = pool.map((p) => ({ p, d: here.length > 0 ? distance(p, from) : 0 }));
+  sorted.sort((a, b) => a.d - b.d);
+  return sorted.slice(0, cap).map((e) => e.p);
 }
 
 export function objectiveClusters(points: WorldPos[]): SpawnCluster[] {

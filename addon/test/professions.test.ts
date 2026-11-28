@@ -11,11 +11,11 @@ const NONE: Record<Skill, number[]> = {
 const DATA: ProfessionData = {
   source: { questieDb: "t", cmangosCommit: "c", wagoBuild: "b", verifiedOn: "2026-11-28", expiresOn: "2026-12-27" },
   items: {
-    8846: { gather: ["herbalism"], craft: [], tradeGood: true },
-    2840: { gather: [], craft: ["mining"], tradeGood: true },
-    2318: { gather: ["skinning"], craft: ["leatherworking"], tradeGood: true },
-    6303: { gather: ["fishing"], craft: [], tradeGood: false },
-    2589: { gather: [], craft: [], tradeGood: true },
+    8846: { gather: ["herbalism"], craft: [], cloth: false },
+    2840: { gather: [], craft: ["mining"], cloth: false },
+    2318: { gather: ["skinning"], craft: ["leatherworking"], cloth: false },
+    6303: { gather: ["fishing"], craft: [], cloth: false },
+    2589: { gather: [], craft: [], cloth: true },
   },
   nodes: { 142145: "herbalism" },
   skinned: { 2318: [113, 118] },

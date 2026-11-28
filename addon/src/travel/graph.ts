@@ -56,7 +56,8 @@ export interface TravelGraph {
   // Walking yards from the origin to each slot, filled per solve.
   originYards: number[];
   // Nearest slots per target point (by identity); the graph is rebuilt, never mutated, so this never goes stale.
-  nearest: Map<WorldPos, number[]>;
+  // Weak: targets come and go with the quest list.
+  nearest: WeakMap<WorldPos, number[]>;
 }
 
 // Shared by every graph of one travel data: it depends on nothing else.
@@ -262,7 +263,7 @@ export function buildGraph(data: TravelData, ctx: TravelContext): TravelGraph {
     walks: walkTableOf(data),
     slotPlace,
     originYards: filled(slotCount, Infinity),
-    nearest: new Map<WorldPos, number[]>(),
+    nearest: new WeakMap<WorldPos, number[]>(),
   };
 }
 
@@ -511,10 +512,15 @@ export function firstHop(plan: TravelPlan, graph: TravelGraph, target: WorldPos,
   return { kind: "hearth", pos: departurePos, taxiNodeId: null };
 }
 
-// Best first hop among the ways that do not start by walking; null when there is none.
-export function detourHop(plan: TravelPlan, graph: TravelGraph, target: WorldPos, ctx: TravelContext): TravelHop | null {
+export interface Detour {
+  hop: TravelHop;
+  seconds: number;
+}
+
+// Best first hop among the ways that do not start by walking, with its own travel time; null when there is none.
+export function detourHop(plan: TravelPlan, graph: TravelGraph, target: WorldPos, ctx: TravelContext): Detour | null {
   const hop = firstHop(plan, graph, target, ctx, true);
-  return hop == null || hop.kind === "walk" ? null : hop;
+  return hop == null || hop.kind === "walk" ? null : { hop, seconds: graph.bestCost };
 }
 
 // Arrival node of the first contiguous flight of the best path, or null when that path does not start by flying.

@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { WorldPos } from "../src/core/geometry";
 import { setLocale } from "../src/core/l10n";
 import { resetReports, setReportSink } from "../src/core/report";
@@ -360,4 +360,39 @@ it("retargets a profession item objective in game: the auction house to buy, no 
   expect(buy).toMatchObject({ kind: "objective", pos: auction, obtain: { how: "buy", item: "Gromsblood", count: 3 } });
   const craft = follower(loadCharDb(null), { on: false }, { planFor: () => plan("craft"), positionsFor: () => [] }).targets(snap)?.[0];
   expect(craft).toMatchObject({ kind: "objective", pos: null, cluster: null, seconds: 0, obtain: { how: "craft", count: 3 } });
+});
+
+describe("profession steps", () => {
+  const plan = (how: "buy" | "craft") => ({ how, itemId: 8846, item: "Gromsblood", npcs: [], objects: [], key: `${how}:` });
+  const setupBuy = () => {
+    install({ segmentEndLevel: 10 }, [{ ...grind(10, 10, "complete"), questId: 900, objectiveIndex: 1 }, grind(11, 20)]);
+    const snap = snapshot(10);
+    snap.log.set(900, { complete: false, objectivesDone: new Set(), counts: [{ have: 1, need: 4 }] });
+    snap.state.inLog.add(900);
+    return snap;
+  };
+
+  it("shows the Buy label of a retargeted step in the route view", () => {
+    const snap = setupBuy();
+    const f = follower(loadCharDb(null), { on: false }, { planFor: () => plan("buy"), positionsFor: () => [{ continent: 0, x: 3000, y: 0 }] });
+    f.targets(snap);
+    expect(f.view()?.currentText).toContain("Buy Gromsblood ×3 at the Auction House");
+  });
+
+  it("keeps the quest objective when no auctioneer is reachable, and says so once", () => {
+    const snap = setupBuy();
+    const f = follower(loadCharDb(null), { on: false }, { planFor: () => plan("buy"), positionsFor: () => [] });
+    const target = f.targets(snap)?.[0];
+    expect(target).toMatchObject({ kind: "objective", pos: { continent: 0, x: 10, y: 0 } });
+    expect(target?.obtain).toBeUndefined();
+    expect(f.view()?.currentText).toContain("objective 1");
+    f.targets(snap);
+    expect(reports.filter((r) => r.includes("Gromsblood"))).toHaveLength(1);
+  });
+
+  it("keeps the quest objective when the auctioneers cannot be reached", () => {
+    const snap = setupBuy();
+    const f = follower(loadCharDb(null), { on: false }, { planFor: () => plan("buy"), positionsFor: () => [{ continent: 1, x: 3000, y: 0 }], timeTo: () => (p) => (p.continent === 1 ? Infinity : 1) });
+    expect(f.targets(snap)?.[0]?.obtain).toBeUndefined();
+  });
 });

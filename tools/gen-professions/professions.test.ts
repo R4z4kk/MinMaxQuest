@@ -72,12 +72,13 @@ function inputs(overrides: Partial<ProfessionInputs> = {}): ProfessionInputs {
     skinningLoot: [{ entry: 100, item: 0, ref: 500 }],
     fishingLoot: [{ entry: 1, item: 6303, ref: 0 }],
     referenceLoot: [{ entry: 500, item: 2318, ref: 0 }],
-    bonding: new Map([[8846, 0], [2770, 0], [2840, 0], [3382, 0], [2318, 0], [6303, 0], [2589, 0], [11405, 4], [5349, 0], [7000, 1]]),
+    bonding: new Map([[8846, 0], [2770, 0], [2840, 0], [3382, 0], [2318, 0], [6303, 0], [2589, 0], [11405, 4], [5349, 0], [7000, 1], [723, 0], [769, 0]]),
+    tbcSubclasses: new Map([[2589, 5], [7000, 5], [723, 8], [769, 8], [2318, 6], [8846, 9]]),
     snapshot: snapshot({
       quests: {
         4201: { name: "The Love Potion", objectives: [null, null, [[8846, null, 4], [11405, null, 1]]] },
         1: { name: "Ores", objectives: [null, null, [[2770, null, 10], [2840, null, 5], [3382, null, 2]]] },
-        2: { name: "Hides", objectives: [null, null, [[2318, null, 6], [6303, null, 3], [2589, null, 2], [5349, null, 1], [7000, null, 1]]] },
+        2: { name: "Hides", objectives: [null, null, [[2318, null, 6], [6303, null, 3], [2589, null, 2], [5349, null, 1], [7000, null, 1], [723, null, 8], [769, null, 4]]] },
       },
       items: {
         8846: { name: "Gromsblood", class: 7, npcDrops: [12258], objectDrops: [142145, 657382, 657383] },
@@ -89,7 +90,9 @@ function inputs(overrides: Partial<ProfessionInputs> = {}): ProfessionInputs {
         6303: { name: "Raw Slitherskin Mackerel", class: 0, npcDrops: [], objectDrops: [] },
         2589: { name: "Linen Cloth", class: 7, npcDrops: [3], objectDrops: [2843] },
         5349: { name: "Conjured Muffin", class: 0, npcDrops: [], objectDrops: [] },
-        7000: { name: "Bound Hide", class: 7, npcDrops: [4], objectDrops: [] },
+        7000: { name: "Bound Cloth", class: 7, npcDrops: [4], objectDrops: [] },
+        723: { name: "Goretusk Liver", class: 7, npcDrops: [157], objectDrops: [] },
+        769: { name: "Chunk of Boar Meat", class: 7, npcDrops: [113], objectDrops: [] },
       },
       npcs: {
         15659: { name: "Auctioneer Jaxon", spawns: { 1519: [[61, 70]] }, rank: 0, friendlyToFaction: "A", minLevel: 40, maxLevel: 40, npcFlags: 4096 + 1 },
@@ -106,7 +109,7 @@ function inputs(overrides: Partial<ProfessionInputs> = {}): ProfessionInputs {
 describe("buildProfessions", () => {
   it("marks an herb gathered from a herbalism node and ignores its mob drop", () => {
     const { data } = buildProfessions(inputs());
-    expect(data.items[8846]).toEqual({ gather: ["herbalism"], craft: [], tradeGood: true });
+    expect(data.items[8846]).toEqual({ gather: ["herbalism"], craft: [], cloth: false });
     expect(data.nodes[142145]).toBe("herbalism");
   });
 
@@ -125,24 +128,30 @@ describe("buildProfessions", () => {
 
   it("finds ores, smelted bars and potions crafted through a child skill line", () => {
     const { data } = buildProfessions(inputs());
-    expect(data.items[2770]).toEqual({ gather: ["mining"], craft: [], tradeGood: true });
+    expect(data.items[2770]).toEqual({ gather: ["mining"], craft: [], cloth: false });
     expect(data.nodes[1731]).toBe("mining");
     expect(data.nodes[2843]).toBeUndefined();
-    expect(data.items[2840]).toEqual({ gather: [], craft: ["mining"], tradeGood: true });
-    expect(data.items[3382]).toEqual({ gather: [], craft: ["alchemy"], tradeGood: false });
+    expect(data.items[2840]).toEqual({ gather: [], craft: ["mining"], cloth: false });
+    expect(data.items[3382]).toEqual({ gather: [], craft: ["alchemy"], cloth: false });
   });
 
   it("resolves skinning and fishing loot through reference tables", () => {
     const { data } = buildProfessions(inputs());
-    expect(data.items[2318]).toEqual({ gather: ["skinning"], craft: [], tradeGood: true });
+    expect(data.items[2318]).toEqual({ gather: ["skinning"], craft: [], cloth: false });
     expect(data.skinned[2318]).toEqual([1]);
-    expect(data.items[6303]).toEqual({ gather: ["fishing"], craft: [], tradeGood: false });
+    expect(data.items[6303]).toEqual({ gather: ["fishing"], craft: [], cloth: false });
   });
 
-  it("keeps trade goods without a gathering or craft source and ignores other skill lines", () => {
+  it("keeps cloth without a gathering or craft source and ignores other skill lines", () => {
     const { data } = buildProfessions(inputs());
-    expect(data.items[2589]).toEqual({ gather: [], craft: [], tradeGood: true });
+    expect(data.items[2589]).toEqual({ gather: [], craft: [], cloth: true });
     expect(data.items[5349]).toBeUndefined();
+  });
+
+  it("leaves other trade goods without a gathering or craft source out: mob meat is no profession item", () => {
+    const { data } = buildProfessions(inputs());
+    expect(data.items[723]).toBeUndefined();
+    expect(data.items[769]).toBeUndefined();
   });
 
   it("leaves bound items out: they cannot be bought", () => {
@@ -186,6 +195,13 @@ describe("generated professions", () => {
   it("makes Gromsblood a herbalism resource and Giant Silver Vein no profession item", () => {
     expect(PROFESSIONS.items[8846].gather).toContain("herbalism");
     expect(PROFESSIONS.items[11405]).toBeUndefined();
+  });
+
+  it("leaves raw meat and animal parts out and keeps cloth to buy", () => {
+    expect(PROFESSIONS.items[723]).toBeUndefined();
+    expect(PROFESSIONS.items[769]).toBeUndefined();
+    expect(PROFESSIONS.items[2589]).toEqual({ gather: [], craft: [], cloth: true });
+    expect(PROFESSIONS.items[4306]).toEqual({ gather: [], craft: [], cloth: true });
   });
 
   it("knows a crafted item and a skinned one", () => {

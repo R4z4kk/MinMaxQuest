@@ -52,7 +52,8 @@ describe("profession objectives in completion", () => {
   it("lists a craft objective without a position, with the remaining count", () => {
     const targets = selectTargets(input(quest(), { "4201:objective:2": [at(50)] }, { planFor: planFor("craft") }), opts);
     const craft = targets.find((t) => t.objectiveIndex === 1);
-    expect(craft).toMatchObject({ pos: null, cluster: null, seconds: 0, obtain: { how: "craft", item: "Gromsblood", count: 3 } });
+    expect(craft).toMatchObject({ pos: null, cluster: null, seconds: Infinity, obtain: { how: "craft", item: "Gromsblood", count: 3 } });
+    expect(targets.map((t) => t.objectiveIndex)).toEqual([2, 1]);
     expect(describeTarget(craft as Target, quest())).toBe("The Love Potion · Craft Gromsblood ×3");
   });
 

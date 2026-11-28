@@ -36,6 +36,8 @@ export const CONSTANTS = {
   hearthPenaltySec: dated(300, "MinMaxQuest design choice: keep the Hearthstone for real zone changes (loading screen, 60 min cooldown)"),
   portalSec: dated(5, "MinMaxQuest design choice: a teleporter is near-instant (short loading)"),
   completionHearthPenaltySec: dated(900, "MinMaxQuest design choice: Completion finishes nearby quests, the Hearthstone only for a 15 min gain"),
+  spfMoveYards: dated(30, "MinMaxQuest design choice: ask Shortest Path Forever again once the player moved 30 yd"),
+  spfOffMeshYards: dated(100, "MinMaxQuest design choice: a target Shortest Path Forever cannot reach within 100 yd is off its walk mesh, keep walking"),
 };
 
 export const XP_PER_LEVEL = {

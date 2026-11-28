@@ -68,7 +68,7 @@ describe("Shortest Path Forever", () => {
   });
 
   it("keeps walking when SPF agrees", async () => {
-    const { s, walks, flies, estimates } = await arrowText("fakeSpf(2, 300)");
+    const { s, walks, flies, estimates } = await arrowText("fakeSpf(2, 260)");
     try {
       expect([walks, flies, estimates]).toEqual([true, false, 1]);
     } finally {

@@ -157,6 +157,10 @@ interface WowRegion {
   CreateAnimationGroup(): WowAnimationGroup;
 }
 
+interface WowLayered {
+  SetDrawLayer(layer: "BACKGROUND" | "BORDER" | "ARTWORK" | "OVERLAY", subLevel: number): void;
+}
+
 interface WowAnimation {
   SetDuration(seconds: number): void;
 }
@@ -179,13 +183,13 @@ interface WowLine {
   Hide(): void;
 }
 
-interface WowTexture extends WowRegion {
+interface WowTexture extends WowRegion, WowLayered {
   SetTexture(path: string | number | null): void;
   SetColorTexture(r: number, g: number, b: number, a: number): void;
   SetRotation(radians: number): void;
 }
 
-interface WowFontString extends WowRegion {
+interface WowFontString extends WowRegion, WowLayered {
   SetFont(path: string, size: number, flags: string): void;
   SetTextColor(r: number, g: number, b: number): void;
   SetText(text: string): void;

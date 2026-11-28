@@ -152,13 +152,14 @@ describe("travel graph", () => {
     expect(hop?.kind).toBe("walk");
   });
 
-  it("caches the nearest nodes of a target point per graph and stays exact for new origins", () => {
+  it("caches the nearest nodes of a target point per graph, weakly, and stays exact for new origins", () => {
     const ctx = context({ knownTaxiNodes: new Set([1, 2]) });
     const graph = buildGraph(TAXI, ctx);
     const target = pos(10050, 0);
     const first = travelTime(solveFrom(graph, pos(0, 0), ctx), graph, target, ctx);
     const second = travelTime(solveFrom(graph, pos(9000, 0), ctx), graph, target, ctx);
-    expect(graph.nearest.size).toBe(1);
+    expect(graph.nearest).toBeInstanceOf(WeakMap);
+    expect(graph.nearest.has(target)).toBe(true);
     expect(first).toBeCloseTo(100 * WALK + 60 + 50 * WALK);
     expect(second).toBeCloseTo(evaluate(TAXI, ctx, pos(9000, 0), pos(10050, 0)).time);
   });
@@ -407,13 +408,16 @@ describe("detourHop", () => {
     const ctx = context({ knownTaxiNodes: new Set(known) });
     const graph = buildGraph(travel, ctx);
     const plan = solveFrom(graph, pos(0, 0), ctx);
-    return { best: firstHop(plan, graph, target, ctx), detour: detourHop(plan, graph, target, ctx) };
+    return { best: firstHop(plan, graph, target, ctx), detour: detourHop(plan, graph, target, ctx), walk: travelTime(plan, graph, target, ctx) };
   }
 
   it("gives the best way that does not start by walking straight to the target", () => {
-    const { best, detour: alternative } = detour(FAST_TAXI, [1, 2], pos(2500, 0));
+    const { best, detour: alternative, walk } = detour(FAST_TAXI, [1, 2], pos(2500, 0));
     expect(best?.kind).toBe("walk");
-    expect(alternative).toEqual({ kind: "taxi", pos: pos(100, 0), taxiNodeId: 1 });
+    expect(alternative?.hop).toEqual({ kind: "taxi", pos: pos(100, 0), taxiNodeId: 1 });
+    expect(alternative?.seconds).toBeGreaterThan(60);
+    expect(alternative?.seconds).toBeGreaterThan(walk);
+    expect(alternative?.seconds).toBeLessThan(Infinity);
   });
 
   it("is null when no other way exists", () => {

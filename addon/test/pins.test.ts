@@ -485,3 +485,14 @@ it("hides the farm area and its minimap glows with the eye button", async () => 
     s.close();
   }
 });
+
+it("draws the badge text above the badge texture", async () => {
+  const s = await pins();
+  try {
+    const calls = await s.calls();
+    expect(calls).toContain("texture|SetDrawLayer|OVERLAY|0");
+    expect(calls).toContain("font|SetDrawLayer|OVERLAY|7");
+  } finally {
+    s.close();
+  }
+});

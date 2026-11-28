@@ -83,11 +83,13 @@ function createPulse(frame: WowFrame, size: number): WowAnimationGroup {
 function createBadge(frame: WowFrame, size: number): { badge: WowTexture; badgeText: WowFontString } {
   const [r, g, b] = COLOR.quest;
   const badge = frame.CreateTexture(null, "OVERLAY");
+  badge.SetDrawLayer("OVERLAY", 0);
   badge.SetTexture(MAP_MEDIA.badge);
   badge.SetSize(size * BADGE_SCALE, size * BADGE_SCALE);
   badge.SetPoint("CENTER", frame, "TOPLEFT", size * BADGE_X, -size * BADGE_Y);
   badge.Hide();
   const badgeText = frame.CreateFontString(null, "OVERLAY");
+  badgeText.SetDrawLayer("OVERLAY", 7);
   badgeText.SetFont(FONT_TITLE, Math.floor(size * BADGE_TEXT_SCALE), "");
   badgeText.SetTextColor(r, g, b);
   badgeText.SetPoint("CENTER", badge, "CENTER", 0, 0);

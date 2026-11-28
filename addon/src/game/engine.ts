@@ -121,6 +121,7 @@ function sameTargets(a: Target[], b: Target[]): boolean {
 
 function sameArrow(a: ArrowTarget | null, b: ArrowTarget | null): boolean {
   if (a == null || b == null) return a === b;
+  if (a.pos == null || b.pos == null) return a.label === b.label && a.pos === b.pos;
   return a.label === b.label && a.pos.continent === b.pos.continent && a.pos.x === b.pos.x && a.pos.y === b.pos.y;
 }
 
@@ -141,15 +142,23 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
   let loopKey = "";
   const listeners: Listener[] = [];
 
-  // Targets without a position (craft, fish) stay listed; the arrow goes to the next one.
+  // Targets without a position (craft, fish) stay listed; the arrow goes to the next one unless that quest is pinned.
   const pick = (): Target | null => {
     const pinned = db.pinnedQuestId;
-    if (pinned != null) for (const target of pinPool ?? list) if (target.questId === pinned && target.pos != null) return target;
+    if (pinned != null) {
+      let positionless: Target | null = null;
+      for (const target of pinPool ?? list) {
+        if (target.questId !== pinned) continue;
+        if (target.pos != null) return target;
+        if (positionless == null) positionless = target;
+      }
+      if (positionless != null) return positionless;
+    }
     for (const target of list) if (target.pos != null) return target;
     return null;
   };
 
-  const showArrow = (pos: WorldPos, text: string): void => {
+  const showArrow = (pos: WorldPos | null, text: string): void => {
     const next = { pos, label: text };
     if (!sameArrow(arrow, next)) arrow = next;
   };
@@ -169,7 +178,7 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
     if (at == null) {
       loop = null;
       loopKey = "";
-      arrow = null;
+      showArrow(null, label);
       return;
     }
     if (target.cluster == null) {

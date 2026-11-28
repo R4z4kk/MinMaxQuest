@@ -67,7 +67,8 @@ export function createItemButton(db: CharDb, anchor: () => WowFrame): ItemButton
   button.RegisterForClicks("AnyUp", "AnyDown");
   button.SetAttribute("useOnKeyDown", false);
   button.RegisterForDrag("LeftButton");
-  button.SetAttribute("type", "item");
+  // A macro: the "item" type did not use some quest items (Nagmara's Vial 11412) that work from the bags.
+  button.SetAttribute("type", "macro");
 
   const icon = button.CreateTexture(null, "ARTWORK");
   icon.SetAllPoints(button);
@@ -127,7 +128,7 @@ export function createItemButton(db: CharDb, anchor: () => WowFrame): ItemButton
   function apply(): void {
     if (wish !== applied) {
       const texture = wish == null ? null : (itemIcon(wish) ?? UNKNOWN_ICON);
-      button.SetAttribute("item", wish == null ? null : `item:${wish}`);
+      button.SetAttribute("macrotext", wish == null ? null : `/use item:${wish}`);
       icon.SetTexture(texture);
       applied = wish;
     }

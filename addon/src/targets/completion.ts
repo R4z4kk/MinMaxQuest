@@ -9,7 +9,7 @@ import {
   passesMaxLevelOption,
   type PlayerQuestState,
 } from "../quests/availability";
-import { objectiveClusters, pickCluster, type SpawnCluster } from "./spawns";
+import { nearbyClusters, pickCluster, type SpawnCluster } from "./spawns";
 
 export type TargetKind = "accept" | "objective" | "turnin" | "route";
 export type QuestTargetKind = Exclude<TargetKind, "route">;
@@ -69,6 +69,8 @@ export interface CompletionInput {
   timeTo: (p: WorldPos) => number;
   // Spawns never change, so clusters are kept across refreshes, keyed by questId:objectiveIndex.
   clusters: Map<string, SpawnCluster[]>;
+  // Player position: objectives with very many spawns only cluster the nearest ones.
+  origin?: WorldPos | null;
   uiMapOf?: (zoneAreaId: number) => number | null;
   penaltyOf?: (p: WorldPos) => number;
   planFor?: PlanFor;
@@ -124,7 +126,7 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
       pos,
       cluster,
       otherSpots,
-      seconds: pos == null ? 0 : timeTo(pos),
+      seconds: pos == null ? Infinity : timeTo(pos),
       penaltySec: pos == null ? 0 : (input.penaltyOf?.(pos) ?? 0),
       questLevel: q.level,
       trivial,
@@ -174,12 +176,7 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
       for (const obj of q.objectives) {
         if (entry.objectivesDone.has(obj.index)) continue;
         const plan = input.planFor?.(q, obj.index) ?? null;
-        const key = clusterKey(q.id, obj.index, plan);
-        let clusters = input.clusters.get(key);
-        if (clusters == null) {
-          clusters = objectiveClusters(positionsFor(q, "objective", obj.index));
-          input.clusters.set(key, clusters);
-        }
+        const clusters = nearbyClusters(input.clusters, clusterKey(q.id, obj.index, plan), input.origin ?? null, () => positionsFor(q, "objective", obj.index));
         const obtain = targetObtain(plan, obj.kind === "item" ? obj.required : 1, entry.counts?.[obj.index - 1] ?? null);
         const cluster = pickCluster(clusters, timeTo);
         if (cluster != null) push(q, trivial, "objective", obj.index, cluster.center, cluster, clusters.length - 1, obtain);
@@ -189,6 +186,7 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
   }
 
   targets.sort((a, b) => {
+    if ((a.pos == null) !== (b.pos == null)) return a.pos == null ? 1 : -1;
     if (a.seconds !== b.seconds) return a.seconds < b.seconds ? -1 : 1;
     if (a.questId !== b.questId) return (a.questId ?? 0) - (b.questId ?? 0);
     return (a.objectiveIndex ?? 0) - (b.objectiveIndex ?? 0);

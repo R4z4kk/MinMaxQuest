@@ -3,8 +3,9 @@ import { currentLocale, t } from "../core/l10n";
 import { formatDistance, distance, heading, type WorldPos } from "../core/geometry";
 import { isDisabled, reportOnce } from "../core/report";
 
+// pos null: a step without a place (craft, fish); only the label shows.
 export interface ArrowTarget {
-  pos: WorldPos;
+  pos: WorldPos | null;
   label: string;
 }
 
@@ -74,6 +75,11 @@ export function createArrow(db: CharDb): ArrowApi {
       applyVisibility(placing);
       return;
     }
+    const goal = target.pos;
+    if (goal == null) {
+      frame.Show();
+      return;
+    }
     const [x, y, , instance] = UnitPosition("player");
     const facing = GetPlayerFacing();
     if (x == null || y == null || instance == null || facing == null) {
@@ -83,12 +89,12 @@ export function createArrow(db: CharDb): ArrowApi {
     player.continent = instance;
     player.x = x;
     player.y = y;
-    const angle = heading(player, facing, target.pos);
+    const angle = heading(player, facing, goal);
     if (angle == null) {
       applyVisibility(placing);
       return;
     }
-    const yards = distance(player, target.pos);
+    const yards = distance(player, goal);
     const key = yards < 1000 ? Math.round(yards) : KM_MARKER + Math.round(yards / 100);
     if (key !== lastKey) {
       lastKey = key;
@@ -154,6 +160,10 @@ export function createArrow(db: CharDb): ArrowApi {
       target = next;
       lastKey = -1;
       labelText.SetText(next == null ? "" : next.label);
+      if (next != null && next.pos == null) {
+        arrow.Hide();
+        distanceText.SetText("");
+      } else arrow.Show();
       refresh();
     },
     setLocked(next) {

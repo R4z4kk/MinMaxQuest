@@ -21,6 +21,8 @@ export interface ProfessionInputs {
   fishingLoot: LootRow[];
   referenceLoot: LootRow[];
   bonding: Map<number, number>;
+  // QuestieDB TBC item subClass: classic data (Forever QuestieDB, cmangos) files cloth and mob meat alike under subclass 0.
+  tbcSubclasses: Map<number, number>;
   snapshot: QuestieSnapshot;
 }
 
@@ -61,6 +63,8 @@ const LOCK_KEY_SKILL = 2;
 const GAMEOBJECT_CHEST = 3;
 const LOCK_SLOTS = 8;
 const TRADE_GOODS = 7;
+// Trade Goods subclass Cloth from TBC on (Linen Cloth 2589 and Runecloth 14047 in QuestieDB v1.1.6 data/TBC/tbcItemDB.lua; meat is 8).
+export const TBC_CLOTH = 5;
 // cmangos item_template.bonding: 1 = bind on pickup, 4 = quest item (https://github.com/cmangos/issues/wiki/Item_template#bonding).
 const BOUND = new Set([1, 4]);
 // QuestieDB objectives: [creatures, objects, items, reputation, kill credits, spells]; each item entry is [id, text, count].
@@ -232,8 +236,9 @@ export function buildProfessions(input: ProfessionInputs): { data: Omit<Professi
     if (skinners.has(id)) gather.add("skinning");
     if (fished.has(id)) gather.add("fishing");
     const craft = inOrder(crafts.get(id) ?? null);
-    const tradeGood = item?.class === TRADE_GOODS;
-    if (gather.size === 0 && craft.length === 0 && !tradeGood) continue;
+    // User rule: herbs, ores and crafts; cloth is the only trade good kept without a gathering or craft path.
+    const cloth = item?.class === TRADE_GOODS && input.tbcSubclasses.get(id) === TBC_CLOTH;
+    if (gather.size === 0 && craft.length === 0 && !cloth) continue;
     const bonding = input.bonding.get(id);
     if (bonding == null) {
       notes.unknownBonding.push(id);
@@ -243,7 +248,7 @@ export function buildProfessions(input: ProfessionInputs): { data: Omit<Professi
       notes.bound.push(id);
       continue;
     }
-    items[id] = { gather: inOrder(gather), craft, tradeGood };
+    items[id] = { gather: inOrder(gather), craft, cloth };
     const dropped: number[] = [];
     for (const o of objects) {
       const skill = nodeSkill(o);

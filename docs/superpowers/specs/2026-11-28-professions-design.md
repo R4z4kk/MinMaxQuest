@@ -9,7 +9,7 @@ Pour un objectif « obtenir l'objet X » d'une quête :
 1. **X est une ressource ou un produit de métier** dans l'un de ces cas :
    - X se récolte : herbe, minerai, dépeçage ou pêche ;
    - X se fabrique par un métier : alchimie, forge, enchantement, ingénierie, travail du cuir, couture, cuisine ou secourisme ;
-   - X est classé « Artisanat » dans les données de l'objet (classe 7). Cela couvre aussi les étoffes. **[choix Claude]**
+   - X est une étoffe (classe 7 « Artisanat », sous-classe « Étoffe » = 5 dans les données TBC de QuestieDB ; les données classiques mettent étoffes et viandes en sous-classe 0). C'est la seule exception « Artisanat » sans récolte ni fabrication : la règle de l'utilisateur est « herbes, minerais, crafts ». Les viandes et morceaux de monstres (classe 7 sans récolte ni fabrication) restent des butins de monstres.
 2. **Dans ce cas, on ne farme pas de monstres pour X.** Les butins de monstres ne comptent plus comme source.
 3. **Si tu as le métier de récolte de X** (herboristerie pour une herbe, minage pour un minerai, etc.), les points de récolte restent la cible.
 4. **Si X se fabrique et que tu as le métier**, la cible est « Fabrique X ». Il n'y a pas de position : la flèche ne s'affiche pas pour cet objectif, et on passe à la cible suivante. **[choix Claude]**
@@ -27,7 +27,7 @@ Pour un objectif « obtenir l'objet X » d'une quête :
   - **Dépeçage :** `skinning_loot_template` de cmangos.
   - **Pêche :** `fishing_loot_template` de cmangos.
   - **Fabrication :** les tables wago `SpellEffect` (effet « créer un objet ») et `SkillLineAbility` (sort vers ligne de compétence) pour le build 1.60.1.71139, ce qui couvre Forever.
-  - **Classe d'objet :** QuestieDB ou wago `ItemSparse`.
+  - **Classe d'objet :** QuestieDB (classe), et sous-classe « Étoffe » lue dans les données TBC de QuestieDB.
   - **Commissaires-priseurs :** le champ `npcFlags` de QuestieDB (drapeau « commissaire-priseur »), avec leur faction.
   - **Sorts de métier connus du joueur :** pour chaque métier, ses sorts de rang (Apprenti → Artisan), tirés de `SkillLineAbility`, pour la détection en jeu.
 - L'expiration est bruyante comme pour les autres sources, et un rapport `data/professions/report.md` donne les comptes.

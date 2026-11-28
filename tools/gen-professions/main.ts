@@ -1,19 +1,24 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { LuaFactory } from "wasmoon";
 import { expiredRecords } from "../../addon/src/core/constants";
 import type { ProfessionData, Skill } from "../../addon/src/data/generated/professions";
 import { fetchCmangos, parseSqlTable, readSqlFile } from "../route-builder/ingest/cmangos";
 import { parseCsv } from "../route-builder/ingest/csv";
+import { questieDir } from "../route-builder/ingest/fetchQuestie";
 import { cachedSnapshot } from "../route-builder/ingest/questie";
 import type { QuestieSnapshot } from "../route-builder/ingest/snapshot";
 import { CMANGOS_CLASSIC_DB, QUESTIE_DB, WAGO_DB2 } from "../route-builder/sources";
-import { buildProfessions, objectiveItems, type LootRow, type ProfessionNotes } from "./professions";
+import { buildProfessions, objectiveItems, TBC_CLOTH, type LootRow, type ProfessionNotes } from "./professions";
 
 const OUTPUT_FILE = join("addon", "src", "data", "generated", "professions.ts");
 const REPORT_FILE = join("data", "professions", "report.md");
 const WAGO_DIR = join("vendor", "wago");
 const VERIFIED_ON = "2026-11-28";
 const LOVE_POTION = 4201;
+const LINEN_CLOTH = 2589;
+const GORETUSK_LIVER = 723;
+const ITEM_DATA_OPEN = "QuestieDB.itemData = [[";
 
 const INTERFACE_TEXT = `export type Skill =
   | "herbalism"
@@ -32,8 +37,8 @@ const INTERFACE_TEXT = `export type Skill =
 export interface ProfessionItem {
   gather: Skill[];
   craft: Skill[];
-  // Item class 7 (Trade Goods) in QuestieDB.
-  tradeGood: boolean;
+  // Cloth (Trade Goods subclass Cloth in the QuestieDB TBC data): the only item kept without a gather or craft path.
+  cloth: boolean;
 }
 
 // Only the profession items among QuestieDB quest item objectives, bound items left out (not on the auction house).
@@ -108,7 +113,7 @@ function renderReport(data: ProfessionData, notes: ProfessionNotes, s: QuestieSn
   const quest = s.quests[LOVE_POTION];
   const lovePotion = objectiveItems({ ...s, quests: quest == null ? {} : { [LOVE_POTION]: quest } }).map((id) => {
     const item = data.items[id];
-    return `- ${itemName(s, id)}: ${item == null ? "not a profession item (unchanged)" : `gather ${item.gather.join(", ") || "none"}; craft ${item.craft.join(", ") || "none"}; trade good ${item.tradeGood ? "yes" : "no"}`}`;
+    return `- ${itemName(s, id)}: ${item == null ? "not a profession item (unchanged)" : `gather ${item.gather.join(", ") || "none"}; craft ${item.craft.join(", ") || "none"}; cloth ${item.cloth ? "yes" : "no"}`}`;
   });
   const list = (ids: number[]): string[] => (ids.length === 0 ? ["None.", ""] : [...ids.map((id) => `- ${itemName(s, id)}`), ""]);
   return [
@@ -119,7 +124,7 @@ function renderReport(data: ProfessionData, notes: ProfessionNotes, s: QuestieSn
     "## Counts",
     "",
     `- Quest item objectives in QuestieDB: ${notes.objectiveItems}`,
-    `- Profession items: ${items.length} (trade goods: ${items.filter(([, item]) => item.tradeGood).length})`,
+    `- Profession items: ${items.length} (cloth: ${items.filter(([, item]) => item.cloth).length})`,
     "",
     "| Skill | Gathered | Crafted | Rank spells |",
     "|---|---|---|---|",
@@ -154,6 +159,42 @@ function renderReport(data: ProfessionData, notes: ProfessionNotes, s: QuestieSn
   ].join("\n");
 }
 
+// Trade Goods (class 7) subClass of the given items in the QuestieDB TBC item data, read in Lua.
+async function tbcSubclasses(ids: number[]): Promise<Map<number, number>> {
+  const file = join(questieDir(), "data", "TBC", "tbcItemDB.lua");
+  const text = readFileSync(file, "utf8");
+  if (!text.includes("['class'] = 12") || !text.includes("['subClass'] = 13")) throw new Error(`${file}: itemKeys class/subClass are not 12/13`);
+  const start = text.indexOf(ITEM_DATA_OPEN);
+  const end = start < 0 ? -1 : text.indexOf("]]", start);
+  if (end < 0) throw new Error(`${file}: no QuestieDB.itemData long string`);
+  const engine = await new LuaFactory().createEngine();
+  let out: unknown;
+  try {
+    engine.global.set("source", text.slice(start + ITEM_DATA_OPEN.length, end));
+    engine.global.set("wanted", ids.join(","));
+    out = await engine.doString(`
+      local data = assert(load(source))()
+      local out = {}
+      for id in string.gmatch(wanted, "%d+") do
+        local item = data[tonumber(id)]
+        if item ~= nil and item[12] == 7 and item[13] ~= nil then out[#out + 1] = id .. ":" .. item[13] end
+      end
+      return table.concat(out, ",")`);
+  } catch (error) {
+    throw new Error(`${file}: Lua failed (${error instanceof Error ? error.message : String(error)})`);
+  } finally {
+    engine.global.close();
+  }
+  if (typeof out !== "string") throw new Error(`${file}: subclass extraction did not return a string`);
+  const map = new Map<number, number>();
+  for (const pair of out === "" ? [] : out.split(",")) {
+    const [id, sub] = pair.split(":").map(Number);
+    map.set(id, sub);
+  }
+  if (map.get(LINEN_CLOTH) !== TBC_CLOTH || map.get(GORETUSK_LIVER) === TBC_CLOTH) throw new Error(`${file}: Linen Cloth is not subclass ${TBC_CLOTH} or Goretusk Liver is`);
+  return map;
+}
+
 function write(path: string, content: string): void {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, content);
@@ -178,6 +219,7 @@ async function main(): Promise<void> {
     fishingLoot: loot(sql, cmangosFile, "fishing_loot_template"),
     referenceLoot: loot(sql, cmangosFile, "reference_loot_template"),
     bonding: new Map(parseSqlTable(sql, cmangosFile, "item_template", ["entry", "bonding"]).map((r) => [r.int("entry"), r.int("bonding")])),
+    tbcSubclasses: await tbcSubclasses(objectiveItems(snapshot)),
     snapshot,
   });
   const empty = Object.entries(data.skillSpells).filter(([, spells]) => spells.length === 0);

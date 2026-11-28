@@ -13,6 +13,7 @@ import {
   solveFrom,
   taxiDestination,
   travelTime,
+  type Detour,
   type TaxiLeg,
   type TravelContext,
   type TravelGraph,
@@ -33,7 +34,7 @@ export interface Routing {
   timeTo(snap: PlayerSnapshot): ((p: WorldPos) => number) | null;
   firstHop(target: Target): TravelHop | null;
   // Best non-walking first hop with our time for the target and the player position it was solved from.
-  detour(target: Target): { from: WorldPos; seconds: number; hop: TravelHop | null } | null;
+  detour(target: Target): { from: WorldPos; walkSeconds: number; detour: Detour | null } | null;
   taxiLeg(target: Target): TaxiLeg | null;
   taxiLegTo(pos: WorldPos): TaxiLeg | null;
   quests(): QuestInfo[];
@@ -125,6 +126,7 @@ export function createRouting(
           positionsFor,
           timeTo: (p) => travelTime(current.plan, current.graph, p, current.ctx),
           clusters,
+          origin: snap.pos,
           uiMapOf: (areaId) => {
             const uiMapId = repo.uiMapIdForArea(areaId);
             return uiMapId == null || nearby == null ? uiMapId : nearby.zoneOf(uiMapId);
@@ -144,8 +146,8 @@ export function createRouting(
     },
     detour(target) {
       if (solved == null || solved.snap.pos == null || target.pos == null) return null;
-      const seconds = travelTime(solved.plan, solved.graph, target.pos, solved.ctx);
-      return { from: solved.snap.pos, seconds, hop: detourHop(solved.plan, solved.graph, target.pos, solved.ctx) };
+      const walkSeconds = travelTime(solved.plan, solved.graph, target.pos, solved.ctx);
+      return { from: solved.snap.pos, walkSeconds, detour: detourHop(solved.plan, solved.graph, target.pos, solved.ctx) };
     },
     taxiLeg(target) {
       return target.pos == null ? null : taxiLegTo(target.pos);
