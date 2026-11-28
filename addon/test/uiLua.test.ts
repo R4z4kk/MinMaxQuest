@@ -1097,14 +1097,16 @@ it("defers an item change in combat until PLAYER_REGEN_ENABLED", async () => {
   }
 });
 
-it("drags the item holder by its grip only while unlocked and out of combat", async () => {
+it("drags the item button by its icon only while unlocked and out of combat, and uses the item on release only", async () => {
   const s = await ui(ITEM_FAKES);
   const drag = async () => {
     await s.clearCalls();
-    await s.run(`scripts["MinMaxQuestItemHolder.OnDragStart"](nil); scripts["MinMaxQuestItemHolder.OnDragStop"](nil)`);
+    await s.run(`scripts["MinMaxQuestItemButton.OnDragStart"](nil); scripts["MinMaxQuestItemButton.OnDragStop"](nil)`);
     return (await s.calls()).includes("MinMaxQuestItemHolder|StartMoving");
   };
   try {
+    expect(await s.calls()).toContain("MinMaxQuestItemButton|RegisterForClicks|AnyUp");
+    expect(await s.calls()).toContain("MinMaxQuestItemButton|RegisterForDrag|LeftButton");
     await s.cmd("arrow lock");
     expect(await drag()).toBe(false);
     expect(await s.run("return MinMaxQuestCharDB.itemButton == nil")).toBe(true);

@@ -44,7 +44,7 @@ Prérequis : `npm test` (construit `build/MinMaxQuest.lua`), puis lancer WoW For
 - [ ] Glisser la flèche au clic gauche quand elle est déverrouillée ; case « Verrouiller la flèche » (ou `/mmq arrow lock`) → clics traversants ; le libellé de la flèche est blanc ; position gardée après `/reload`.
 - [ ] Mort au corps : flèche cachée sans message ; après libération (fantôme) : elle pointe vers le cadavre, quelle que soit la cible ; position inconnue : cachée avec un message unique.
 - [ ] Bouton d'objet de quête : visible à droite de la flèche quand la quête visée a un objet utilisable ; un clic = une utilisation ; icône, compteur, recharge et info-bulle corrects ; fonctionne en modes Quête et Complétion.
-- [ ] Bouton d'objet : glisser par la fine bordure dorée (flèche déverrouillée, hors combat) ; position gardée après `/reload` ; « Verrouiller la flèche » le verrouille aussi.
+- [ ] Bouton d'objet : cliquer-glisser l'icône le déplace sans utiliser l'objet (flèche déverrouillée, hors combat) ; un simple clic l'utilise une seule fois ; position gardée après `/reload` ; « Verrouiller la flèche » le verrouille aussi.
 - [ ] Bouton d'objet : changer d'objet, verrouiller, ou cacher/afficher (`/mmq`, œil) en combat n'est appliqué qu'à la fin du combat (aucune erreur de taint).
 
 ## Passer / épingler

@@ -62,7 +62,9 @@ export function createItemButton(db: CharDb, anchor: () => WowFrame): ItemButton
   const button = CreateFrame("Button", BUTTON_NAME, holder, "SecureActionButtonTemplate");
   button.SetSize(BUTTON_SIZE, BUTTON_SIZE);
   button.SetPoint("CENTER", holder, "CENTER", 0, 0);
-  button.RegisterForClicks("AnyUp", "AnyDown");
+  // Release only: a drag that starts on the icon must not use the item.
+  button.RegisterForClicks("AnyUp");
+  button.RegisterForDrag("LeftButton");
   button.SetAttribute("type", "item");
 
   const icon = button.CreateTexture(null, "ARTWORK");
@@ -149,14 +151,18 @@ export function createItemButton(db: CharDb, anchor: () => WowFrame): ItemButton
     if (left != null && top != null) db.itemButton = { x: left, y: top };
   }
 
-  holder.SetScript("OnDragStart", () => {
+  const dragStart = (): void => {
     if (locked || InCombatLockdown()) return;
     moving = true;
     holder.StartMoving();
-  });
-  holder.SetScript("OnDragStop", () => {
+  };
+  const dragStop = (): void => {
     if (moving && !InCombatLockdown()) stopMoving();
-  });
+  };
+  holder.SetScript("OnDragStart", dragStart);
+  holder.SetScript("OnDragStop", dragStop);
+  button.SetScript("OnDragStart", dragStart);
+  button.SetScript("OnDragStop", dragStop);
 
   apply();
 
