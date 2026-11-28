@@ -23,19 +23,18 @@ export type L10nKey =
   | "pinned"
   | "unpinned"
   | "buildOverride"
-  | "nearestTarget"
   | "nextTarget"
-  | "remainingNearby"
-  | "remainingInZone"
   | "levelOne"
   | "levelMany"
   | "moreRows"
+  | "sectionTurnIn"
+  | "sectionObjectives"
+  | "sectionPickUp"
   | "skip"
   | "zonePicker"
   | "modeProximity"
   | "modeZone"
   | "modeLog"
-  | "remainingInLog"
   | "questsInLogOne"
   | "questsInLogMany"
   | "questsCount"
@@ -149,19 +148,18 @@ const EN: Record<L10nKey, string> = {
   pinned: "pinned",
   unpinned: "unpinned",
   buildOverride: "build override",
-  nearestTarget: "Nearest target",
   nextTarget: "Next",
-  remainingNearby: "Remaining nearby · {n}",
-  remainingInZone: "Remaining in zone · {n}",
   levelOne: "level",
   levelMany: "levels",
   moreRows: "+{n} more...",
+  sectionTurnIn: "To turn in",
+  sectionObjectives: "Objectives",
+  sectionPickUp: "To pick up",
   skip: "Skip",
   zonePicker: "Zone",
   modeProximity: "Proximity",
   modeZone: "Zone",
   modeLog: "Log",
-  remainingInLog: "Remaining in log · {n}",
   questsInLogOne: "{n} quest in log",
   questsInLogMany: "{n} quests in log",
   questsCount: "{done} / {total} quests",
@@ -276,19 +274,18 @@ const FR: Record<L10nKey, string> = {
   pinned: "épinglée",
   unpinned: "désépinglée",
   buildOverride: "build forcé",
-  nearestTarget: "Cible la plus proche",
   nextTarget: "Ensuite",
-  remainingNearby: "Restant à proximité · {n}",
-  remainingInZone: "Restant dans la zone · {n}",
   levelOne: "niveau",
   levelMany: "niveaux",
   moreRows: "+ {n} autres...",
+  sectionTurnIn: "À rendre",
+  sectionObjectives: "Objectifs",
+  sectionPickUp: "À prendre",
   skip: "Passer",
   zonePicker: "Zone",
   modeProximity: "Proximité",
   modeZone: "Zone",
   modeLog: "Journal",
-  remainingInLog: "Restant dans le journal · {n}",
   questsInLogOne: "{n} quête dans le journal",
   questsInLogMany: "{n} quêtes dans le journal",
   questsCount: "{done} / {total} quêtes",

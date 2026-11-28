@@ -1,40 +1,15 @@
-import { distance, formatDistance, formatDuration, type WorldPos } from "../core/geometry";
+import { formatDuration } from "../core/geometry";
 import { currentLocale, t } from "../core/l10n";
 import type { QuestInfo } from "../data/questRepository";
 import type { CharDb } from "../core/storage";
-import { sameKey, targetAction, targetName } from "../game/engine";
-import type { Target, ZoneProgress } from "../targets/completion";
+import { sameKey, targetName } from "../game/engine";
+import type { Target, TargetKind, ZoneProgress } from "../targets/completion";
 import type { ZoneIndex } from "./maps";
-import { COLOR, colorCode } from "./theme";
+import { COLOR, colorCode, GLYPH, type IconKind } from "./theme";
 
-export interface TargetView {
-  questId: number | null;
-  name: string;
-  line: string;
-}
-
-export interface RowView {
-  level: string;
-  name: string;
-  time: string;
-  grey: boolean;
-  elite: boolean;
-}
-
-export interface CompletionView {
-  nearest: TargetView | null;
-  next: TargetView | null;
-  rows: RowView[];
-  remaining: number;
-  more: number;
-}
-
-export interface RowLine {
-  level: string;
-  name: string;
-  time: string;
-  tone: "normal" | "grey" | "more";
-}
+export type CompletionLine =
+  | { kind: "section"; label: string; count: number }
+  | { kind: "row"; icon: IconKind; level: string; name: string; time: string; tone: "normal" | "grey" | "target" | "more" };
 
 type QuestGetter = (id: number) => QuestInfo | null;
 export type Mode = CharDb["completion"]["mode"];
@@ -122,11 +97,6 @@ export function footerTexts(
   return { continent: `${continent.name} · ${countText(sum)}`, total };
 }
 
-export function remainingLabel(mode: Mode, n: number): string {
-  const key = mode === "zone" ? "remainingInZone" : mode === "log" ? "remainingInLog" : "remainingNearby";
-  return t(key).replace("{n}", String(n));
-}
-
 export function logHeader(n: number): string {
   const singular = n === 1 || (n === 0 && currentLocale() === "frFR");
   return t(singular ? "questsInLogOne" : "questsInLogMany").replace("{n}", String(n));
@@ -136,65 +106,54 @@ export function modeText(mode: Mode): string {
   return t(mode === "zone" ? "modeZone" : mode === "log" ? "modeLog" : "modeProximity");
 }
 
-export function rowLines(view: CompletionView, slots: number): RowLine[] {
-  const lines: RowLine[] = [];
-  for (let i = 0; i < slots; i++) {
-    const row = view.rows[i];
-    if (row != null) {
-      const tag = row.elite ? `  ${colorCode(COLOR.sub)}${t("eliteTag")}|r` : "";
-      lines.push({ level: row.level, name: row.name + tag, time: row.time, tone: row.grey ? "grey" : "normal" });
-    } else if (i === view.rows.length && view.more > 0) {
-      lines.push({ level: "", name: t("moreRows").replace("{n}", String(view.more)), time: "", tone: "more" });
-    } else {
-      lines.push({ level: "", name: "", time: "", tone: "normal" });
-    }
-  }
-  return lines;
+const SECTIONS: { kind: TargetKind; label: "sectionTurnIn" | "sectionObjectives" | "sectionPickUp" }[] = [
+  { kind: "turnin", label: "sectionTurnIn" },
+  { kind: "objective", label: "sectionObjectives" },
+  { kind: "accept", label: "sectionPickUp" },
+];
+
+function rowIcon(target: Target, getQuest: QuestGetter): IconKind {
+  if (target.kind === "turnin") return "turnin";
+  if (target.kind === "accept") return "accept";
+  const quest = target.questId == null ? null : getQuest(target.questId);
+  const objective = quest?.objectives.find((o) => o.index === target.objectiveIndex);
+  return objective?.kind === "npc" ? "kill" : "collect";
 }
 
-function targetView(target: Target, getQuest: QuestGetter, player: WorldPos | null): TargetView {
-  const yards = player == null ? Infinity : distance(player, target.pos);
-  const line = `${targetAction(target)} · ${formatDuration(target.seconds - target.penaltySec)} · ${formatDistance(yards, currentLocale())}`;
-  return { questId: target.questId, name: targetName(target, getQuest), line };
-}
-
-export function completionView(
-  targets: Target[],
-  current: Target | null,
-  getQuest: QuestGetter,
-  player: WorldPos | null,
-  maxRows: number,
-): CompletionView {
-  let next: Target | null = null;
-  const rows: RowView[] = [];
-  const listed = new Set<number>();
-  let remaining = 0;
-  for (const target of targets) {
-    if (current != null && sameKey(target, current)) continue;
-    if (next == null) {
-      next = target;
-      continue;
-    }
-    const id = target.questId;
-    if (id != null) {
-      if (listed.has(id)) continue;
-      listed.add(id);
-    }
-    remaining++;
-    if (rows.length >= maxRows) continue;
-    rows.push({
-      level: String(target.questLevel),
-      name: targetName(target, getQuest),
-      time: formatDuration(target.seconds - target.penaltySec),
-      grey: target.trivial,
-      elite: target.elite,
-    });
-  }
+function rowLine(target: Target, isCurrent: boolean, getQuest: QuestGetter): CompletionLine {
+  const tag = target.elite ? `  ${colorCode(COLOR.sub)}${t("eliteTag")}|r` : "";
   return {
-    nearest: current == null ? null : targetView(current, getQuest, player),
-    next: next == null ? null : targetView(next, getQuest, player),
-    rows,
-    remaining,
-    more: remaining - rows.length,
+    kind: "row",
+    icon: rowIcon(target, getQuest),
+    level: String(target.questLevel),
+    name: (isCurrent ? GLYPH.current : "") + targetName(target, getQuest) + tag,
+    time: formatDuration(target.seconds - target.penaltySec),
+    tone: isCurrent ? "target" : target.trivial ? "grey" : "normal",
   };
+}
+
+export function completionLines(targets: Target[], current: Target | null, getQuest: QuestGetter, slots: number): CompletionLine[] {
+  const lines: CompletionLine[] = [];
+  for (const section of SECTIONS) {
+    const picked: Target[] = [];
+    const byQuest = new Map<number, number>();
+    for (const target of targets) {
+      if (target.kind !== section.kind) continue;
+      const known = target.questId == null ? null : (byQuest.get(target.questId) ?? null);
+      if (known == null) {
+        if (target.questId != null) byQuest.set(target.questId, picked.length);
+        picked.push(target);
+      } else if (sameKey(target, current)) picked[known] = target;
+    }
+    if (picked.length === 0) continue;
+    lines.push({ kind: "section", label: t(section.label), count: picked.length });
+    for (const target of picked) lines.push(rowLine(target, sameKey(target, current), getQuest));
+  }
+  if (lines.length <= slots) return lines;
+  const kept = lines.slice(0, Math.max(slots - 1, 0));
+  if (kept.length > 0 && kept[kept.length - 1].kind === "section") kept.pop();
+  const total = lines.filter((l) => l.kind === "row").length;
+  const shown = kept.filter((l) => l.kind === "row").length;
+  if (slots > 0) kept.push({ kind: "row", icon: "empty", level: "", name: t("moreRows").replace("{n}", String(total - shown)), time: "", tone: "more" });
+  return kept;
 }

@@ -87,8 +87,8 @@ it("switches the three tabs and saves the tab", async () => {
     const texts = await s.texts();
     expect(texts).toContain("Elwynn Forest");
     expect(texts).toContain("0 / 3 quests");
-    expect(texts).toContain("Test Quest");
-    expect(texts).toContain("pick up · <1 min · 22 m");
+    expect(texts).toContain("» Test Quest");
+    expect(texts).toContain("To pick up");
     expect(texts).toContain("Eastern Kingdoms · 0 / 3");
     await s.click("MinMaxQuestTabaccess");
     expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|320|480");
@@ -465,7 +465,7 @@ it("creates no frame, texture or font string when the engine redraws an open tab
       await s.run(`player = { ${x}, 2000 }; now = now + 3`);
       await s.tick();
     }
-    expect((await s.texts()).some((line) => line.startsWith("pick up · ") && line.endsWith(" · 790 m"))).toBe(true);
+    expect(await s.texts()).toContain("To pick up");
     expect(await created()).toBe(before);
     await s.click("MinMaxQuestTabaccess");
     const access = await created();
@@ -510,8 +510,7 @@ it("uppercases accented French labels", async () => {
   const s = await ui(`GetLocale = function() return "frFR" end`);
   try {
     await s.cmd("");
-    await s.click("MinMaxQuestTabcompletion");
-    expect(await s.texts()).toContain("RESTANT À PROXIMITÉ · 0");
+    expect(await s.texts()).toContain("ÉTAPE EN COURS");
   } finally {
     s.close();
   }
@@ -845,6 +844,53 @@ ${LAYOUT_LUA}`,
       }
     });
   }
+}
+
+const SECTION_LABELS = {
+  enUS: ["To turn in", "Objectives", "To pick up"],
+  frFR: ["À rendre", "Objectifs", "À prendre"],
+} as const;
+
+for (const locale of ["enUS", "frFR"] as const) {
+  it(`shows Completion sections with counts in ${locale} within 320 px`, async () => {
+    for (const mode of ["proximity", "zone", "log"] as const) {
+      const setup = `CHAR_WIDTH = 6
+        MinMaxQuestDB = { locale = "${locale}" }`;
+      const s = await ui(setup);
+      try {
+        await s.cmd("");
+        await s.click("MinMaxQuestTabcompletion");
+        await s.click(`MinMaxQuestCompletionTab${mode}`);
+        const labels = SECTION_LABELS[locale];
+        const found = (await s.run(
+          `local labels = { ${labels.map((l) => JSON.stringify(l)).join(", ")} }
+local out = {}
+for i, r in ipairs(layout) do
+  if r.name == "font" and r.shown then
+    for _, label in ipairs(labels) do
+      if r.text == label then
+        local count = layout[i + 1]
+        out[#out + 1] = label .. "|" .. count.text .. "|" .. (textWidth(label) + textWidth(count.text) + 12)
+      end
+    end
+  end
+end
+return table.concat(out, ";")`,
+        )) as string;
+        const sections = found.split(";").filter((entry) => entry !== "");
+        expect([mode, sections.length > 0]).toEqual([mode, true]);
+        for (const entry of sections) {
+          const [, count, width] = entry.split("|");
+          expect(Number(count)).toBeGreaterThan(0);
+          expect(Number(width) <= 300).toBe(true);
+        }
+        const texts = await s.texts();
+        expect(texts).not.toContain("Nearest target");
+      } finally {
+        s.close();
+      }
+    }
+  });
 }
 
 const ITEM_FAKES = `quests[100].sourceItemId = 900

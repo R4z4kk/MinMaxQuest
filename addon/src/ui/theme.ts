@@ -262,7 +262,7 @@ export function createKindIcon(parent: WowFrame): KindIcon {
   const mark = text(frame, SIZE.body, COLOR.accent);
   mark.SetPoint("CENTER", frame, "CENTER", 0, 0);
   mark.SetText("»");
-  return {
+  const api: KindIcon = {
     frame,
     set(kind) {
       const path = KIND_TEXTURE[kind];
@@ -274,6 +274,8 @@ export function createKindIcon(parent: WowFrame): KindIcon {
       else mark.Hide();
     },
   };
+  api.set("empty");
+  return api;
 }
 
 export interface SectionHeader {
@@ -286,7 +288,7 @@ export function createSectionHeader(parent: WowFrame, width: number): SectionHea
   frame.SetSize(width, HEADER_HEIGHT);
   const caption = text(frame, SIZE.section, COLOR.title, "LEFT", FONT_TITLE);
   caption.SetPoint("LEFT", frame, "LEFT", 0, 0);
-  const total = text(frame, SIZE.label, COLOR.sub);
+  const total = text(frame, SIZE.small, COLOR.sub);
   total.SetPoint("LEFT", caption, "RIGHT", HEADER_GAP, 0);
   const rule = frame.CreateTexture(null, "BORDER");
   fill(rule, COLOR.line);

@@ -1,4 +1,3 @@
-import { playerPosition } from "../arrow/arrowFrame";
 import { t } from "../core/l10n";
 import { guard } from "../core/report";
 import type { CharDb } from "../core/storage";
@@ -8,12 +7,13 @@ import { zoneTotals, type ZoneProgress } from "../targets/completion";
 import { createZoneIndex, zoneEntries, type MapDeps, type ZoneIndex } from "./maps";
 import { confirmSkip } from "./skipDialog";
 import {
-  bar, button, checkbox, COLOR, GLYPH, hline, label, paint, PAD, setLabel, SIZE, text, UI_FEATURE, WINDOW_HEIGHT, WINDOW_WIDTH,
+  bar, button, checkbox, COLOR, createKindIcon, createSectionHeader, GLYPH, hline, paint, PAD, SIZE, text, UI_FEATURE, WINDOW_HEIGHT,
+  WINDOW_WIDTH, type KindIcon, type SectionHeader,
 } from "./theme";
 import { CONTENT_TOP, createTabButton, placeTabs, TAB_HEIGHT, type TabButton, type TabView } from "./window";
 import {
-  completionView, footerTexts, headerZone, logHeader, modeText, MODES, percentText, progressText, remainingLabel, rowLines, zoneLabel,
-  type Mode, type RowLine,
+  completionLines, footerTexts, formatCount, headerZone, logHeader, modeText, MODES, percentText, progressText, zoneLabel,
+  type CompletionLine, type Mode,
 } from "./viewModel";
 import { createZonePicker } from "./zonePicker";
 
@@ -25,14 +25,23 @@ export interface CompletionDeps {
   maps: MapDeps;
 }
 
-const MAX_ROWS = 10;
-const ROW_HEIGHT = 15;
+const LINE_HEIGHT = 18;
 const INNER = WINDOW_WIDTH - 2 * PAD;
 const ZONE_HEADER_WIDTH = INNER - 180;
 const BODY_HEIGHT = WINDOW_HEIGHT - CONTENT_TOP - TAB_HEIGHT;
+const ACTIONS_Y = -58;
+const LIST_TOP = -84;
+const FILTER_Y = -BODY_HEIGHT + 46;
+const SLOTS = Math.floor((LIST_TOP - FILTER_Y - 4) / LINE_HEIGHT);
+const ICON_X = PAD;
+const LEVEL_X = PAD + 22;
+const NAME_X = PAD + 44;
+const TIME_WIDTH = 48;
 const EMPTY: ZoneProgress = { done: 0, total: 0 };
 
-interface Row {
+interface Line {
+  header: SectionHeader;
+  icon: KindIcon;
   level: WowFontString;
   name: WowFontString;
   time: WowFontString;
@@ -43,14 +52,32 @@ function at(fontString: WowFontString, parent: WowFrame, y: number, right = fals
   return fontString;
 }
 
-function paintRow(row: Row, line: RowLine): void {
-  row.level.SetText(line.level);
-  row.name.SetText(line.name);
-  row.time.SetText(line.time);
-  const grey = line.tone === "grey";
-  paint(row.name, grey ? COLOR.grey : line.tone === "more" ? COLOR.sub : COLOR.rowText);
-  paint(row.level, grey ? COLOR.grey : COLOR.sub);
-  paint(row.time, grey ? COLOR.grey : COLOR.sub);
+function showIf(frame: WowFrame | WowFontString, on: boolean): void {
+  if (on) frame.Show();
+  else frame.Hide();
+}
+
+function paintLine(line: Line, data: CompletionLine | null): void {
+  const section = data != null && data.kind === "section";
+  const row = data != null && data.kind === "row";
+  showIf(line.header.frame, section);
+  showIf(line.icon.frame, row);
+  showIf(line.level, row);
+  showIf(line.name, row);
+  showIf(line.time, row);
+  if (data == null) return;
+  if (data.kind === "section") {
+    line.header.set(data.label, formatCount(data.count));
+    return;
+  }
+  line.icon.set(data.icon);
+  line.level.SetText(data.level);
+  line.name.SetText(data.name);
+  line.time.SetText(data.time);
+  const grey = data.tone === "grey";
+  paint(line.name, grey ? COLOR.grey : data.tone === "more" ? COLOR.sub : data.tone === "target" ? COLOR.accent : COLOR.rowText);
+  paint(line.level, grey ? COLOR.grey : COLOR.sub);
+  paint(line.time, grey ? COLOR.grey : COLOR.sub);
 }
 
 export function skipCurrent(engine: Engine, repo: QuestRepository, redraw: () => void): void {
@@ -144,33 +171,39 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
       }),
     );
     placeTabs(content, modeTabs, WINDOW_WIDTH, 0);
-    setLabel(label(parent, PAD, -60), t("nearestTarget"));
     const pinned = button(parent, "MinMaxQuestCompletionUnpin", `${t("pinnedTag")} · ${GLYPH.close}`, () => {
       engine.pin(null);
       draw();
     });
     pinned.setPrimary(true);
-    pinned.frame.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, -56);
+    pinned.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, ACTIONS_Y);
     const skip = button(parent, "MinMaxQuestCompletionSkip", t("skip"), onSkip);
     skip.setPrimary(true);
-    skip.frame.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, -74);
+    skip.frame.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, ACTIONS_Y);
     hline(parent, -52);
-    hline(parent, -108);
-    setLabel(label(parent, PAD, -116), t("nextTarget"));
-    hline(parent, -162);
-    const rows: Row[] = [];
-    for (let i = 0; i < MAX_ROWS + 1; i++) {
-      const y = -186 - i * ROW_HEIGHT;
-      const row = {
-        level: at(text(parent, SIZE.small, COLOR.sub), parent, y),
+    hline(parent, ACTIONS_Y - 20);
+    const empty = at(text(parent, SIZE.body, COLOR.sub), parent, LIST_TOP);
+    const lines: Line[] = [];
+    for (let i = 0; i < SLOTS; i++) {
+      const y = LIST_TOP - i * LINE_HEIGHT;
+      const header = createSectionHeader(parent, INNER);
+      header.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, y);
+      const icon = createKindIcon(parent);
+      icon.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", ICON_X, y - 1);
+      const line: Line = {
+        header,
+        icon,
+        level: text(parent, SIZE.small, COLOR.sub),
         name: text(parent, SIZE.body, COLOR.rowText),
-        time: at(text(parent, SIZE.small, COLOR.sub, "RIGHT"), parent, y, true),
+        time: at(text(parent, SIZE.small, COLOR.sub, "RIGHT"), parent, y - 2, true),
       };
-      row.name.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD + 24, y);
-      row.name.SetWidth(INNER - 24 - 48);
-      rows.push(row);
+      line.level.SetPoint("TOPLEFT", parent, "TOPLEFT", LEVEL_X, y - 2);
+      line.name.SetPoint("TOPLEFT", parent, "TOPLEFT", NAME_X, y - 2);
+      line.name.SetWidth(INNER - (NAME_X - PAD) - TIME_WIDTH);
+      paintLine(line, null);
+      lines.push(line);
     }
-    const filterY = -BODY_HEIGHT + 46;
+    const filterY = FILTER_Y;
     hline(parent, filterY + 6);
     const show = at(text(parent, SIZE.small, COLOR.sub), parent, filterY);
     show.SetText(t("showFilters"));
@@ -191,19 +224,14 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
       modeTabs,
       zoneButton,
       pinned,
-      nearestName: at(text(parent, SIZE.body, COLOR.text), parent, -76),
-      nearestLine: at(text(parent, SIZE.small, COLOR.sub), parent, -92),
       skip,
-      nextName: at(text(parent, SIZE.body, COLOR.nextText), parent, -130),
-      nextLine: at(text(parent, SIZE.small, COLOR.sub), parent, -146),
-      remaining: label(parent, PAD, -170),
-      rows,
+      empty,
+      lines,
       grey,
       elite,
       continent: at(text(parent, SIZE.small, COLOR.sub), parent, filterY - 22),
       total: at(text(parent, SIZE.small, COLOR.accent, "RIGHT"), parent, filterY - 22, true),
     };
-    w.nearestName.SetWidth(INNER - 60);
     return w;
   };
 
@@ -238,15 +266,10 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
     if (db.pinnedQuestId != null) w.pinned.frame.Show();
     else w.pinned.frame.Hide();
 
-    const view = completionView(engine.targets(), engine.current(), (id) => repo.get(id), playerPosition(), MAX_ROWS);
-    w.nearestName.SetText(view.nearest == null ? t("noTarget") : view.nearest.name);
-    w.nearestLine.SetText(view.nearest == null ? "" : view.nearest.line);
-    if (view.nearest == null) w.skip.frame.Hide();
-    else w.skip.frame.Show();
-    w.nextName.SetText(view.next == null ? "" : view.next.name);
-    w.nextLine.SetText(view.next == null ? "" : view.next.line);
-    setLabel(w.remaining, remainingLabel(options.mode, view.remaining));
-    rowLines(view, w.rows.length).forEach((line, i) => paintRow(w.rows[i], line));
+    const lines = completionLines(engine.targets(), engine.current(), (id) => repo.get(id), SLOTS);
+    showIf(w.skip.frame, engine.current() != null);
+    w.empty.SetText(lines.length === 0 ? t("noTarget") : "");
+    w.lines.forEach((line, i) => paintLine(line, lines[i] ?? null));
     w.grey.set(options.showTrivial);
     w.elite.set(options.showElite);
     const footer = footerTexts(totals, zoneId, index);

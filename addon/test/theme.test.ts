@@ -80,6 +80,12 @@ for (const [kind, path] of ICONS) {
   });
 }
 
+it("starts empty so » is hidden before the first set", () => {
+  createKindIcon(new Proxy({}, {}) as WowFrame);
+  expect(log).toContain("texture|Hide|");
+  expect(log.lastIndexOf("font|Hide|")).toBeGreaterThan(log.indexOf("font|SetText|»"));
+});
+
 it("shows » with no texture for progress", () => {
   const icon = createKindIcon(new Proxy({}, {}) as WowFrame);
   expect(log).toContain("font|SetText|»");
@@ -110,6 +116,8 @@ it("draws a section header with its count and a line to the edge", () => {
   const fonts = created.filter((f) => f.name === "font");
   expect(fonts.length).toBe(2);
   expect(log).toContain(`font|SetFont|${FONT_TITLE}|13|`);
+  expect(log).toContain("font|SetFont|Fonts\\ARIALN.TTF|11|");
+  expect(log).not.toContain("font|SetFont|Fonts\\ARIALN.TTF|10|");
   expect(log.some((c) => c.startsWith("texture|SetPoint|LEFT|obj|RIGHT"))).toBe(true);
   expect(log.some((c) => c.startsWith("texture|SetPoint|RIGHT|obj|RIGHT|0"))).toBe(true);
 });

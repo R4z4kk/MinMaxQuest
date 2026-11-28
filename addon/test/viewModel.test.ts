@@ -4,10 +4,10 @@ import { setLocale } from "../src/core/l10n";
 import type { QuestInfo } from "../src/data/questRepository";
 import type { Target } from "../src/targets/completion";
 import type { ZoneIndex } from "../src/ui/maps";
-import { colorCode, COLOR } from "../src/ui/theme";
+import { colorCode, COLOR, GLYPH } from "../src/ui/theme";
 import {
   bannerText,
-  completionView,
+  completionLines,
   footerTexts,
   formatCount,
   headerZone,
@@ -16,8 +16,6 @@ import {
   logHeader,
   percentText,
   progressText,
-  remainingLabel,
-  rowLines,
   sumProgress,
   zoneLabel,
 } from "../src/ui/viewModel";
@@ -33,7 +31,7 @@ function target(questId: number, over: Partial<Target> = {}): Target {
 
 const names: Record<number, string> = { 1: "Wolves", 2: "Kodos", 3: "Grey one", 4: "Big one" };
 const getQuest = (id: number): QuestInfo | null =>
-  names[id] == null ? null : ({ id, name: names[id] } as QuestInfo);
+  names[id] == null ? null : ({ id, name: names[id], objectives: [] } as unknown as QuestInfo);
 
 afterEach(() => setLocale("enUS"));
 
@@ -102,58 +100,81 @@ describe("bannerText", () => {
   });
 });
 
-describe("completionView", () => {
-  const list = [
-    target(1, { seconds: 20 }),
-    target(2, { kind: "objective", objectiveIndex: 1, seconds: 90 }),
-    target(2, { kind: "objective", objectiveIndex: 2, seconds: 120 }),
-    target(3, { seconds: 200, trivial: true, questLevel: 4 }),
-    target(4, { seconds: 300, elite: true, questLevel: 12 }),
-    target(9, { seconds: 400 }),
-  ];
+describe("completionLines", () => {
+  const quest = (id: number, kind: "npc" | "item" | "object"): QuestInfo =>
+    ({ id, name: names[id], objectives: [{ kind, id: 1, required: 1, index: 1 }] }) as unknown as QuestInfo;
+  const get = (id: number): QuestInfo | null => (id === 2 ? quest(2, "npc") : id === 4 ? quest(4, "item") : getQuest(id));
 
-  it("shows travel time without the hearthstone ranking penalty", () => {
+  it("orders sections turn-in, objectives, pick-up and omits empty ones", () => {
     setLocale("enUS");
-    const hearth = [target(1, { seconds: 400, penaltySec: 300 }), target(2, { seconds: 400, penaltySec: 300 })];
-    const view = completionView(hearth, hearth[0], getQuest, at(0), 10);
-    expect(view.next?.line).toContain(formatDuration(100));
-    expect(view.rows).toEqual([]);
-    const rows = completionView([target(3), ...hearth], target(3), getQuest, at(0), 10);
-    expect(rows.rows[0].time).toBe(formatDuration(100));
-  });
-
-  it("shows the current target, the next one and the remaining quests once each", () => {
-    setLocale("enUS");
-    const view = completionView(list, list[0], getQuest, at(0), 10);
-    expect(view.nearest).toEqual({ questId: 1, name: "Wolves", line: "pick up · <1 min · 100 m" });
-    expect(view.next).toEqual({ questId: 2, name: "Kodos", line: "objective 1 · ~2 min · 200 m" });
-    expect(view.rows).toEqual([
-      { level: "10", name: "Kodos", time: "~2 min", grey: false, elite: false },
-      { level: "4", name: "Grey one", time: "~3 min", grey: true, elite: false },
-      { level: "12", name: "Big one", time: "~5 min", grey: false, elite: true },
-      { level: "10", name: "#9", time: "~7 min", grey: false, elite: false },
+    const list = [
+      target(1),
+      target(2, { kind: "objective", objectiveIndex: 1 }),
+      target(4, { kind: "turnin" }),
+    ];
+    const lines = completionLines(list, null, getQuest, 20);
+    expect(lines.filter((l) => l.kind === "section")).toEqual([
+      { kind: "section", label: "To turn in", count: 1 },
+      { kind: "section", label: "Objectives", count: 1 },
+      { kind: "section", label: "To pick up", count: 1 },
     ]);
-    expect([view.remaining, view.more]).toEqual([4, 0]);
+    expect(completionLines([target(1)], null, getQuest, 20).map((l) => l.kind)).toEqual(["section", "row"]);
+    setLocale("frFR");
+    expect(completionLines([target(1)], null, getQuest, 20)[0]).toEqual({ kind: "section", label: "À prendre", count: 1 });
   });
 
-  it("puts a pinned current first and keeps the nearest as next", () => {
-    const view = completionView(list, list[4], getQuest, at(0), 10);
-    expect(view.nearest?.questId).toBe(4);
-    expect(view.next?.questId).toBe(1);
-    expect(view.rows.map((r) => r.name)).toEqual(["Kodos", "Grey one", "#9"]);
+  it("counts every target of a section even when truncated", () => {
+    const list = [target(1), target(2), target(3), target(4)];
+    const lines = completionLines(list, null, getQuest, 3);
+    expect(lines[0]).toEqual({ kind: "section", label: "To pick up", count: 4 });
   });
 
-  it("caps the rows and counts the rest", () => {
-    const view = completionView(list, list[0], getQuest, at(0), 2);
-    expect(view.rows.length).toBe(2);
-    expect([view.remaining, view.more]).toEqual([4, 2]);
+  it("marks only the arrow target row, even when it is not first", () => {
+    setLocale("enUS");
+    const list = [target(1), target(2, { seconds: 60 }), target(3, { trivial: true })];
+    const rows = completionLines(list, list[1], getQuest, 20).filter((l) => l.kind === "row");
+    expect(rows.map((r) => r.tone)).toEqual(["normal", "target", "grey"]);
+    expect(rows.map((r) => r.name)).toEqual(["Wolves", `${GLYPH.current}Kodos`, "Grey one"]);
   });
 
-  it("shows a dash distance without a position and nothing for an empty list", () => {
-    expect(completionView(list, list[0], getQuest, null, 10).nearest?.line).toBe("pick up · <1 min · —");
-    expect(completionView([], null, getQuest, at(0), 10)).toEqual({
-      nearest: null, next: null, rows: [], remaining: 0, more: 0,
-    });
+  it("uses kill for npc objectives and collect for item or object ones", () => {
+    const list = [
+      target(2, { kind: "objective", objectiveIndex: 1 }),
+      target(4, { kind: "objective", objectiveIndex: 1 }),
+      target(9, { kind: "objective", objectiveIndex: 1 }),
+      target(1),
+      target(3, { kind: "turnin" }),
+    ];
+    const rows = completionLines(list, null, get, 20).filter((l) => l.kind === "row");
+    expect(rows.map((r) => r.icon)).toEqual(["turnin", "kill", "collect", "collect", "accept"]);
+  });
+
+  it("keeps one row per quest, the time without penalty, the level and the elite tag", () => {
+    setLocale("enUS");
+    const list = [
+      target(1, { seconds: 400, penaltySec: 300, questLevel: 12, elite: true }),
+      target(1, { seconds: 500 }),
+    ];
+    expect(completionLines(list, null, getQuest, 20)).toEqual([
+      { kind: "section", label: "To pick up", count: 1 },
+      { kind: "row", icon: "accept", level: "12", name: `Wolves  ${colorCode(COLOR.sub)}Elite|r`, time: formatDuration(100), tone: "normal" },
+    ]);
+  });
+
+  it("ends with a more row when rows are cut", () => {
+    setLocale("enUS");
+    const list = [target(1), target(2), target(3), target(4)];
+    const lines = completionLines(list, null, getQuest, 4);
+    expect(lines.length).toBe(4);
+    expect(lines[3]).toEqual({ kind: "row", icon: "empty", level: "", name: "+2 more...", time: "", tone: "more" });
+    const dropped = completionLines([target(1, { kind: "turnin" }), target(2)], null, getQuest, 3);
+    expect(dropped.map((l) => l.kind)).toEqual(["section", "row", "row"]);
+    expect(dropped[2]).toMatchObject({ tone: "more", name: "+1 more..." });
+  });
+
+  it("returns no lines for no targets and never lists route steps", () => {
+    expect(completionLines([], null, getQuest, 10)).toEqual([]);
+    expect(completionLines([target(1, { kind: "route", questId: null })], null, getQuest, 10)).toEqual([]);
   });
 });
 
@@ -190,13 +211,10 @@ describe("completion header and footer", () => {
     expect(footerTexts(totals, 12, null)).toEqual({ continent: "", total: "Total · 1,205 / 1,307" });
   });
 
-  it("labels the remaining list and the mode toggle per mode", () => {
+  it("labels the mode toggle and the log header", () => {
     setLocale("enUS");
-    expect(remainingLabel("proximity", 3)).toBe("Remaining nearby · 3");
-    expect(remainingLabel("zone", 3)).toBe("Remaining in zone · 3");
     expect(modeText("proximity")).toBe("Proximity");
     expect(modeText("zone")).toBe("Zone");
-    expect(remainingLabel("log", 3)).toBe("Remaining in log · 3");
     expect(modeText("log")).toBe("Log");
     expect(logHeader(0)).toBe("0 quests in log");
     expect(logHeader(1)).toBe("1 quest in log");
@@ -206,31 +224,9 @@ describe("completion header and footer", () => {
     expect(logHeader(1)).toBe("1 quête dans le journal");
     expect(logHeader(4)).toBe("4 quêtes dans le journal");
     expect(modeText("log")).toBe("Journal");
-    expect(remainingLabel("zone", 2)).toBe("Restant dans la zone · 2");
   });
 });
 
-describe("rowLines", () => {
-  it("adds the elite tag, the grey tone, the more row and blank slots", () => {
-    setLocale("enUS");
-    const view = {
-      nearest: null,
-      next: null,
-      rows: [
-        { level: "10", name: "Big", time: "~1 min", grey: false, elite: true },
-        { level: "4", name: "Old", time: "~2 min", grey: true, elite: false },
-      ],
-      remaining: 5,
-      more: 3,
-    };
-    expect(rowLines(view, 4)).toEqual([
-      { level: "10", name: `Big  ${colorCode(COLOR.sub)}Elite|r`, time: "~1 min", tone: "normal" },
-      { level: "4", name: "Old", time: "~2 min", tone: "grey" },
-      { level: "", name: "+3 more...", time: "", tone: "more" },
-      { level: "", name: "", time: "", tone: "normal" },
-    ]);
-  });
-});
 
 describe("colorCode", () => {
   it("encodes a theme colour as a WoW colour escape", () => {
