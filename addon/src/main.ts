@@ -20,7 +20,7 @@ import { createRouteFollower, type RouteFollower } from "./route/follower";
 import { installAutoFly } from "./taxi/autoFly";
 import { createUi } from "./ui/ui";
 
-_G.MinMaxQuest = { version: "0.2.0-beta.1" };
+_G.MinMaxQuest = { version: "0.2.0-beta.2" };
 
 const TICK_SEC = 0.5;
 const FORCING_EVENTS = [

@@ -3,7 +3,7 @@
 Prérequis : `npm test` (construit `build/MinMaxQuest.lua`), puis lancer WoW Forever avec **QuestieDB** activé. `/console scriptErrors 1` pour voir les erreurs Lua.
 
 ## Chargement
-- [ ] Aucune erreur au login ; `/dump MinMaxQuest.version` → `"0.2.0-beta.1"`.
+- [ ] Aucune erreur au login ; `/dump MinMaxQuest.version` → `"0.2.0-beta.2"`.
 - [ ] `/mmq q 33` affiche nom, niveau, nombre d'objectifs (et la dernière erreur QuestieDB s'il y en a).
 - [ ] QuestieDB désactivé : WoW refuse de charger MinMaxQuest (dépendance) — normal.
 

@@ -6,7 +6,7 @@
 
 ## Latest update
 
-**0.2.0-beta.1**: first beta.
+**0.2.0-beta.2**: first working beta. 0.2.0-beta.1 did not load in game: one function went past a WoW Lua limit. It is fixed, and the tests now check that limit. Everything below was introduced in 0.2.0-beta.1.
 - **Quest tab follows a full level 1-60 route.** Precomputed for each faction, with return trips for the dungeons you tick, and Re-sync when you leave it.
 - **New BetterBags-style window.** Sections with counts, a type icon on every row, and one fixed size for every tab.
 - **Access tab lists every unlockable.** Dungeons, raids, keys and more, built from Attune and QuestieDB, with step progress and "Track in route".
