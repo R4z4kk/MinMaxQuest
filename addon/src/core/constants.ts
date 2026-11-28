@@ -29,6 +29,7 @@ export const CONSTANTS = {
     "RXP direct flight times vs Forever TaxiPathNode lengths, research_notes/Optimisation des routes de leveling/missing_data_sources.md",
   ),
   detourFactor: dated(1.25, "Questwarden docs/ROUTE_OPTIMIZATION.md (unvalidated)"),
+  landmarkDetourFactor: dated(2, "75th percentile of baked / straight yards over 100-2500 yd pairs of Shortest Path Forever Walks.lua (commit 3f7008e), measured 2026-11-28"),
   hearthCooldownSec: dated(3600, `wago.tools SpellCooldowns ${SPELL_BUILD} spell 8690`),
   hearthCastSec: dated(10, `wago.tools SpellCastTimes ${SPELL_BUILD}`),
   hearthPenaltySec: dated(300, "MinMaxQuest design choice: keep the Hearthstone for real zone changes (loading screen, 60 min cooldown)"),

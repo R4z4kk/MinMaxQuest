@@ -264,7 +264,7 @@ describe("baked walks", () => {
 
   it("raises a direct walk to the baked walk between the nearest places", () => {
     const { time } = evaluate(twoTaxis([0, 1, 3000, 3000]), known, pos(0, 50), pos(1000, 50));
-    expect(time).toBeCloseTo((3000 - 50 - 50) / SPEED);
+    expect(time).toBeCloseTo((3000 - (50 + 50) * CONSTANTS.landmarkDetourFactor.value) / SPEED);
   });
 
   it("never lowers a walk from or to a free point below the straight estimate", () => {

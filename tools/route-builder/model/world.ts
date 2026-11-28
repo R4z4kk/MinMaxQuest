@@ -1,4 +1,5 @@
 import { ACCESS_CHAINS, resolveSteps } from "../../access-import/legacyChains";
+import { CONSTANTS } from "../../../addon/src/core/constants";
 import { distance, type WorldPos } from "../../../addon/src/core/geometry";
 import {
   createQuestRepository,
@@ -10,6 +11,7 @@ import {
 } from "../../../addon/src/data/questRepository";
 import type { TravelData } from "../../../addon/src/data/generated/travel";
 import { isFriendlyTo } from "../../../addon/src/game/positions";
+import { buildGraph, solveFrom, travelTime, type TravelContext } from "../../../addon/src/travel/graph";
 import { isAvailable, maskAllows } from "../../../addon/src/quests/availability";
 import { CLUSTER_RADIUS_YARDS, clusterSpawns, killLoop } from "../../../addon/src/targets/spawns";
 import type { CmangosCounts } from "../ingest/cmangos";
@@ -488,8 +490,31 @@ export function buildWorld(
     startZones.push({ key: area.key, faction, raceMask: zoneMask, areaId: area.areaId, start: best.accept });
   }
 
+  // Walks stop at islands and cliffs (Teldrassil for the Horde): a quest no start reaches would stall the route.
+  const capitalNode = nodes.find((n) => n.id === capitalTaxiNode);
+  if (capitalNode == null) throw new Error(`world: capital taxi node ${capitalTaxiNode} missing from TRAVEL`);
+  const reachCtx: TravelContext = {
+    speed: CONSTANTS.runSpeed.value,
+    knownTaxiNodes: new Set(nodes.map((n) => n.id)),
+    faction,
+    hearth: { ready: false, pos: null },
+    hearthPenaltySec: 0,
+  };
+  const reachGraph = buildGraph(travel, reachCtx);
+  const reachPlans = [capitalNode.pos, ...startZones.map((z) => z.start.pos)].map((origin) => solveFrom(reachGraph, origin, reachCtx));
+  const reachable = (p: Place): boolean => reachPlans.some((plan) => Number.isFinite(travelTime(plan, reachGraph, p.pos, reachCtx)));
+  for (const [id, q] of quests) {
+    const entrance = dungeons.find((d) => d.areaId === q.dungeonAreaId)?.entrance;
+    const places = [q.accept, q.turnin, ...q.tasks.map((t) => t.cluster.center), ...(entrance == null ? [] : [entrance])];
+    if (places.every(reachable)) continue;
+    quests.delete(id);
+    excluded.set("unreachable", (excluded.get("unreachable") ?? 0) + 1);
+  }
+  for (const d of dungeons) d.questIds = d.questIds.filter((id) => quests.has(id));
+  const reachableDungeons = dungeons.filter((d) => d.questIds.length > 0);
+
   const repoError = repo.lastError();
   if (repoError != null) throw new Error(`world: QuestieDB read failed (${repoError})`);
   const areaUiMap = new Map(Object.entries(s.areaIdToUiMapId).map(([areaId, uiMapId]) => [Number(areaId), uiMapId]));
-  return { faction, raceMask, raceMasks, quests, inns, dungeons, startZones, taxiZone, taxiPlaces, unlearnableTaxiNodes, areaUiMap, capitalTaxiNode, conversionOffsetYards, excluded, countStats };
+  return { faction, raceMask, raceMasks, quests, inns, dungeons: reachableDungeons, startZones, taxiZone, taxiPlaces, unlearnableTaxiNodes, areaUiMap, capitalTaxiNode, conversionOffsetYards, excluded, countStats };
 }
