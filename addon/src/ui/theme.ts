@@ -19,6 +19,8 @@ export const COLOR = {
   text: hex(0xdddddd),
   sub: hex(0x9d95c4),
   accent: hex(0xc9a75a),
+  // Blizzard quest text / icon yellow, for map pins and farm areas.
+  quest: hex(0xffd100),
   grey: hex(0x6f6f6f),
   nextText: hex(0xcfcfcf),
   stepText: hex(0xbdbdbd),

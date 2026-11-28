@@ -15,6 +15,7 @@ import { createPlaceFor, createPositions, mapToWorld, uiMapToWorld } from "./gam
 import { clientSpellKnown, createPlanFor, createPlayerSkills, type PlayerSkills } from "./game/professions";
 import { createNeighbourFinder, type HbdMapData } from "./game/neighbours";
 import { createRouting } from "./game/routing";
+import { objectiveLabel } from "./map/farmArea";
 import { installMapPins } from "./map/pins";
 import { installPinButtons } from "./questlog/pinButtons";
 import { createRouteFollower, type RouteFollower } from "./route/follower";
@@ -201,6 +202,8 @@ function tick(current: Game): void {
   forcePending = false;
   current.engine.refreshTargets(force);
   syncArrow();
+  // Objective counts on the farm area label change without a new target.
+  if (force) current.refreshPins();
   if (itemInfoPending) {
     itemInfoPending = false;
     ui.refreshAccess();
@@ -267,6 +270,7 @@ function start(): Game | null {
     installMapPins({
       db: charDb,
       label: (target) => describeTarget(target, targetQuest(target, (id) => repo.get(id))),
+      areaLabel: (target) => objectiveLabel(target, targetQuest(target, (id) => repo.get(id)), repo, engine.snapshot()?.log ?? null),
       getPins: () => {
         const target = engine.current();
         const waypoint = target?.kind === "objective" ? engine.waypoint() : null;

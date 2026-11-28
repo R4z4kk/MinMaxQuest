@@ -72,6 +72,17 @@ Prérequis : `npm test` (construit `build/MinMaxQuest.lua`), puis lancer WoW For
 ## Carte
 - [ ] Carte du monde : 2 marqueurs seulement (étape actuelle et suivante) ; minicarte : l'étape actuelle ; info-bulle « +N autres zones ».
 - [ ] Repère Blizzard posé pour l'étape actuelle (option cochée) ; un repère posé à la main par toi n'est jamais effacé.
+- [ ] Épingles : goutte dorée (jaune des quêtes, pas le doré de la fenêtre), contour sombre et ombre portée ; aucun carré vert (texture manquante).
+- [ ] Numéros : « 1 » sur l'étape actuelle, « 2 » sur la suivante, lisibles dans le disque sombre ; la pointe de la goutte tombe pile sur le lieu visé.
+- [ ] L'épingle 1 est plus grande que la 2 et son halo pulse en boucle ; pas de halo sur la 2 ; le halo s'arrête quand l'épingle disparaît.
+- [ ] Badge « ! » (quête à prendre) ou « ? » (quête à rendre) en haut à droite de l'épingle, numéro conservé ; aucun badge sur un objectif.
+- [ ] Minicarte : épingle numérotée de l'étape actuelle avec halo, info-bulle au survol (zone haute de la goutte seulement).
+- [ ] Zone de farm (objectif tuer/collecter avec 3 points ou plus) : contour en tirets dorés qui épouse les points, pas un cercle ; rien pour 1 ou 2 points.
+- [ ] Zone de farm : un halo doux sur chaque point d'apparition, sur la carte du monde et sur la minicarte (pas de contour sur la minicarte).
+- [ ] Zone de farm : étiquette « Nom x/y » au-dessus de la zone ; le compteur suit les kills.
+- [ ] Zone de farm : redessinée en changeant de carte (zone → continent → zone) et à l'ouverture de la carte ; rien sur une carte qui ne contient pas les points ; tirets et étiquette sous les épingles, pas au-dessus des menus.
+- [ ] Bouton œil : épingles, halos, zone de farm et halos de minicarte disparaissent et reviennent avec `/mmq`.
+- [ ] Ouvrir la carte en combat avec une zone de farm affichée : aucune erreur ni taint.
 
 ## Routes (onglet Quête)
 - [ ] Niveau 1 humain : suivre le segment d'Elwynn ; la flèche suit l'étape affichée et passe à la suivante.

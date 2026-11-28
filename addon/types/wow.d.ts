@@ -109,7 +109,23 @@ interface HbdPins {
   RemoveWorldMapIcon(ref: string, icon: WowFrame): void;
   RemoveMinimapIcon(ref: string, icon: WowFrame): void;
 }
+interface HbdCore {
+  GetZoneCoordinatesFromWorldInstance(
+    x: number,
+    y: number,
+    instanceId: number,
+    uiMapId: number,
+    allowOutOfBounds: boolean,
+  ): LuaMultiReturn<[number | null, number | null]>;
+}
 declare const LibStub: ((this: void, name: string, silent: boolean) => unknown) | null;
+
+interface WowWorldMap extends WowFrame {
+  GetCanvas(): WowFrame;
+  GetMapID(): number | null;
+  GetPinFrameLevelsManager(): { GetValidFrameLevel(levelType: string): number };
+}
+declare const WorldMapFrame: WowWorldMap | null;
 
 declare namespace C_QuestLog {
   function GetNumQuestLogEntries(): LuaMultiReturn<[number, number]>;
@@ -129,6 +145,7 @@ interface WowRegion {
   SetSize(width: number, height: number): void;
   SetWidth(width: number): void;
   GetWidth(): number;
+  GetHeight(): number;
   SetHeight(height: number): void;
   SetPoint(point: string, relativeTo?: WowRegion, relativePoint?: string, x?: number, y?: number): void;
   SetAllPoints(relativeTo: WowRegion): void;
@@ -137,6 +154,29 @@ interface WowRegion {
   Hide(): void;
   IsShown(): boolean;
   IsVisible(): boolean;
+  CreateAnimationGroup(): WowAnimationGroup;
+}
+
+interface WowAnimation {
+  SetDuration(seconds: number): void;
+}
+
+interface WowAnimationGroup {
+  SetLooping(mode: "NONE" | "REPEAT" | "BOUNCE"): void;
+  CreateAnimation(kind: "Scale"): WowAnimation & { SetScaleFrom(x: number, y: number): void; SetScaleTo(x: number, y: number): void };
+  CreateAnimation(kind: "Alpha"): WowAnimation & { SetFromAlpha(alpha: number): void; SetToAlpha(alpha: number): void };
+  Play(): void;
+  Stop(): void;
+  IsPlaying(): boolean;
+}
+
+interface WowLine {
+  SetThickness(pixels: number): void;
+  SetColorTexture(r: number, g: number, b: number, a: number): void;
+  SetStartPoint(relativePoint: string, relativeTo: WowRegion, x: number, y: number): void;
+  SetEndPoint(relativePoint: string, relativeTo: WowRegion, x: number, y: number): void;
+  Show(): void;
+  Hide(): void;
 }
 
 interface WowTexture extends WowRegion {
@@ -178,6 +218,9 @@ interface WowFrame extends WowRegion {
   RegisterUnitEvent(event: string, unit: string): void;
   CreateTexture(name: string | null, layer: string): WowTexture;
   CreateFontString(name: string | null, layer: string): WowFontString;
+  CreateLine(name: string | null, layer: string): WowLine;
+  SetHitRectInsets(left: number, right: number, top: number, bottom: number): void;
+  HookScript(event: "OnShow", handler: (frame: WowFrame) => void): void;
 }
 
 interface WowSecureButton extends WowFrame {
@@ -190,6 +233,7 @@ interface WowCooldown extends WowRegion {
 }
 
 declare function hooksecurefunc(name: string, hook: (...args: unknown[]) => void): void;
+declare function hooksecurefunc(owner: WowFrame, name: string, hook: (...args: unknown[]) => void): void;
 declare function InCombatLockdown(): boolean;
 declare function FauxScrollFrame_GetOffset(frame: unknown): number;
 declare const GameTooltip: {

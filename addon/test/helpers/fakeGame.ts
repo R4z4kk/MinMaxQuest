@@ -36,13 +36,21 @@ local function fake(name)
       if method == "SetScript" then
         return function(self, event, fn) scripts[name .. "." .. event] = fn end
       end
+      if method == "HookScript" then
+        return function(self, event, fn) scripts[name .. "." .. event] = fn end
+      end
       if method == "CreateTexture" then return function() created = created + 1; local child = fake("texture"); child.__rec.parent = name; return child end end
       if method == "CreateFontString" then return function() created = created + 1; local child = fake("font"); child.__rec.parent = name; return child end end
+      if method == "CreateLine" then return function() created = created + 1; local child = fake("line"); child.__rec.parent = name; return child end end
+      if method == "CreateAnimationGroup" then return function() created = created + 1; local child = fake("animgroup"); child.__rec.parent = name; return child end end
+      if method == "CreateAnimation" then return function() created = created + 1; return fake("animation") end end
+      if method == "IsPlaying" then return function() return rec.playing == true end end
       if method == "IsShown" or method == "IsVisible" then return function() return shown end end
       if VALUES[method] ~= nil then return function() return VALUES[method] end end
       return function(self, ...)
         if method == "Show" then shown = true elseif method == "Hide" then shown = false end
         if method == "Show" or method == "Hide" then rec.shown = shown end
+        if method == "Play" then rec.playing = true elseif method == "Stop" then rec.playing = false end
         if method == "SetText" then rec.text = (...) or ""
         elseif method == "SetColorTexture" then rec.colored = true
         elseif method == "SetWidth" then rec.width = (...)
@@ -128,9 +136,21 @@ InCombatLockdown = function() return inCombat end
 GameTooltip = fake("GameTooltip")
 FauxScrollFrame_GetOffset = function() return 0 end
 CreateVector2D = function(x, y) return { x = x, y = y } end
+-- Same formula as HereBeDragons-2.0: world (x, y) to the zone's 0-1 coordinates.
+local function zoneCoordinates(self, x, y, instance, zone, allowOutOfBounds)
+  needNumber("GetZoneCoordinatesFromWorldInstance", zone)
+  local data = self.mapData[zone]
+  if data == nil or data.instance ~= instance then return nil, nil end
+  local zx, zy = (data[3] - x) / data[1], (data[4] - y) / data[2]
+  if not allowOutOfBounds and (zx < 0 or zx > 1 or zy < 0 or zy > 1) then return nil, nil end
+  return zx, zy
+end
 LibStub = function(name)
   if name == "HereBeDragons-2.0" then
-    return { mapData = { [1429] = { 1000, 1000, 1000, 1000, instance = 0, mapType = 3, parent = 0 } } }
+    return {
+      mapData = { [1429] = { 1000, 1000, 1000, 1000, instance = 0, mapType = 3, parent = 0 } },
+      GetZoneCoordinatesFromWorldInstance = zoneCoordinates,
+    }
   end
   return setmetatable({}, { __index = function() return function() return true end end })
 end
@@ -138,6 +158,14 @@ C_Map = {
   GetBestMapForUnit = function() return 1429 end,
   GetWorldPosFromMapPos = function(map, v) needNumber("GetWorldPosFromMapPos", map) return 0, { x = 1000 + v.x * 100, y = 2000 + v.y * 100 } end,
 }
+worldMapId = 1429
+mapCanvas = fake("WorldMapCanvas")
+mapCanvas.GetWidth = function() return 1000 end
+mapCanvas.GetHeight = function() return 1000 end
+WorldMapFrame = fake("WorldMapFrame")
+WorldMapFrame.GetCanvas = function() return mapCanvas end
+WorldMapFrame.GetMapID = function() return worldMapId end
+WorldMapFrame.GetPinFrameLevelsManager = function() return { GetValidFrameLevel = function() return 50 end } end
 C_Timer = { NewTicker = function(seconds, fn) ticker = fn end }
 quests = {
   [100] = { name = "Test Quest", questLevel = 10, requiredLevel = 1, zoneOrSort = 12, startedBy = { { 500 } } },

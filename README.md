@@ -119,8 +119,11 @@
   - If the destination isn't reachable from there, you get a message and nothing happens.
 
 ### Map
-- World map pins for the current and next step only.
+- World map pins for the current and next step only: gold teardrop pins in the game's quest yellow, numbered 1 (current) and 2 (next), with a dark outline and a drop shadow.
+- The current step's pin is bigger and has a pulsing halo.
+- A small "!" (quest to pick up) or "?" (quest to turn in) badge at the pin's top-right; the number stays.
 - A minimap pin for the current step, with a tooltip.
+- **Farm area** for a kill or collect objective with 3 or more spawn points: on the world map, a dashed gold outline hugging the spawn points, a soft glow on each spawn point and a "Name x/y" label with the objective progress; on the minimap, the soft glows only. Not a circle.
 - Optional native Blizzard waypoint. A waypoint you placed yourself is never cleared or replaced.
 
 ### Data and safety
