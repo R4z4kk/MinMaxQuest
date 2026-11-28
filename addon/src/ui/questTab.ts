@@ -228,141 +228,149 @@ export function createQuestTab(deps: QuestDeps): TabView {
     return { frame, header };
   };
 
-  const view: TabView = {
-    render(parent) {
-      root = parent;
-      message = text(parent, SIZE.body, COLOR.sub);
-      message.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -30);
-      message.SetWidth(INNER);
-      message.SetWordWrap(true);
-      openCompletion = button(parent, "MinMaxQuestOpenCompletion", t("openCompletion"), () => deps.openCompletion());
-      openCompletion.setPrimary(true);
-      openCompletion.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -66);
+  // Split from render: Lua 5.1 refuses a function with more than 60 upvalues.
+  const renderRoute = (parent: WowFrame): void => {
+    message = text(parent, SIZE.body, COLOR.sub);
+    message.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -30);
+    message.SetWidth(INNER);
+    message.SetWordWrap(true);
+    openCompletion = button(parent, "MinMaxQuestOpenCompletion", t("openCompletion"), () => deps.openCompletion());
+    openCompletion.setPrimary(true);
+    openCompletion.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, -66);
 
-      banner = text(parent, SIZE.small, COLOR.accent);
-      banner.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, BANNER_Y - 3);
-      banner.SetWidth(INNER - 60);
-      resync = button(parent, "MinMaxQuestResync", t("resync"), () => {
-        follower.resync();
+    banner = text(parent, SIZE.small, COLOR.accent);
+    banner.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, BANNER_Y - 3);
+    banner.SetWidth(INNER - 60);
+    resync = button(parent, "MinMaxQuestResync", t("resync"), () => {
+      follower.resync();
+      deps.refreshTargets();
+      draw();
+    });
+    resync.setPrimary(true);
+    resync.frame.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, BANNER_Y);
+
+    const currentHeader = createSectionHeader(parent, INNER);
+    currentHeader.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, CURRENT_Y);
+    currentHeader.set(t("currentStep"), "");
+    currentIcon = createKindIcon(parent);
+    currentIcon.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, CURRENT_ROW_Y);
+    currentText = text(parent, SIZE.body, COLOR.text);
+    currentText.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD + ICON_ROOM, CURRENT_ROW_Y - 2);
+    currentText.SetWidth(INNER - ICON_ROOM - SKIP_ROOM);
+    const skip = button(parent, "MinMaxQuestRouteSkip", t("skip"), () => {
+      const view = viewed;
+      if (view != null) skipStepOrQuest(deps.engine, deps.repo, draw, view.currentQuestId, view.currentIndex);
+    });
+    skip.setPrimary(true);
+    skip.frame.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, CURRENT_ROW_Y);
+    progressText = text(parent, SIZE.small, COLOR.accent);
+    progressText.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD + ICON_ROOM, PROGRESS_Y);
+    progressText.SetWidth(40);
+    progressBar = bar(parent, INNER - ICON_ROOM - 44, PAD + ICON_ROOM + 44, PROGRESS_Y - 4);
+
+    nextHeader = createSectionHeader(parent, INNER);
+    nextHeader.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, NEXT_Y);
+    nextRows = [];
+    for (let i = 0; i < NEXT_SLOTS; i++) {
+      const y = NEXT_ROW_Y - i * NEXT_PITCH;
+      const icon = createKindIcon(parent);
+      icon.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, y);
+      const line = text(parent, SIZE.small, COLOR.nextText);
+      line.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD + ICON_ROOM, y - 2);
+      line.SetWidth(INNER - ICON_ROOM - DISTANCE_ROOM);
+      nextRows.push({ icon, text: line });
+    }
+    nextDistance = text(parent, SIZE.small, COLOR.sub, "RIGHT");
+    nextDistance.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, NEXT_ROW_Y - 2);
+    nextDistance.SetWidth(DISTANCE_ROOM);
+    footer = text(parent, SIZE.small, COLOR.sub);
+    footer.SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", PAD, 9);
+    routeWidgets.push(
+      currentHeader.frame, currentIcon.frame, currentText, skip.frame, progressText, nextHeader.frame, nextDistance, footer,
+      ...nextRows.flatMap((row) => [row.icon.frame, row.text]),
+    );
+  };
+
+  const renderOptions = (parent: WowFrame): void => {
+    const option = (name: string, caption: string, row: number, toggle: () => void): void => {
+      const box = checkbox(parent, name, caption, () => {
+        toggle();
+        draw();
+      });
+      box.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, OPTIONS_BODY_Y - row * LINE);
+      checks.push(box);
+      optionWidgets.push(box.frame);
+    };
+    option("MinMaxQuestRouteElites", t("includeElites"), 0, () => {
+      db.routeElites = !db.routeElites;
+      deps.refreshTargets();
+    });
+    option("MinMaxQuestRouteDungeons", t("includeDungeons"), 1, () => {
+      db.routeDungeons = !db.routeDungeons;
+      deps.refreshTargets();
+    });
+    option("MinMaxQuestAutoFly", t("autoFly"), 2, () => {
+      db.autoFly = !db.autoFly;
+    });
+    option("MinMaxQuestNativeWaypoint", t("nativeWaypoint"), 3, () => {
+      db.nativeWaypoint = !db.nativeWaypoint;
+      deps.refreshPins();
+    });
+    option("MinMaxQuestLockArrow", t("lockArrow"), 4, () => {
+      const arrow = deps.arrow();
+      arrow.setLocked(!arrow.isLocked());
+    });
+    const gapRowY = OPTIONS_BODY_Y - GAP_ROW_OFFSET;
+    const languageRowY = OPTIONS_BODY_Y - LANGUAGE_ROW_OFFSET;
+    const gapLabel = text(parent, SIZE.small, COLOR.sub);
+    gapLabel.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, gapRowY + 14);
+    gapLabel.SetText(t("maxQuestLevel"));
+    optionWidgets.push(gapLabel);
+    let previous: WowFrame | null = null;
+    for (const gap of GAPS) {
+      const gapButton = button(parent, `MinMaxQuestGap${gap}`, gap === 0 ? t("off") : `-${gap}`, () => {
+        db.minLevelGap = gap === 0 ? null : gap;
         deps.refreshTargets();
         draw();
       });
-      resync.setPrimary(true);
-      resync.frame.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, BANNER_Y);
+      if (previous == null) gapButton.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, gapRowY);
+      else gapButton.frame.SetPoint("LEFT", previous, "RIGHT", 4, 0);
+      previous = gapButton.frame;
+      gapButtons.push(gapButton);
+      optionWidgets.push(gapButton.frame);
+    }
 
-      const currentHeader = createSectionHeader(parent, INNER);
-      currentHeader.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, CURRENT_Y);
-      currentHeader.set(t("currentStep"), "");
-      currentIcon = createKindIcon(parent);
-      currentIcon.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, CURRENT_ROW_Y);
-      currentText = text(parent, SIZE.body, COLOR.text);
-      currentText.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD + ICON_ROOM, CURRENT_ROW_Y - 2);
-      currentText.SetWidth(INNER - ICON_ROOM - SKIP_ROOM);
-      const skip = button(parent, "MinMaxQuestRouteSkip", t("skip"), () => {
-        const view = viewed;
-        if (view != null) skipStepOrQuest(deps.engine, deps.repo, draw, view.currentQuestId, view.currentIndex);
+    const languageLabel = text(parent, SIZE.small, COLOR.sub);
+    languageLabel.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, languageRowY + 14);
+    languageLabel.SetText(t("language"));
+    optionWidgets.push(languageLabel);
+    let previousLanguage: WowFrame | null = null;
+    for (const language of LANGUAGES) {
+      const languageButton = button(parent, `MinMaxQuestLanguage${language.value}`, language.caption ?? t("languageAuto"), () => {
+        account.locale = language.value;
+        draw();
       });
-      skip.setPrimary(true);
-      skip.frame.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, CURRENT_ROW_Y);
-      progressText = text(parent, SIZE.small, COLOR.accent);
-      progressText.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD + ICON_ROOM, PROGRESS_Y);
-      progressText.SetWidth(40);
-      progressBar = bar(parent, INNER - ICON_ROOM - 44, PAD + ICON_ROOM + 44, PROGRESS_Y - 4);
+      if (previousLanguage == null) languageButton.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, languageRowY);
+      else languageButton.frame.SetPoint("LEFT", previousLanguage, "RIGHT", 4, 0);
+      previousLanguage = languageButton.frame;
+      languageButtons.push(languageButton);
+      optionWidgets.push(languageButton.frame);
+    }
+    reloadButton = button(parent, "MinMaxQuestReload", t("reload"), () => ReloadUI());
+    reloadButton.setPrimary(true);
+    reloadButton.frame.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, languageRowY);
+  };
 
-      nextHeader = createSectionHeader(parent, INNER);
-      nextHeader.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, NEXT_Y);
-      nextRows = [];
-      for (let i = 0; i < NEXT_SLOTS; i++) {
-        const y = NEXT_ROW_Y - i * NEXT_PITCH;
-        const icon = createKindIcon(parent);
-        icon.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, y);
-        const line = text(parent, SIZE.small, COLOR.nextText);
-        line.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD + ICON_ROOM, y - 2);
-        line.SetWidth(INNER - ICON_ROOM - DISTANCE_ROOM);
-        nextRows.push({ icon, text: line });
-      }
-      nextDistance = text(parent, SIZE.small, COLOR.sub, "RIGHT");
-      nextDistance.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, NEXT_ROW_Y - 2);
-      nextDistance.SetWidth(DISTANCE_ROOM);
-      footer = text(parent, SIZE.small, COLOR.sub);
-      footer.SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", PAD, 9);
-      routeWidgets.push(
-        currentHeader.frame, currentIcon.frame, currentText, skip.frame, progressText, nextHeader.frame, nextDistance, footer,
-        ...nextRows.flatMap((row) => [row.icon.frame, row.text]),
-      );
+  const view: TabView = {
+    render(parent) {
+      root = parent;
+      renderRoute(parent);
 
       optionsHeader = section(parent, "options", "MinMaxQuestSectionOptions", OPTIONS_Y).header;
       const dungeonsSection = section(parent, "dungeons", "MinMaxQuestSectionDungeons", OPTIONS_BODY_Y);
       dungeonsHeader = dungeonsSection.header;
       dungeonsToggle = dungeonsSection.frame;
-
-      const option = (name: string, caption: string, row: number, toggle: () => void): void => {
-        const box = checkbox(parent, name, caption, () => {
-          toggle();
-          draw();
-        });
-        box.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, OPTIONS_BODY_Y - row * LINE);
-        checks.push(box);
-        optionWidgets.push(box.frame);
-      };
-      option("MinMaxQuestRouteElites", t("includeElites"), 0, () => {
-        db.routeElites = !db.routeElites;
-        deps.refreshTargets();
-      });
-      option("MinMaxQuestRouteDungeons", t("includeDungeons"), 1, () => {
-        db.routeDungeons = !db.routeDungeons;
-        deps.refreshTargets();
-      });
-      option("MinMaxQuestAutoFly", t("autoFly"), 2, () => {
-        db.autoFly = !db.autoFly;
-      });
-      option("MinMaxQuestNativeWaypoint", t("nativeWaypoint"), 3, () => {
-        db.nativeWaypoint = !db.nativeWaypoint;
-        deps.refreshPins();
-      });
-      option("MinMaxQuestLockArrow", t("lockArrow"), 4, () => {
-        const arrow = deps.arrow();
-        arrow.setLocked(!arrow.isLocked());
-      });
-      const gapRowY = OPTIONS_BODY_Y - GAP_ROW_OFFSET;
-      const languageRowY = OPTIONS_BODY_Y - LANGUAGE_ROW_OFFSET;
-      const gapLabel = text(parent, SIZE.small, COLOR.sub);
-      gapLabel.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, gapRowY + 14);
-      gapLabel.SetText(t("maxQuestLevel"));
-      optionWidgets.push(gapLabel);
-      let previous: WowFrame | null = null;
-      for (const gap of GAPS) {
-        const gapButton = button(parent, `MinMaxQuestGap${gap}`, gap === 0 ? t("off") : `-${gap}`, () => {
-          db.minLevelGap = gap === 0 ? null : gap;
-          deps.refreshTargets();
-          draw();
-        });
-        if (previous == null) gapButton.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, gapRowY);
-        else gapButton.frame.SetPoint("LEFT", previous, "RIGHT", 4, 0);
-        previous = gapButton.frame;
-        gapButtons.push(gapButton);
-        optionWidgets.push(gapButton.frame);
-      }
-
-      const languageLabel = text(parent, SIZE.small, COLOR.sub);
-      languageLabel.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, languageRowY + 14);
-      languageLabel.SetText(t("language"));
-      optionWidgets.push(languageLabel);
-      let previousLanguage: WowFrame | null = null;
-      for (const language of LANGUAGES) {
-        const languageButton = button(parent, `MinMaxQuestLanguage${language.value}`, language.caption ?? t("languageAuto"), () => {
-          account.locale = language.value;
-          draw();
-        });
-        if (previousLanguage == null) languageButton.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, languageRowY);
-        else languageButton.frame.SetPoint("LEFT", previousLanguage, "RIGHT", 4, 0);
-        previousLanguage = languageButton.frame;
-        languageButtons.push(languageButton);
-        optionWidgets.push(languageButton.frame);
-      }
-      reloadButton = button(parent, "MinMaxQuestReload", t("reload"), () => ReloadUI());
-      reloadButton.setPrimary(true);
-      reloadButton.frame.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, languageRowY);
+      renderOptions(parent);
 
       for (const areaId of follower.returnDungeons()) {
         const box = checkbox(parent, `MinMaxQuestDungeon${areaId}`, deps.areaName(areaId) ?? `#${areaId}`, () => toggleDungeon(areaId));
