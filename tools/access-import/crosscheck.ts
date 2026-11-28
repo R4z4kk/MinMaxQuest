@@ -25,7 +25,7 @@ export interface CrossCheckReport {
   questlessDungeons: { areaId: number; name: string }[];
   addedQuests: { entry: string; quest: number }[];
   skippedClassQuests: { areaId: number; quest: number }[];
-  skippedFlaggedQuests: { areaId: number; quest: number; flag: "repeatable" | "event" }[];
+  skippedFlaggedQuests: { areaId: number; quest: number; flag: "repeatable" }[];
   chains: { id: string; mergedInto: string[] }[];
   excludedQuests: { quest: number; reason: string; removed: number }[];
   excludedSteps: { entry: string; step: number; ref: number; reason: string; rewired: number[] }[];
@@ -42,9 +42,8 @@ export interface CrossCheckInput {
 const SIDES: Side[] = ["A", "H"];
 const QUEST_KINDS = new Set<AccessStepKind>(["pickUp", "turnIn", "quest"]);
 const GROUP_ORDER: AccessGroup[] = ["dungeon", "raid", "key", "misc"];
-// specialFlags bits, QuestieDB v1.1.6 data/Forever/foreverQuestDB.lua questKeys: 1 = Repeatable, 2 = Needs event.
+// specialFlags bits, QuestieDB v1.1.6 data/Forever/foreverQuestDB.lua questKeys: 1 = Repeatable. Bit 2 also marks escorts: not skipped.
 const REPEATABLE_FLAG = 1;
-const EVENT_FLAG = 2;
 
 // QuestieDB leaves a field nil when it does not restrict (requiredRaces, requiredClasses) or is unknown (zoneOrSort).
 function questNumber(s: QuestieSnapshot, id: number, field: string): number {
@@ -206,7 +205,7 @@ export function crossCheck(input: CrossCheckInput): { entries: AccessEntry[]; re
         return false;
       }
       const flags = questNumber(s, quest, "specialFlags");
-      const flag = hasFlag(flags, REPEATABLE_FLAG) ? "repeatable" : hasFlag(flags, EVENT_FLAG) ? "event" : null;
+      const flag = hasFlag(flags, REPEATABLE_FLAG) ? "repeatable" : null;
       const classQuest = questNumber(s, quest, "requiredClasses") !== 0;
       if (!referenced.has(quest) && flag != null) report.skippedFlaggedQuests.push({ areaId: dungeon.areaId, quest, flag });
       else if (!referenced.has(quest) && classQuest) report.skippedClassQuests.push({ areaId: dungeon.areaId, quest });

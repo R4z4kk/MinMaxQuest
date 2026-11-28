@@ -99,7 +99,7 @@ describe("createQuestRepository", () => {
     expect(q).toMatchObject({
       id: 33, name: "Wolves", level: 5, requiredLevel: 3, preSingle: [1], starterNpcs: [100],
       starterObjects: [], finisherNpcs: [101], nextInChain: 34, zoneAreaId: 12, baseXp: 450,
-      isElite: true, hasUnsupportedRequirement: false,
+      isElite: true, hasUnsupportedRequirement: false, repeatable: false, seasonal: false, clothDonation: false,
     });
     expect(q?.objectives).toEqual([
       { kind: "npc", id: 200, required: 8, index: 1 },
@@ -128,6 +128,43 @@ describe("createQuestRepository", () => {
     const result = createQuestRepository(fakeLib({ 1: { name: "A", questLevel: 1, requiredSkill: [164, 50] } }));
     if (!result.ok) throw new Error(result.message);
     expect(result.repo.get(1)?.hasUnsupportedRequirement).toBe(true);
+  });
+
+  it("flags repeatable quests from specialFlags bit 1", () => {
+    const result = createQuestRepository(
+      fakeLib({ 1: { name: "A", questLevel: 1, specialFlags: 1 }, 2: { name: "B", questLevel: 1, specialFlags: 2 }, 3: { name: "C", questLevel: 1 } }),
+    );
+    if (!result.ok) throw new Error(result.message);
+    expect(result.repo.get(1)?.repeatable).toBe(true);
+    expect(result.repo.get(2)?.repeatable).toBe(false);
+    expect(result.repo.get(3)?.repeatable).toBe(false);
+  });
+
+  it("flags event quests from a holiday sort, not from the escort bit 2", () => {
+    const result = createQuestRepository(
+      fakeLib({
+        1: { name: "A", questLevel: 1, specialFlags: 2 },
+        2: { name: "Darkmoon", questLevel: 1, zoneOrSort: -364 },
+        3: { name: "Field", questLevel: 1, zoneOrSort: 12 },
+        4: { name: "Cooking", questLevel: 1, zoneOrSort: -304 },
+      }),
+    );
+    if (!result.ok) throw new Error(result.message);
+    expect([1, 2, 3, 4].map((id) => result.repo.get(id)?.seasonal)).toEqual([false, true, false, false]);
+  });
+
+  it("flags quests that only ask for cloth", () => {
+    const result = createQuestRepository(
+      fakeLib({
+        1: { name: "Runecloth", questLevel: 60, objectives: [null, null, [[14047]]] },
+        2: { name: "Mixed", questLevel: 60, objectives: [null, null, [[14047], [5000]]] },
+        3: { name: "Nothing", questLevel: 60 },
+      }),
+    );
+    if (!result.ok) throw new Error(result.message);
+    expect(result.repo.get(1)?.clothDonation).toBe(true);
+    expect(result.repo.get(2)?.clothDonation).toBe(false);
+    expect(result.repo.get(3)?.clothDonation).toBe(false);
   });
 
   it("treats a zero required spell as no requirement", () => {

@@ -40,7 +40,7 @@ Prérequis : `npm test` (construit `build/MinMaxQuest.lua`), puis lancer WoW For
 - [ ] Cachée en instance, cachée en vol (griffon), réapparaît à l'atterrissage.
 - [ ] `/mmq arrow move` → glisser → `/mmq arrow lock` ; position gardée après `/reload`.
 - [ ] `/framerate` stable fenêtre ouverte.
-- [ ] Contour pointillé de la flèche : invisible par défaut, visible au survol ou pendant le déplacement (déverrouillée seulement), jamais quand elle est verrouillée, jamais resté affiché après avoir caché puis réaffiché la flèche.
+- [ ] Aucun cadre ni poignée autour de la flèche, ni au survol ni pendant le déplacement.
 - [ ] Glisser la flèche au clic gauche quand elle est déverrouillée ; case « Verrouiller la flèche » (ou `/mmq arrow lock`) → clics traversants ; le libellé de la flèche est blanc ; position gardée après `/reload`.
 - [ ] Mort au corps : flèche cachée sans message ; après libération (fantôme) : elle pointe vers le cadavre, quelle que soit la cible ; position inconnue : cachée avec un message unique.
 - [ ] Bouton d'objet de quête : visible à droite de la flèche quand la quête visée a un objet utilisable ; un clic = une utilisation ; icône, compteur, recharge et info-bulle corrects ; fonctionne en modes Quête et Complétion.

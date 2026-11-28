@@ -57,14 +57,6 @@ local function fake(name)
     end,
   })
 end
--- Number of shown outline edges and grip glyphs under the named frame.
-function shownOutline(parent)
-  local n = 0
-  for _, r in ipairs(layout) do
-    if r.parent == parent and (r.colored or r.text == "::") and r.shown then n = n + 1 end
-  end
-  return n
-end
 templates = {}
 CreateFrame = function(kind, name, parent, template)
   created = created + 1

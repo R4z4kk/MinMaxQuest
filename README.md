@@ -37,7 +37,7 @@
 - **Kill and collect objectives:** it walks a loop through the spawn points around the chosen area (up to 25 within 250 yards), nearest first, and moves on to the next waypoint within 25 yards. The loop repeats until the objective is done, in the Quest and Completion tabs. The map and minimap pins follow the current waypoint. It doesn't send you to a single spot.
 - **Many spawn locations:** it targets the closest group and shows "+N other spots" for the rest.
 - **Objectives:** it follows them in quest log order, honouring QuestieDB ordering hints.
-- **Moving it:** drag it with the left mouse button while it is unlocked (the default on a new character). The position is saved. Tick **Lock arrow** in the Options (or `/mmq arrow lock`) to freeze it; a locked arrow lets clicks through. `/mmq arrow move` unlocks it. The dotted frame and the grip only show while the mouse is over an unlocked arrow, or while you drag it. An unlocked arrow with no target stays hidden until you untick **Lock arrow** or use `/mmq arrow move`, which also shows everything again.
+- **Moving it:** drag it with the left mouse button while it is unlocked (the default on a new character). The position is saved. Tick **Lock arrow** in the Options (or `/mmq arrow lock`) to freeze it; a locked arrow lets clicks through. `/mmq arrow move` unlocks it. No frame is ever drawn around it. An unlocked arrow with no target stays hidden until you untick **Lock arrow** or use `/mmq arrow move`, which also shows everything again.
 - **Quest item button:** when the arrow's quest has a usable item in your bags (the item the quest giver hands you, then the items the quest requires), a square button with its icon, count, cooldown and tooltip appears to the right of the arrow. Click it to use the item. Works in the Quest and Completion tabs. It is movable on its own: drag it by its thin gold border while the arrow is unlocked, out of combat; its position is saved per character. **Lock arrow** locks it too. A change asked for in combat (new item, lock) is applied when combat ends.
 - **Corpse run:** while dead at your body the arrow hides, silently. Once you release as a ghost it points to your corpse, overriding every other target. If the corpse position is unknown it hides and says so once.
 - **When it hides:** in instances, during flights, and when there is no target.
@@ -59,6 +59,7 @@
 - The row the arrow points to is highlighted with » and always stays visible, even in a long list. **Skip** and the **Pinned · ×** unpin button sit in a strip under the header.
 - Progress counters for the zone and in total.
 - **Grey** and **Elite** filters. Quests you can't take yet are never shown.
+- Repeatable quests and holiday or event quests (Darkmoon Faire, Winter Veil, Lunar Festival...) are never suggested, in Completion or in the route. At max level, cloth donation quests are hidden too.
 
 ### Access tab
 - Lists every unlockable for your faction (70 entries in total, 39 for each faction) in four collapsible sections (**Dungeons**, **Raids**, **Keys**, **Misc**), each header showing done / total.

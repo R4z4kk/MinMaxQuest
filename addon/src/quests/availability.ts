@@ -21,7 +21,7 @@ export function maskAllows(required: number, player: number): boolean {
 }
 
 export function isAvailable(q: QuestInfo, p: PlayerQuestState): boolean {
-  if (q.hasUnsupportedRequirement) return false;
+  if (q.hasUnsupportedRequirement || q.repeatable || q.seasonal) return false;
   if (p.level < q.requiredLevel) return false;
   if (q.requiredMaxLevel != null && p.level > q.requiredMaxLevel) return false;
   if (!maskAllows(q.races, p.raceMask) || !maskAllows(q.classes, p.classMask)) return false;

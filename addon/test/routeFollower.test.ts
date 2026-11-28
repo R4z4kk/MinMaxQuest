@@ -17,7 +17,7 @@ const quest: QuestInfo = {
   id: 900, name: "Back to the dungeon", level: 12, requiredLevel: 11, requiredMaxLevel: null, races: 0, classes: 0,
   preGroup: [], preSingle: [], exclusiveTo: [], nextInChain: null, children: [],
   starterNpcs: [], starterObjects: [], finisherNpcs: [], finisherObjects: [],
-  objectives: [{ kind: "npc", id: 5, required: 1, index: 1 }], baseXp: null, hasUnsupportedRequirement: false, isElite: false, zoneAreaId: null,
+  objectives: [{ kind: "npc", id: 5, required: 1, index: 1 }], baseXp: null, hasUnsupportedRequirement: false, repeatable: false, seasonal: false, clothDonation: false, isElite: false, zoneAreaId: null,
 };
 
 const locked: QuestInfo = { ...quest, id: 901, name: "Later on", requiredLevel: 15 };

@@ -80,6 +80,8 @@ export type ExclusionReason =
   | "wrongFaction"
   | "noXp"
   | "unsupportedRequirement"
+  | "repeatable"
+  | "seasonal"
   | "noStarter"
   | "noFinisher"
   | "noPosition"
@@ -377,6 +379,8 @@ export function buildWorld(
     if (!maskAllows(q.races, raceMask)) exclude("wrongFaction");
     if (q.baseXp == null || q.baseXp <= 0) exclude("noXp");
     if (q.hasUnsupportedRequirement) exclude("unsupportedRequirement");
+    if (q.repeatable) exclude("repeatable");
+    if (q.seasonal) exclude("seasonal");
     if (q.starterNpcs.length + q.starterObjects.length === 0) exclude("noStarter");
     if (q.finisherNpcs.length + q.finisherObjects.length === 0) exclude("noFinisher");
     const starters = entities(q.starterNpcs.filter(isFriendly), q.starterObjects);

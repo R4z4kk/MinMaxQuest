@@ -23,14 +23,14 @@ describe("crossCheck", () => {
   it("appends a missing dungeon quest to the faction's entry, skipping class quests", async () => {
     const { entries, report } = await run();
     const rfc = entries.find((e) => e.id === "160");
-    expect(rfc?.steps.at(-1)).toEqual({ id: 91, kind: "quest", ref: 5761, follows: [], origin: "questiedb" });
+    expect(rfc?.steps.find((step) => step.ref === 5761)).toEqual({ id: 91, kind: "quest", ref: 5761, follows: [], origin: "questiedb" });
     expect(report.addedQuests).toContainEqual({ entry: "160", quest: 5761 });
     expect(report.skippedClassQuests).toEqual([{ areaId: 2437, quest: 5728 }]);
     expect(report.skippedFlaggedQuests).toEqual([
       { areaId: 2437, quest: 5800, flag: "repeatable" },
-      { areaId: 2437, quest: 5801, flag: "event" },
     ]);
-    expect(rfc?.steps.some((s) => s.ref === 5800 || s.ref === 5801)).toBe(false);
+    expect(rfc?.steps.some((s) => s.ref === 5800)).toBe(false);
+    expect(report.addedQuests).toContainEqual({ entry: "160", quest: 5801 });
     expect(rfc?.steps.some((s) => s.ref === 5723)).toBe(false);
   });
 
