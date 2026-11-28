@@ -17,7 +17,7 @@ import { createRouting } from "./game/routing";
 import { installMapPins } from "./map/pins";
 import { installPinButtons } from "./questlog/pinButtons";
 import { createRouteFollower, type RouteFollower } from "./route/follower";
-import { installAutoFly } from "./taxi/autoFly";
+import { installAutoFly, pickTaxiLeg } from "./taxi/autoFly";
 import { createUi } from "./ui/ui";
 
 _G.MinMaxQuest = { version: "0.2.0-beta.2" };
@@ -285,7 +285,9 @@ function start(): Game | null {
       refresh: () => engine.refreshTargets(true),
       currentLeg: () => {
         const target = engine.current();
-        return target == null ? null : (follower.taxiLeg(target) ?? routing.taxiLeg(target));
+        if (target == null) return null;
+        const goal = follower.flyGoal(target);
+        return pickTaxiLeg(follower.taxiLeg(target), goal == null ? routing.taxiLeg(target) : routing.taxiLegTo(goal));
       },
     }),
   );

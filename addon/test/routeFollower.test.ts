@@ -205,6 +205,13 @@ it("flies from the nearest node of the player's faction", () => {
   expect(target == null ? null : f.taxiLeg(target)).toEqual({ from: 19, to: 5 });
 });
 
+it("gives the position of the first non-travel step after a fly step as its goal", () => {
+  install({ segmentEndLevel: 10 }, [{ ...grind(11, 2000, "fly"), taxiNodeId: 5 }, { ...grind(11, 2100, "fly"), taxiNodeId: 6 }, grind(12, 2500)]);
+  const f = follower(loadCharDb(null));
+  const target = f.targets(snapshot(10))?.[0];
+  expect(target == null ? null : f.flyGoal(target)).toEqual({ continent: 0, x: 2500, y: 0 });
+});
+
 it("lets completion drive the arrow when first loaded in combat", () => {
   install();
   const combat = { on: true };

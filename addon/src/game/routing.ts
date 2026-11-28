@@ -31,6 +31,7 @@ export interface Routing {
   timeTo(snap: PlayerSnapshot): ((p: WorldPos) => number) | null;
   firstHop(target: Target): TravelHop | null;
   taxiLeg(target: Target): TaxiLeg | null;
+  taxiLegTo(pos: WorldPos): TaxiLeg | null;
   quests(): QuestInfo[];
 }
 
@@ -91,6 +92,15 @@ export function createRouting(
     return solved;
   };
 
+  const taxiLegTo = (pos: WorldPos): TaxiLeg | null => {
+    if (solved == null) return null;
+    const { plan, graph: solvedGraph, ctx } = solved;
+    const hop = firstHop(plan, solvedGraph, pos, ctx);
+    if (hop == null || hop.kind !== "taxi" || hop.taxiNodeId == null) return null;
+    const to = taxiDestination(plan, solvedGraph, pos, ctx);
+    return to == null ? null : { from: hop.taxiNodeId, to };
+  };
+
   return {
     quests: () => allQuests(),
     timeTo(snap) {
@@ -127,12 +137,8 @@ export function createRouting(
       return firstHop(solved.plan, solved.graph, target.pos, solved.ctx);
     },
     taxiLeg(target) {
-      if (solved == null) return null;
-      const { plan, graph: solvedGraph, ctx } = solved;
-      const hop = firstHop(plan, solvedGraph, target.pos, ctx);
-      if (hop == null || hop.kind !== "taxi" || hop.taxiNodeId == null) return null;
-      const to = taxiDestination(plan, solvedGraph, target.pos, ctx);
-      return to == null ? null : { from: hop.taxiNodeId, to };
+      return taxiLegTo(target.pos);
     },
+    taxiLegTo: (pos) => taxiLegTo(pos),
   };
 }

@@ -54,6 +54,8 @@ export interface RouteFollower {
   resync(): void;
   hearthBound(): void;
   taxiLeg(target: Target): TaxiLeg | null;
+  // Where a fly step leads: the first later step that is not travel.
+  flyGoal(target: Target): WorldPos | null;
   unavailable(): string | null;
   returnDungeons(): number[];
   routesBuild(): string | null;
@@ -401,6 +403,15 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
     },
     hearthBound() {
       if (cursor != null && steps[cursor.current]?.type === "setHearth") hearthBoundWhileCurrent = true;
+    },
+    flyGoal(target) {
+      const ref = target.route;
+      if (ref == null || steps[ref.index]?.type !== "fly") return null;
+      for (let i = ref.index + 1; i < steps.length; i++) {
+        const s = steps[i];
+        if (TRAVEL_STEPS[s.type] !== true) return toWorld(s.uiMapId, s.x, s.y);
+      }
+      return null;
     },
     taxiLeg(target) {
       const ref = target.route;
