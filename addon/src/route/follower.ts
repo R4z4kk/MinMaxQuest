@@ -11,7 +11,7 @@ import type { CompletionInput, Target, TargetKind } from "../targets/completion"
 import { objectiveClusters, nearestCluster, type SpawnCluster } from "../targets/spawns";
 import type { TaxiLeg } from "../travel/graph";
 import { follow, type FollowView } from "./follow";
-import type { EmittedStep } from "./format";
+import type { EmittedStep, StepType } from "./format";
 import { chainBlock, insertBlocks, type InsertBlock, type PlaceFor } from "./insert";
 import { advance, resyncIndex, type ObjectiveCount, type ProgressContext, type RouteCursor } from "./progress";
 import { composeRoute, decodeReturnBlock, readRoutes, variantKey, type FactionRoutes, type RouteOptions } from "./routeData";
@@ -37,6 +37,8 @@ export interface RouteView extends FollowView {
   currentText: string | null;
   targetText: string | null;
   nextTexts: string[];
+  currentType: StepType | null;
+  nextTypes: StepType[];
   currentQuestId: number | null;
   currentIndex: number | null;
   currentProgress: ObjectiveCount | null;
@@ -358,7 +360,11 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
       if (v == null) return null;
       const text = (i: number | null): string | null => (i == null || steps[i] == null ? null : stepText(steps[i]));
       const nextTexts: string[] = [];
-      for (const i of v.next) nextTexts.push(stepText(steps[i]));
+      const nextTypes: StepType[] = [];
+      for (const i of v.next) {
+        nextTexts.push(stepText(steps[i]));
+        nextTypes.push(steps[i].type);
+      }
       const cur = v.current == null ? null : steps[v.current];
       const progress = cur != null && cur.type === "complete" && cur.questId != null && cur.objectiveIndex != null
         ? (lastSnap?.log.get(cur.questId)?.counts?.[cur.objectiveIndex - 1] ?? null)
@@ -373,6 +379,8 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
         currentText: text(v.current),
         targetText: text(v.target),
         nextTexts,
+        currentType: cur?.type ?? null,
+        nextTypes,
         currentQuestId: cur?.questId ?? null,
         currentIndex: v.current,
         currentProgress: progress,

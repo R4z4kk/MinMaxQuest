@@ -23,7 +23,7 @@ export type L10nKey =
   | "pinned"
   | "unpinned"
   | "buildOverride"
-  | "nextTarget"
+  | "sectionNext"
   | "levelOne"
   | "levelMany"
   | "moreRows"
@@ -148,7 +148,7 @@ const EN: Record<L10nKey, string> = {
   pinned: "pinned",
   unpinned: "unpinned",
   buildOverride: "build override",
-  nextTarget: "Next",
+  sectionNext: "Next",
   levelOne: "level",
   levelMany: "levels",
   moreRows: "+{n} more...",
@@ -274,7 +274,7 @@ const FR: Record<L10nKey, string> = {
   pinned: "épinglée",
   unpinned: "désépinglée",
   buildOverride: "build forcé",
-  nextTarget: "Ensuite",
+  sectionNext: "Ensuite",
   levelOne: "niveau",
   levelMany: "niveaux",
   moreRows: "+ {n} autres...",

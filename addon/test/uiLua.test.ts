@@ -514,11 +514,11 @@ it("opens the zone picker when the Zone sub-tab has no zone to use", async () =>
   }
 });
 
-it("uppercases accented French labels", async () => {
+it("shows the accented French section label", async () => {
   const s = await ui(`GetLocale = function() return "frFR" end`);
   try {
     await s.cmd("");
-    expect(await s.texts()).toContain("ÉTAPE EN COURS");
+    expect(await s.texts()).toContain("Étape en cours");
   } finally {
     s.close();
   }
@@ -566,7 +566,8 @@ it("shows the followed route in the Quest tab", async () => {
   const s = await routeTab();
   try {
     const texts = await s.texts();
-    expect(texts).toContain("CURRENT STEP");
+    expect(texts).toContain("Current step");
+    expect(texts).toContain("Next");
     expect(texts).toContain("Wolves Across the Border · pick up");
     expect(texts.filter((line) => line.includes(" · pick up") || line.includes("Fly to") || line.includes("flight")).length).toBeGreaterThan(1);
     expect(footerOf(texts)).toMatch(/^Lvl 1 · step 1\/\d+ · (~\d+ h|~\d+ min|<1 min) left$/);
@@ -791,6 +792,57 @@ it("fits every option above the footer in the fixed window while Options is open
     s.close();
   }
 });
+
+it("shows the current and next steps as sections with icons", async () => {
+  const s = await routeTab();
+  try {
+    const calls = await s.calls();
+    const texts = await s.texts();
+    expect(texts).toContain("Current step");
+    expect(texts).toContain("Next");
+    expect(calls).toContain("texture|SetTexture|Interface\\GossipFrame\\AvailableQuestIcon");
+    const names = ["MinMaxQuestSectionOptions", "MinMaxQuestSectionDungeons"];
+    for (const name of names) expect(calls.some((c) => c.startsWith(`${name}|SetSize|300|`))).toBe(true);
+    await s.click("MinMaxQuestSectionOptions");
+    await s.click("MinMaxQuestSectionDungeons");
+    expect(await s.visibilityOf("MinMaxQuestRouteElites")).toBe("MinMaxQuestRouteElites|Show");
+    expect(await s.visibilityOf("MinMaxQuestDungeon721")).toBe("MinMaxQuestDungeon721|Show");
+  } finally {
+    s.close();
+  }
+});
+
+for (const locale of ["enUS", "frFR"] as const) {
+  it(`fits the Quest tab in 320 x 480 with Options and Dungeons open, ${locale}`, async () => {
+    const s = await routeTab(`CHAR_WIDTH = 6
+      MinMaxQuestDB = { locale = "${locale}" }`);
+    const FOOTER_TOP = 9 + 11;
+    try {
+      await s.click("MinMaxQuestSectionOptions");
+      await s.click("MinMaxQuestSectionDungeons");
+      const calls = await s.calls();
+      const lastCall = (prefix: string) => calls.filter((c) => c.startsWith(prefix)).pop()?.split("|") ?? [];
+      const inside = (what: string, x: number, y: number, width: number, height: number) => {
+        expect([what, x >= 0 && x + width <= 320]).toEqual([what, true]);
+        expect([what, 50 - y + height <= 480 - FOOTER_TOP]).toEqual([what, true]);
+      };
+      for (const name of ["MinMaxQuestRouteElites", "MinMaxQuestRouteDungeons", "MinMaxQuestAutoFly", "MinMaxQuestNativeWaypoint", "MinMaxQuestLockArrow", "MinMaxQuestDungeon721"]) {
+        const point = lastCall(`${name}|SetPoint|`);
+        const size = lastCall(`${name}|SetSize|`);
+        inside(name, Number(point[5]), Number(point[6]), Number(size[2]), Number(size[3]));
+      }
+      const header = lastCall("MinMaxQuestSectionDungeons|SetPoint|");
+      inside("dungeons header", Number(header[5]), Number(header[6]), 300, 18);
+      const last = lastCall("MinMaxQuestLanguageauto|SetPoint|");
+      inside("language row", Number(last[5]), Number(last[6]), 300, 16);
+      const optionsY = Number(lastCall("MinMaxQuestSectionOptions|SetPoint|")[6]);
+      expect(Number(lastCall("MinMaxQuestRouteElites|SetPoint|")[6])).toBeLessThan(optionsY);
+      expect(Number(header[6])).toBeLessThan(Number(last[6]));
+    } finally {
+      s.close();
+    }
+  });
+}
 
 const LAYOUT_LUA = `
 local function edge(rec, side)
