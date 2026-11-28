@@ -271,6 +271,19 @@ it("aims past a level-locked accept to the next doable step", () => {
   expect(list?.map((t) => t.route?.index)).toEqual([1, 0]);
 });
 
+it("does not aim at the turn-in of a quest whose objectives are not done", () => {
+  install({ segmentEndLevel: 10 }, [{ ...grind(10, 30, "turnin"), questId: 900 }, grind(11, 50)]);
+  const f = follower(loadCharDb(null));
+  const snap = snapshot(10);
+  snap.state.inLog.add(900);
+  snap.log.set(900, { complete: false, objectivesDone: new Set() });
+  f.targets(snap);
+  expect(f.view()).toMatchObject({ current: 0, target: 1 });
+  snap.log.set(900, { complete: true, objectivesDone: new Set([1]) });
+  f.targets(snap);
+  expect(f.view()).toMatchObject({ current: 0, target: 0 });
+});
+
 it("is unavailable while the wanted variant fails to decode", () => {
   install();
   const routes = (globalThis as Record<string, { Alliance: { trunk: Record<string, string> } }>).MinMaxQuestRoutes;

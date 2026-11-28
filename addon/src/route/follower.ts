@@ -1,3 +1,4 @@
+import { CONSTANTS } from "../core/constants";
 import { entryQuests, findEntry, forFaction } from "../access/chains";
 import { distance, type WorldPos } from "../core/geometry";
 import { currentLocale, t } from "../core/l10n";
@@ -6,6 +7,7 @@ import type { CharDb } from "../core/storage";
 import type { QuestInfo } from "../data/questRepository";
 import { describeTarget, questLabel, type PlayerSnapshot } from "../game/engine";
 import { isFriendlyTo, type StarterLoot } from "../game/positions";
+import { travelSpeed } from "../game/routing";
 import type { ObtainPlan, PlanFor } from "../game/professions";
 import { isAvailable } from "../quests/availability";
 import { clusterKey, targetObtain, type CompletionInput, type Target, type TargetKind } from "../targets/completion";
@@ -360,12 +362,15 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
     const realizable = (i: number): boolean => {
       const s = steps[i];
       if (s.questId == null) return s.type !== "accept" && s.type !== "complete" && s.type !== "turnin";
-      if (s.type === "complete" || s.type === "turnin") return snap.log.has(s.questId);
+      if (s.type === "complete") return snap.log.has(s.questId);
+      if (s.type === "turnin") return snap.log.get(s.questId)?.complete === true;
       if (s.type !== "accept") return true;
       const q = deps.quest(s.questId);
       return q != null && isAvailable(q, snap.state) && snap.state.inLog.size < QUEST_LOG_SIZE;
     };
-    const view = follow(steps, next, ctx, timeTo, realizable, snap.maxLevel, quest, snap.state, startIndex, skipped);
+    const speed = travelSpeed(snap.state.level);
+    const between = (a: WorldPos, b: WorldPos): number => (distance(a, b) * CONSTANTS.detourFactor.value) / speed;
+    const view = follow(steps, next, ctx, timeTo, between, realizable, snap.maxLevel, quest, snap.state, startIndex, skipped);
     followed = view;
     const out: Target[] = [];
     const shown = new Map<number, Target>();
