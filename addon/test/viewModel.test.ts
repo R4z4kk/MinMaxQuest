@@ -167,8 +167,14 @@ describe("completionLines", () => {
     ];
     expect(completionLines(list, null, getQuest, 20)).toEqual([
       { kind: "section", label: "To pick up", count: 1 },
-      { kind: "row", icon: "accept", level: "12", name: `Wolves  ${colorCode(COLOR.sub)}Elite|r`, time: formatDuration(100), tone: "normal" },
+      { kind: "row", icon: "accept", level: "12", name: `Wolves  ${colorCode(COLOR.sub)}Elite|r`, time: formatDuration(100), tone: "normal", questId: 1 },
     ]);
+  });
+
+  it("carries the quest id of each row", () => {
+    setLocale("enUS");
+    const rows = completionLines([target(1), target(2, { kind: "turnin" })], null, getQuest, 20).filter((l) => l.kind === "row");
+    expect(rows.map((r) => r.questId)).toEqual([2, 1]);
   });
 
   it("ends with a more row when rows are cut", () => {
@@ -176,7 +182,7 @@ describe("completionLines", () => {
     const list = [target(1), target(2), target(3), target(4)];
     const lines = completionLines(list, null, getQuest, 4);
     expect(lines.length).toBe(4);
-    expect(lines[3]).toEqual({ kind: "row", icon: "empty", level: "", name: "+2 more...", time: "", tone: "more" });
+    expect(lines[3]).toEqual({ kind: "row", icon: "empty", level: "", name: "+2 more...", time: "", tone: "more", questId: null });
     const dropped = completionLines([target(1, { kind: "turnin" }), target(2)], null, getQuest, 3);
     expect(dropped.map((l) => l.kind)).toEqual(["section", "row", "row"]);
     expect(dropped[2]).toMatchObject({ tone: "more", name: "+1 more..." });

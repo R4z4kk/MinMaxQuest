@@ -78,10 +78,11 @@ describe("accessView", () => {
       complete: false,
       started: true,
       count: "1/3 steps",
+      focusQuestId: 2,
       steps: [
-        { text: "Message", state: "done" },
-        { text: "Client Key · Alterac", state: "current" },
-        { text: "Tome", state: "todo" },
+        { text: "Message", state: "done", questId: 1 },
+        { text: "Client Key · Alterac", state: "current", questId: 2 },
+        { text: "Tome", state: "todo", questId: 3 },
       ],
     });
   });
@@ -118,6 +119,20 @@ describe("accessView", () => {
     const [fr] = accessView([KINDS], { ...base, level: 1, expanded: "kinds" });
     expect(fr.steps.map((step) => step.text).slice(0, 1)).toEqual(["Atteins le niveau 20"]);
     expect(fr.steps.slice(5, 8).map((step) => step.text)).toEqual(["Tue Hogger", "Parle au PNJ", "Utilise l'objet"]);
+  });
+});
+
+describe("focus quest", () => {
+  it("is the first unfinished quest step, also while collapsed, and null when nothing is left", () => {
+    expect(accessView([ENTRY], base)[0].focusQuestId).toBe(2);
+    expect(accessView([ENTRY], { ...base, completed: new Set([1, 2, 3]), inLog: new Set<number>() })[0].focusQuestId).toBeNull();
+    expect(accessView([KINDS], { ...base, level: 1, completed: new Set<number>(), inLog: new Set<number>() })[0].focusQuestId).toBe(2);
+  });
+
+  it("marks only quest steps with their quest id", () => {
+    const [row] = accessView([KINDS], { ...base, level: 1, expanded: "kinds" });
+    expect(row.steps.slice(0, 5).map((step) => step.questId)).toEqual([null, 2, 9, null, null]);
+    expect(row.steps.slice(5).every((step) => step.questId == null)).toBe(true);
   });
 });
 

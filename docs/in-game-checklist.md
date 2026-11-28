@@ -48,6 +48,7 @@ Prérequis : `npm test` (construit `build/MinMaxQuest.lua`), puis lancer WoW For
 - [ ] Bouton d'objet : changer d'objet, verrouiller, ou cacher/afficher (`/mmq`, œil) en combat n'est appliqué qu'à la fin du combat (aucune erreur de taint).
 
 ## Passer / épingler
+- [ ] Clic sur une ligne (Complétion, « Suivant » de Quête, étape de quête ou entrée dépliée d'Accès) → la flèche cible cette quête, nom en doré dans Quête / Accès ; re-clic → automatique ; clic sur l'étape courante (Quête) → automatique.
 - [ ] « Passer » sur une quête avec suites → dialogue avec la liste et l'XP perdue ; sans suite → passée directement.
 - [ ] `/mmq skipped` liste les quêtes passées ; `/mmq unskip <id>` / `/mmq unskip all` les réactive.
 - [ ] Journal de quêtes : petit losange à droite de chaque quête ; clic → épinglée (la flèche et la fenêtre basculent, ligne « Épinglée · × ») ; re-clic ou × → automatique. Les losanges restent alignés en faisant défiler le journal (sinon : décalage d'index à corriger).

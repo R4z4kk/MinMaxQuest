@@ -8,6 +8,7 @@ import type { IconKind } from "./theme";
 export interface StepView {
   text: string;
   state: StepState;
+  questId: number | null;
 }
 
 export interface ChainView {
@@ -21,6 +22,7 @@ export interface ChainView {
   complete: boolean;
   started: boolean;
   count: string;
+  focusQuestId: number | null;
   steps: StepView[];
 }
 
@@ -75,17 +77,22 @@ function stepText(step: AccessStep, ctx: AccessContext): string {
   }
 }
 
+function isQuestStep(step: AccessStep): boolean {
+  return step.kind === "pickUp" || step.kind === "turnIn" || step.kind === "quest";
+}
+
 export function accessView(entries: AccessEntry[], ctx: AccessContext): ChainView[] {
   return entries.map((entry) => {
     const progress = entryProgress(entry, { ...ctx, knownQuest: (id) => ctx.getQuest(id) != null });
     const expanded = ctx.expanded === entry.id;
     const steps = (expanded ? progress.steps : []).map(({ step, state }): StepView => {
       const name = stepText(step, ctx);
-      const isQuest = step.kind === "pickUp" || step.kind === "turnIn" || step.kind === "quest";
+      const isQuest = isQuestStep(step);
       const areaId = state === "current" && isQuest ? ctx.getQuest(step.ref)?.zoneAreaId : null;
       const zone = areaId == null ? null : ctx.zoneName(areaId);
-      return { text: zone == null ? name : `${name} · ${zone}`, state };
+      return { text: zone == null ? name : `${name} · ${zone}`, state, questId: isQuest ? step.ref : null };
     });
+    const focus = progress.steps.find(({ step, state }) => state !== "done" && isQuestStep(step));
     return {
       id: entry.id,
       group: entry.group,
@@ -97,6 +104,7 @@ export function accessView(entries: AccessEntry[], ctx: AccessContext): ChainVie
       complete: progress.complete,
       started: progress.done > 0 && !progress.complete,
       count: t("stepsCount").replace("{done}", String(progress.done)).replace("{total}", String(progress.total)),
+      focusQuestId: focus == null ? null : focus.step.ref,
       steps,
     };
   });

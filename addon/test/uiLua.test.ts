@@ -1300,3 +1300,83 @@ it("does not redraw the open window when unlocking the arrow", async () => {
     s.close();
   }
 });
+
+const pinned = async (s: Awaited<ReturnType<typeof ui>>) => (await s.run("return MinMaxQuestCharDB.pinnedQuestId")) as number | null;
+
+it("pins a quest by clicking its Completion line, unpins on a second click, and ignores section headers", async () => {
+  const s = await ui();
+  try {
+    await s.cmd("");
+    await s.click("MinMaxQuestTabcompletion");
+    await s.click("MinMaxQuestCompletionLine1");
+    expect(await pinned(s)).toBeNull();
+    await s.click("MinMaxQuestCompletionLine2");
+    expect([100, 101]).toContain(await pinned(s));
+    expect(await s.visibilityOf("MinMaxQuestCompletionUnpin")).toBe("MinMaxQuestCompletionUnpin|Show");
+    await s.click("MinMaxQuestCompletionLine2");
+    expect(await pinned(s)).toBeNull();
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("pins the focus quest when an Access entry expands and unpins it on collapse", async () => {
+  const s = await accessTab(`C_QuestLog.GetTitleForQuestID = function(id) return "Client " .. id end`);
+  try {
+    await s.click("MinMaxQuestAccessRow1");
+    expect(await pinned(s)).toBeNull();
+    await s.click("MinMaxQuestAccessRow2");
+    const focus = await pinned(s);
+    expect(ALLIANCE_RAIDS[0].steps.filter((step) => step.kind === "quest" || step.kind === "pickUp").map((step) => step.ref)).toContain(focus);
+    await s.click("MinMaxQuestAccessRow2");
+    expect(await pinned(s)).toBeNull();
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("toggles the pin of a quest step line in the Access tab", async () => {
+  const s = await accessTab(`C_QuestLog.GetTitleForQuestID = function(id) return "Client " .. id end`);
+  try {
+    await s.click("MinMaxQuestAccessRow1");
+    await s.click("MinMaxQuestAccessRow2");
+    await s.run("MinMaxQuestCharDB.pinnedQuestId = nil");
+    const questAt = visibleSteps(ALLIANCE_RAIDS[0], 1).findIndex((step) => step.kind === "quest" || step.kind === "pickUp");
+    const row = `MinMaxQuestAccessRow${3 + questAt}`;
+    await s.click(row);
+    expect(await pinned(s)).toBe(visibleSteps(ALLIANCE_RAIDS[0], 1)[questAt].ref);
+    await s.click(row);
+    expect(await pinned(s)).toBeNull();
+  } finally {
+    s.close();
+  }
+});
+
+it("pins the quest of a Next row, unpins on a second click and from the current step row", async () => {
+  const s = await routeTab();
+  try {
+    const rows = ["MinMaxQuestNextRow1", "MinMaxQuestNextRow2", "MinMaxQuestNextRow3"];
+    let pickedRow: string | null = null;
+    for (const row of rows) {
+      await s.click(row);
+      if ((await pinned(s)) != null) {
+        pickedRow = row;
+        break;
+      }
+    }
+    expect(pickedRow).not.toBeNull();
+    await s.click(pickedRow ?? "");
+    expect(await pinned(s)).toBeNull();
+    await s.click(pickedRow ?? "");
+    expect(await pinned(s)).not.toBeNull();
+    await s.click("MinMaxQuestCurrentRow");
+    expect(await pinned(s)).toBeNull();
+    await s.click("MinMaxQuestCurrentRow");
+    expect(await pinned(s)).toBeNull();
+    expect(await s.printed()).not.toMatch(/attempt|error/i);
+  } finally {
+    s.close();
+  }
+});

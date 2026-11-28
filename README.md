@@ -63,6 +63,7 @@
 - **Log** mode only targets quests already in your quest log: objectives and turn-ins, sorted by travel time. No new quests; the Grey and Elite filters and the zone are ignored.
 - Targets are grouped in sections: **To turn in**, **Objectives** and **To pick up** (empty sections are hidden; counts are totals), each sorted by estimated travel time.
 - The row the arrow points to is highlighted with » and always stays visible, even in a long list. **Skip** and the **Pinned · ×** unpin button sit in a strip under the header.
+- **Click a row to focus that quest:** the arrow targets it until you turn it in or click the row again (or **Pinned · ×**).
 - Progress counters for the zone and in total.
 - **Grey** and **Elite** filters. Quests you can't take yet are never shown.
 - Repeatable quests and holiday or event quests (Darkmoon Faire, Winter Veil, Lunar Festival...) are never suggested, in Completion or in the route. At max level, cloth donation quests are hidden too.
@@ -70,6 +71,7 @@
 ### Access tab
 - Lists what your faction has to unlock (18 entries in total, 13 for each faction) in three collapsible sections (**Raids**, **Keys**, **Misc**), each header showing done / total. Dungeons that need no key are not listed.
 - Each entry has an icon (done, in progress, untouched) and shows its level range, or a small gold progress bar once started. Click it to expand its steps: done steps are struck through and greyed, the current one is marked ».
+- **Click to focus:** expanding an entry focuses its first unfinished quest, collapsing it releases the focus; click a quest step to focus or release it. The focused name is shown in gold.
 - **Steps:** quests (names from the game client), items, "Reach level N", Kill / Talk to / Use with the NPC or object name, reputation and profession steps.
 - **Progress:** quests turned in or in your log, items in your bags with their count, level and reputation earned. A step that can't be checked counts as done once a later step is.
 - **Track in route:** tick it to insert the entry's quests into your route at the cheapest spot, without duplicates.
@@ -81,6 +83,7 @@
 - Sections: **Current step** and **Next** with step icons, then **Options** and **Dungeons** as collapsible sections (one open at a time).
 - **Current step:** what to do now, with the objective progress (for example 6/10) and a **Skip** button.
 - **Next:** the following step with its distance, plus the two steps after it.
+- **Click a Next row to focus its quest** (the arrow targets it, shown in gold); click it again, or the current step, to go back to the route.
 - **Footer:** your level, the step number out of the route total, and the estimated time left.
 - **Variants:** include elite quests, include dungeons, and a max quest level (only quests at least X levels below yours, off by default).
 - **Done steps are skipped:** quests you already did or turned in never show up.

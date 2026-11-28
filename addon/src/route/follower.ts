@@ -39,6 +39,8 @@ export interface RouteView extends FollowView {
   nextTexts: string[];
   currentType: StepType | null;
   nextTypes: StepType[];
+  // 0 stands for "no quest": a nil inside a Lua array would end iteration.
+  nextQuestIds: number[];
   currentQuestId: number | null;
   currentIndex: number | null;
   currentProgress: ObjectiveCount | null;
@@ -361,9 +363,11 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
       const text = (i: number | null): string | null => (i == null || steps[i] == null ? null : stepText(steps[i]));
       const nextTexts: string[] = [];
       const nextTypes: StepType[] = [];
+      const nextQuestIds: number[] = [];
       for (const i of v.next) {
         nextTexts.push(stepText(steps[i]));
         nextTypes.push(steps[i].type);
+        nextQuestIds.push(steps[i].questId ?? 0);
       }
       const cur = v.current == null ? null : steps[v.current];
       const progress = cur != null && cur.type === "complete" && cur.questId != null && cur.objectiveIndex != null
@@ -381,6 +385,7 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
         nextTexts,
         currentType: cur?.type ?? null,
         nextTypes,
+        nextQuestIds,
         currentQuestId: cur?.questId ?? null,
         currentIndex: v.current,
         currentProgress: progress,

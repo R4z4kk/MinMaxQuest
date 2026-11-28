@@ -7,7 +7,7 @@ import { zoneTotals, type ZoneProgress } from "../targets/completion";
 import { createZoneIndex, zoneEntries, type MapDeps, type ZoneIndex } from "./maps";
 import { confirmSkip } from "./skipDialog";
 import {
-  bar, button, checkbox, COLOR, createKindIcon, createSectionHeader, GLYPH, hline, paint, PAD, SIZE, text, UI_FEATURE, WINDOW_HEIGHT,
+  bar, button, checkbox, COLOR, createKindIcon, createSectionHeader, GLYPH, hline, onClick, paint, PAD, SIZE, text, UI_FEATURE, WINDOW_HEIGHT,
   WINDOW_WIDTH, type KindIcon, type SectionHeader,
 } from "./theme";
 import { CONTENT_TOP, createTabButton, placeTabs, TAB_HEIGHT, type TabButton, type TabView } from "./window";
@@ -40,6 +40,8 @@ const TIME_WIDTH = 48;
 const EMPTY: ZoneProgress = { done: 0, total: 0 };
 
 interface Line {
+  hit: WowFrame;
+  questId: number | null;
   header: SectionHeader;
   icon: KindIcon;
   level: WowFontString;
@@ -57,9 +59,15 @@ function showIf(frame: WowFrame | WowFontString, on: boolean): void {
   else frame.Hide();
 }
 
+export function togglePin(engine: Engine, db: CharDb, questId: number): void {
+  engine.pin(db.pinnedQuestId === questId ? null : questId);
+}
+
 function paintLine(line: Line, data: CompletionLine | null): void {
   const section = data != null && data.kind === "section";
   const row = data != null && data.kind === "row";
+  line.questId = data != null && data.kind === "row" ? data.questId : null;
+  showIf(line.hit, line.questId != null);
   showIf(line.header.frame, section);
   showIf(line.icon.frame, row && data.tone !== "more");
   showIf(line.level, row);
@@ -190,7 +198,12 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
       header.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, y);
       const icon = createKindIcon(parent);
       icon.frame.SetPoint("TOPLEFT", parent, "TOPLEFT", ICON_X, y - 1);
+      const hit = CreateFrame("Button", `MinMaxQuestCompletionLine${i + 1}`, parent);
+      hit.SetSize(INNER, LINE_HEIGHT);
+      hit.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, y);
       const line: Line = {
+        hit,
+        questId: null,
         header,
         icon,
         level: text(parent, SIZE.small, COLOR.sub),
@@ -200,6 +213,11 @@ export function createCompletionTab(deps: CompletionDeps): TabView {
       line.level.SetPoint("TOPLEFT", parent, "TOPLEFT", LEVEL_X, y - 2);
       line.name.SetPoint("TOPLEFT", parent, "TOPLEFT", NAME_X, y - 2);
       line.name.SetWidth(INNER - (NAME_X - PAD) - TIME_WIDTH);
+      onClick(hit, () => {
+        if (line.questId == null) return;
+        togglePin(engine, db, line.questId);
+        draw();
+      });
       paintLine(line, null);
       lines.push(line);
     }

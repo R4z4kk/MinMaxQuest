@@ -332,3 +332,11 @@ it("builds an objective step's waypoints in game from the repository positions",
   expect(target?.kind).toBe("objective");
   expect(target?.cluster?.points).toEqual([{ continent: 0, x: 10, y: 0 }, { continent: 0, x: 120, y: 0 }]);
 });
+
+it("lists the quest id of each next step, 0 for a step without quest", () => {
+  const around = (type: StepType, x: number): EmittedStep => ({ ...grind(11, x, type), questId: 900 });
+  install({ segmentEndLevel: 10 }, [around("accept", 5), grind(11, 10, "dungeon"), around("turnin", 15)]);
+  const f = follower(loadCharDb(null));
+  f.targets(snapshot(11));
+  expect(f.view()?.nextQuestIds).toEqual([0, 900]);
+});
