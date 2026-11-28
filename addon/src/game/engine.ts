@@ -216,7 +216,7 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
     lastRunPos = snap.pos;
     const skipped = new Set(db.skippedQuests);
     const kept = (target: Target): boolean => target.questId == null || !skipped.has(target.questId);
-    const route = db.activeMode === "quest" ? deps.route(snap) : null;
+    const route = db.activeMode === "quest" && snap.state.level < snap.maxLevel ? deps.route(snap) : null;
     const next = (route ?? deps.completion(snap)).filter((target) => kept(target));
     pinPool = route != null && db.pinnedQuestId != null ? deps.completion(snap).filter((target) => kept(target)) : null;
     const changed = !sameTargets(list, next);

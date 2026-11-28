@@ -7,7 +7,7 @@ function hex(value: number, alpha = 1): Color {
 }
 
 export const COLOR = {
-  bg: hex(0x1b1830, 0.93),
+  bg: hex(0x1b1830, 0.75),
   line: hex(0x3a3360),
   title: hex(0xf1e7c8),
   done: hex(0x8f8aa8),

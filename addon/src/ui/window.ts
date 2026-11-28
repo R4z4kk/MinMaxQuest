@@ -60,7 +60,8 @@ export function placeTabs(parent: WowFrame, tabs: TabButton[], width: number, y:
   });
 }
 
-export function createWindow(db: CharDb, tabs: Record<TabId, TabView>, hideAll: () => void): WindowApi {
+// questAvailable: false once the route is over (max level); the Quest tab is then hidden.
+export function createWindow(db: CharDb, tabs: Record<TabId, TabView>, hideAll: () => void, questAvailable: () => boolean): WindowApi {
   const frame = CreateFrame("Frame", "MinMaxQuestWindow", UIParent);
   frame.SetFrameStrata("MEDIUM");
   frame.SetClampedToScreen(true);
@@ -129,15 +130,21 @@ export function createWindow(db: CharDb, tabs: Record<TabId, TabView>, hideAll: 
     return created;
   };
 
-  const setTab = (tab: TabId): void => {
+  const setTab = (wanted: TabId): void => {
+    const quest = questAvailable();
+    const tab = wanted === "quest" && !quest ? "completion" : wanted;
     db.tab = tab;
     if (tab !== "access") db.activeMode = tab;
     const view = tabs[tab];
     frame.SetSize(WINDOW_WIDTH, WINDOW_HEIGHT);
-    placeTabs(frame, buttons, WINDOW_WIDTH, -HEADER_HEIGHT);
+    placeTabs(frame, buttons.filter((_, i) => quest || TAB_ORDER[i] !== "quest"), WINDOW_WIDTH, -HEADER_HEIGHT);
     TAB_ORDER.forEach((id, i) => {
       const active = id === tab;
       buttons[i].setActive(active);
+      if (id === "quest") {
+        if (quest) buttons[i].frame.Show();
+        else buttons[i].frame.Hide();
+      }
       const existing = contents[id];
       if (!active && existing != null) existing.Hide();
     });

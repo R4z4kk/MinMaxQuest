@@ -657,12 +657,17 @@ it("shows Routes not installed when the variant fails to decode", async () => {
   }
 });
 
-it("shows Route finished at the maximum level", async () => {
+it("hides the Quest tab at the maximum level and opens Completion instead", async () => {
   const s = await routeTab("UnitLevel = function() return 60 end");
   try {
     await s.run("now = now + 3");
     await s.tick();
-    expect(await s.texts()).toContain("Route finished");
+    await s.cmd("");
+    await s.cmd("");
+    expect(await s.visibilityOf("MinMaxQuestTabquest")).toBe("MinMaxQuestTabquest|Hide");
+    expect(await s.run("return MinMaxQuestCharDB.tab")).toBe("completion");
+    expect(await s.run("return MinMaxQuestCharDB.activeMode")).toBe("completion");
+    expect(await s.last("MinMaxQuestTabaccess|SetSize")).toBe("MinMaxQuestTabaccess|SetSize|160.0|24");
   } finally {
     s.close();
   }
@@ -702,17 +707,6 @@ it("hides the kind icon on the more row", async () => {
         end
         return "no more row"`),
     ).toBe(false);
-  } finally {
-    s.close();
-  }
-});
-
-it("shows no kind icon on Route finished", async () => {
-  const s = await routeTab("UnitLevel = function() return 60 end");
-  try {
-    await s.run("now = now + 3");
-    await s.tick();
-    expect(await shownKindIcons(s)).toBe(0);
   } finally {
     s.close();
   }
