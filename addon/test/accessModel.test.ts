@@ -76,6 +76,7 @@ describe("accessView", () => {
       expanded: true,
       tracked: true,
       complete: false,
+      started: true,
       count: "1/3 steps",
       steps: [
         { text: "Message", state: "done" },
@@ -127,9 +128,9 @@ describe("accessLines", () => {
   it("orders the groups, counts complete entries and lists only open groups", () => {
     setLocale("enUS");
     const lines = accessLines(views(null), new Set(["key"]));
-    expect(lines.map((line) => (line.kind === "group" ? `${line.text}:${line.open}` : line.kind))).toEqual([
-      "RAIDS · 0/1:false",
-      "KEYS · 0/2:true",
+    expect(lines.map((line) => (line.kind === "group" ? `${line.label} ${line.count}:${line.open}` : line.kind))).toEqual([
+      "Raids 0 / 1:false",
+      "Keys 0 / 2:true",
       "entry",
       "entry",
     ]);
@@ -139,6 +140,23 @@ describe("accessLines", () => {
     setLocale("enUS");
     const lines = accessLines(views("sewers"), new Set(["key"]));
     expect(lines.map((line) => line.kind)).toEqual(["group", "group", "entry", "step", "step", "step", "track", "entry"]);
+  });
+
+  it("gives finished, started and untouched entries done, progress and empty icons", () => {
+    const icons = (completed: number[]) =>
+      accessLines(accessView([ENTRY], { ...base, completed: new Set(completed), inLog: new Set() }), new Set(["key"]))
+        .flatMap((line) => (line.kind === "entry" ? [line.icon] : []));
+    expect(icons([1, 2, 3])).toEqual(["done"]);
+    expect(icons([1])).toEqual(["progress"]);
+    expect(icons([])).toEqual(["empty"]);
+  });
+
+  it("shows a bar for started entries and the level range otherwise", () => {
+    const view = (completed: number[]) => accessView([ENTRY], { ...base, completed: new Set(completed), inLog: new Set() })[0];
+    expect(view([1]).started).toBe(true);
+    expect(view([1]).range).toBe("28-33");
+    expect(view([]).started).toBe(false);
+    expect(view([1, 2, 3]).started).toBe(false);
   });
 
   it("opens the groups holding a tracked entry", () => {

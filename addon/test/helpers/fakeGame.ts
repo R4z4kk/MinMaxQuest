@@ -46,6 +46,8 @@ local function fake(name)
         if method == "SetText" then rec.text = (...) or ""
         elseif method == "SetColorTexture" then rec.colored = true
         elseif method == "SetWidth" then rec.width = (...)
+        elseif method == "SetTextColor" then rec.color = string.format("%.2f|%.2f|%.2f", ...)
+        elseif method == "SetSize" then rec.width, rec.height = ...
         elseif method == "ClearAllPoints" then rec.points = {}
         elseif method == "SetPoint" then local point, rel, relPoint, x = ...; rec.points[#rec.points + 1] = { point, rel, relPoint, x } end
         local parts = { name, method }

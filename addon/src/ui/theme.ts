@@ -2,27 +2,33 @@ import { guard } from "../core/report";
 
 export type Color = [number, number, number, number];
 
-function hex(value: number): Color {
-  return [Math.floor(value / 65536) / 255, (Math.floor(value / 256) % 256) / 255, (value % 256) / 255, 1];
+function hex(value: number, alpha = 1): Color {
+  return [Math.floor(value / 65536) / 255, (Math.floor(value / 256) % 256) / 255, (value % 256) / 255, alpha];
 }
 
 export const COLOR = {
-  bg: [0.031, 0.031, 0.035, 0.93] as Color,
-  line: [1, 1, 1, 0.07] as Color,
+  bg: hex(0x1b1830, 0.93),
+  line: hex(0x3a3360),
+  title: hex(0xf1e7c8),
+  done: hex(0x8f8aa8),
+  rowText: hex(0xdddddd),
+  iconBg: hex(0x2a2446),
   buttonLine: [1, 1, 1, 0.12] as Color,
   track: [1, 1, 1, 0.08] as Color,
   openRow: [1, 1, 1, 0.025] as Color,
-  text: hex(0xe6e6e6),
-  sub: hex(0x8b8b8b),
+  text: hex(0xdddddd),
+  sub: hex(0x9d95c4),
   accent: hex(0xc9a75a),
   grey: hex(0x6f6f6f),
   nextText: hex(0xcfcfcf),
-  rowText: hex(0xc4c4c4),
   stepText: hex(0xbdbdbd),
 };
 
 export const FONT = "Fonts\\ARIALN.TTF";
-export const SIZE = { body: 12, small: 11, label: 10 };
+export const FONT_TITLE = "Fonts\\FRIZQT__.TTF";
+export const SIZE = { body: 12, small: 11, label: 10, title: 16, section: 13 };
+export const WINDOW_WIDTH = 320;
+export const WINDOW_HEIGHT = 480;
 export const PAD = 10;
 export const UI_FEATURE = "window";
 // ARIALN lacks most symbol glyphs: textures or Latin-1 characters only.
@@ -36,6 +42,10 @@ const CHECK_TEXTURE = "Interface\\Buttons\\UI-CheckBox-Check";
 export const BUTTON_HEIGHT = 16;
 const BUTTON_PADDING = 12;
 const BAR_HEIGHT = 3;
+const ICON_FRAME = 16;
+const ICON_GLYPH = 12;
+const HEADER_HEIGHT = 18;
+const HEADER_GAP = 6;
 
 const HEX = "0123456789abcdef";
 
@@ -91,35 +101,13 @@ export function hline(parent: WowFrame, y: number, edge: "TOP" | "BOTTOM" = "TOP
   return line;
 }
 
-export function text(parent: WowFrame, size: number, c: Color, justify: "LEFT" | "RIGHT" = "LEFT"): WowFontString {
+export function text(parent: WowFrame, size: number, c: Color, justify: "LEFT" | "RIGHT" = "LEFT", font: string = FONT): WowFontString {
   const fontString = parent.CreateFontString(null, "OVERLAY");
-  fontString.SetFont(FONT, size, "");
+  fontString.SetFont(font, size, "");
   paint(fontString, c);
   fontString.SetJustifyH(justify);
   fontString.SetWordWrap(false);
   return fontString;
-}
-
-export function label(parent: WowFrame, x: number, y: number): WowFontString {
-  const fontString = text(parent, SIZE.label, COLOR.sub);
-  fontString.SetPoint("TOPLEFT", parent, "TOPLEFT", x, y);
-  return fontString;
-}
-
-// Lua string.upper leaves UTF-8 accented letters untouched.
-const ACCENTS: [string, string][] = [
-  ["à", "À"], ["â", "Â"], ["ç", "Ç"], ["é", "É"], ["è", "È"], ["ê", "Ê"], ["ë", "Ë"], ["î", "Î"], ["ï", "Ï"],
-  ["ô", "Ô"], ["ù", "Ù"], ["û", "Û"],
-];
-
-export function upper(value: string): string {
-  let out = value.toUpperCase();
-  for (const [lower, capital] of ACCENTS) out = out.split(lower).join(capital);
-  return out;
-}
-
-export function setLabel(fontString: WowFontString, value: string): void {
-  fontString.SetText(upper(value));
 }
 
 export function onClick(frame: WowFrame, handler: () => void): void {
@@ -215,6 +203,81 @@ export function checkbox(parent: WowFrame, name: string, value: string, handler:
       if (on) check.Show();
       else check.Hide();
       paint(caption, on ? COLOR.accent : COLOR.sub);
+    },
+  };
+}
+
+export type IconKind = "accept" | "turnin" | "kill" | "collect" | "fly" | "hearth" | "done" | "progress" | "empty";
+
+const KIND_TEXTURE: Record<IconKind, string | null> = {
+  accept: "Interface\\GossipFrame\\AvailableQuestIcon",
+  turnin: "Interface\\GossipFrame\\ActiveQuestIcon",
+  kill: "Interface\\CURSOR\\Attack",
+  collect: "Interface\\CURSOR\\Pickup",
+  fly: "Interface\\CURSOR\\Taxi",
+  hearth: "Interface\\Icons\\INV_Misc_Rune_01",
+  done: "Interface\\RAIDFRAME\\ReadyCheck-Ready",
+  progress: null,
+  empty: null,
+};
+
+export interface KindIcon {
+  frame: WowFrame;
+  set(kind: IconKind): void;
+}
+
+export function createKindIcon(parent: WowFrame): KindIcon {
+  const frame = CreateFrame("Frame", null, parent);
+  frame.SetSize(ICON_FRAME, ICON_FRAME);
+  const background = frame.CreateTexture(null, "BACKGROUND");
+  fill(background, COLOR.iconBg);
+  background.SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0);
+  background.SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0);
+  border(frame, COLOR.accent);
+  const glyph = frame.CreateTexture(null, "ARTWORK");
+  glyph.SetSize(ICON_GLYPH, ICON_GLYPH);
+  glyph.SetPoint("CENTER", frame, "CENTER", 0, 0);
+  const mark = text(frame, SIZE.body, COLOR.accent);
+  mark.SetPoint("CENTER", frame, "CENTER", 0, 0);
+  mark.SetText("»");
+  const api: KindIcon = {
+    frame,
+    set(kind) {
+      const path = KIND_TEXTURE[kind];
+      if (path != null) {
+        glyph.SetTexture(path);
+        glyph.Show();
+      } else glyph.Hide();
+      if (kind === "progress") mark.Show();
+      else mark.Hide();
+    },
+  };
+  api.set("empty");
+  return api;
+}
+
+export interface SectionHeader {
+  frame: WowFrame;
+  set(label: string, count: string): void;
+}
+
+export function createSectionHeader(parent: WowFrame, width: number): SectionHeader {
+  const frame = CreateFrame("Frame", null, parent);
+  frame.SetSize(width, HEADER_HEIGHT);
+  const caption = text(frame, SIZE.section, COLOR.title, "LEFT", FONT_TITLE);
+  caption.SetPoint("LEFT", frame, "LEFT", 0, 0);
+  const total = text(frame, SIZE.small, COLOR.sub);
+  total.SetPoint("LEFT", caption, "RIGHT", HEADER_GAP, 0);
+  const rule = frame.CreateTexture(null, "BORDER");
+  fill(rule, COLOR.line);
+  rule.SetHeight(1);
+  rule.SetPoint("LEFT", total, "RIGHT", HEADER_GAP, 0);
+  rule.SetPoint("RIGHT", frame, "RIGHT", 0, 0);
+  return {
+    frame,
+    set(label, count) {
+      caption.SetText(label);
+      total.SetText(count);
     },
   };
 }
