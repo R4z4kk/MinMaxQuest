@@ -430,7 +430,7 @@ function nearestSlots(graph: TravelGraph, target: WorldPos): number[] {
 }
 
 // Returns the winning graph node id, DIRECT for a plain walk, UNREACHABLE otherwise; cost goes to graph.bestCost.
-function bestApproach(plan: TravelPlan, graph: TravelGraph, target: WorldPos, ctx: TravelContext): number {
+function bestApproach(plan: TravelPlan, graph: TravelGraph, target: WorldPos, ctx: TravelContext, detour = false): number {
   const origin = plan.nodePos.get(ORIGIN_ID);
   let bestId = UNREACHABLE;
   graph.bestCost = Infinity;
@@ -449,7 +449,7 @@ function bestApproach(plan: TravelPlan, graph: TravelGraph, target: WorldPos, ct
   }
 
   const direct = freeToFreeYards(walks, plan.originMarks, marks, straightYards(origin, target));
-  if (direct !== Infinity) {
+  if (!detour && direct !== Infinity) {
     graph.bestCost = direct / ctx.speed;
     bestId = DIRECT;
   }
@@ -460,7 +460,7 @@ function bestApproach(plan: TravelPlan, graph: TravelGraph, target: WorldPos, ct
     const place = graph.slotPlace[slot];
     const yards = place >= 0 ? freeToPlaceYards(walks, marks, place, straight, false) : straight;
     const cost = (plan.times.get(id) ?? Infinity) + yards / ctx.speed;
-    if (cost < graph.bestCost) {
+    if (cost < graph.bestCost && (!detour || departureOf(plan, id)?.kind !== WALK)) {
       graph.bestCost = cost;
       bestId = id;
     }
@@ -478,15 +478,11 @@ export function hearthPenaltyOf(plan: TravelPlan, graph: TravelGraph, target: Wo
   return firstHop(plan, graph, target, ctx)?.kind === "hearth" ? ctx.hearthPenaltySec : 0;
 }
 
-export function firstHop(plan: TravelPlan, graph: TravelGraph, target: WorldPos, ctx: TravelContext): TravelHop | null {
-  const approach = bestApproach(plan, graph, target, ctx);
-  if (approach === UNREACHABLE) return null;
-  const walkTo: TravelHop = { kind: "walk", pos: target, taxiNodeId: null };
-  if (approach === DIRECT) return walkTo;
-
+// First non-walking edge of the path to a node; walk with the origin when the path only walks, null when it has no path.
+function departureOf(plan: TravelPlan, node: number): { id: number; kind: number } | null {
   let departure = ORIGIN_ID;
   let departureKind = WALK;
-  let current = approach;
+  let current = node;
   while (current !== ORIGIN_ID) {
     const parent = plan.via.get(current);
     const kind = plan.viaKind.get(current);
@@ -497,13 +493,28 @@ export function firstHop(plan: TravelPlan, graph: TravelGraph, target: WorldPos,
     }
     current = parent;
   }
+  return { id: departure, kind: departureKind };
+}
 
-  const departurePos = plan.nodePos.get(departure);
-  if (departurePos == null || departureKind === WALK) return walkTo;
-  if (departureKind === TAXI) return { kind: "taxi", pos: departurePos, taxiNodeId: departure };
-  if (departureKind === BOAT) return { kind: "boat", pos: departurePos, taxiNodeId: null };
-  if (departureKind === PORTAL) return { kind: "portal", pos: departurePos, taxiNodeId: null };
+export function firstHop(plan: TravelPlan, graph: TravelGraph, target: WorldPos, ctx: TravelContext, detour = false): TravelHop | null {
+  const approach = bestApproach(plan, graph, target, ctx, detour);
+  if (approach === UNREACHABLE) return null;
+  const walkTo: TravelHop = { kind: "walk", pos: target, taxiNodeId: null };
+  if (approach === DIRECT) return walkTo;
+  const from = departureOf(plan, approach);
+  if (from == null) return null;
+  const departurePos = plan.nodePos.get(from.id);
+  if (departurePos == null || from.kind === WALK) return walkTo;
+  if (from.kind === TAXI) return { kind: "taxi", pos: departurePos, taxiNodeId: from.id };
+  if (from.kind === BOAT) return { kind: "boat", pos: departurePos, taxiNodeId: null };
+  if (from.kind === PORTAL) return { kind: "portal", pos: departurePos, taxiNodeId: null };
   return { kind: "hearth", pos: departurePos, taxiNodeId: null };
+}
+
+// Best first hop among the ways that do not start by walking; null when there is none.
+export function detourHop(plan: TravelPlan, graph: TravelGraph, target: WorldPos, ctx: TravelContext): TravelHop | null {
+  const hop = firstHop(plan, graph, target, ctx, true);
+  return hop == null || hop.kind === "walk" ? null : hop;
 }
 
 // Arrival node of the first contiguous flight of the best path, or null when that path does not start by flying.

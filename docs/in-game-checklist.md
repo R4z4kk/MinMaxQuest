@@ -96,6 +96,11 @@ Prérequis : `npm test` (construit `build/MinMaxQuest.lua`), puis lancer WoW For
 ## Métiers
 - [ ] « Le philtre d'amour » (4201) sans Herboristerie : l'objectif Gromsang affiche « Achète Gromsang ×N à l'hôtel des ventes » et la flèche vise le commissaire-priseur le plus proche, pas Gangrebois ; avec Herboristerie (apprise sans /reload), elle vise les Gromsang.
 
+## Shortest Path Forever (optionnel)
+- [ ] Sans l'addon : rien ne change, aucune erreur.
+- [ ] Avec l'addon, cible à pied mais le chemin direct passe par une montagne ou un tunnel : la flèche indique le maître de vol (ou le bateau, le portail) au lieu de la marche ; un trajet à pied simple reste à pied.
+- [ ] En combat ou pendant un écran de chargement : la flèche ne change pas et aucun message n'apparaît.
+
 ## Données et performance
 - [ ] `/mmq debug build 1` → bandeau « Données générées pour le build … » (n'empêche rien).
 - [ ] `/mmq debug prof` : durée du dernier recalcul (viser < 10 ms) et du premier au login (signaler si > 50 ms).

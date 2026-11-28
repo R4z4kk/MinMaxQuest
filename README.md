@@ -117,6 +117,7 @@
   - Hold **Shift** to stay on the ground.
   - Turn it off in the Quest tab options.
   - If the destination isn't reachable from there, you get a message and nothing happens.
+- **Shortest Path Forever (optional):** if it is installed, MinMaxQuest asks it for the time of the trip to the current target. When the arrow would send you walking and Shortest Path Forever finds that walk clearly longer than expected (or impossible), the arrow points to the flight master, boat or portal instead. Without it, or in combat or during a loading screen, nothing changes.
 
 ### Map
 - World map pins for the current and next step only: gold teardrop pins in the game's quest yellow, numbered 1 (current) and 2 (next), with a dark outline and a drop shadow.
@@ -171,6 +172,7 @@
 MinMaxQuest is free software under the **GPL-3.0** license.
 
 - Travel graph, teleporters and precomputed walking distances from [Shortest Path Forever](https://github.com/cjber/shortest-path-forever) (GPL-3.0), including flight timings from InFlight (MIT) and road weights from Polestar by Fitz (used with permission); teleporter destinations from [cmangos classic-db](https://github.com/cmangos/classic-db) (GPL-3.0)
+- Optional trip estimate through the public API of [Shortest Path Forever](https://github.com/cjber/shortest-path-forever) when it is installed
 - [HereBeDragons](https://github.com/Nevcairiel/HereBeDragons) (BSD) for map pins
 - Quest data from [QuestieDB](https://github.com/Questie/QuestieDB)
 - Access entries imported from [Attune](https://warcraftratings.com) by CixiDelmont (version 16001-46). Attune declares no license; its data is reused with credit

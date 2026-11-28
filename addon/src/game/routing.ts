@@ -7,6 +7,7 @@ import { selectTargets, type CompletionInput, type Target } from "../targets/com
 import type { SpawnCluster } from "../targets/spawns";
 import {
   buildGraph,
+  detourHop,
   firstHop,
   hearthPenaltyOf,
   solveFrom,
@@ -31,6 +32,8 @@ export interface Routing {
   // Solves the travel graph from the snapshot (shared with completion and firstHop); null without a position.
   timeTo(snap: PlayerSnapshot): ((p: WorldPos) => number) | null;
   firstHop(target: Target): TravelHop | null;
+  // Best non-walking first hop with our time for the target and the player position it was solved from.
+  detour(target: Target): { from: WorldPos; seconds: number; hop: TravelHop | null } | null;
   taxiLeg(target: Target): TaxiLeg | null;
   taxiLegTo(pos: WorldPos): TaxiLeg | null;
   quests(): QuestInfo[];
@@ -138,6 +141,11 @@ export function createRouting(
     firstHop(target) {
       if (solved == null || target.pos == null) return null;
       return firstHop(solved.plan, solved.graph, target.pos, solved.ctx);
+    },
+    detour(target) {
+      if (solved == null || solved.snap.pos == null || target.pos == null) return null;
+      const seconds = travelTime(solved.plan, solved.graph, target.pos, solved.ctx);
+      return { from: solved.snap.pos, seconds, hop: detourHop(solved.plan, solved.graph, target.pos, solved.ctx) };
     },
     taxiLeg(target) {
       return target.pos == null ? null : taxiLegTo(target.pos);

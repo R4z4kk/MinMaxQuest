@@ -11,10 +11,11 @@ import { createQuestRepository, type QuestInfo, type QuestRepository, type RepoR
 import { createCommands } from "./game/commands";
 import { createEngine, describeTarget, sameKey, targetQuest, type Engine } from "./game/engine";
 import { clientItemName, createPlayerState, HEARTHSTONE_SPELL_ID, itemCount, playerFaction, type PlayerStateReader } from "./game/playerState";
-import { createPlaceFor, createPositions, mapToWorld, uiMapToWorld } from "./game/positions";
+import { createPlaceFor, createPositions, mapToWorld, uiMapToWorld, worldToMap } from "./game/positions";
 import { clientSpellKnown, createPlanFor, createPlayerSkills, type PlayerSkills } from "./game/professions";
 import { createNeighbourFinder, type HbdMapData } from "./game/neighbours";
 import { createRouting } from "./game/routing";
+import { createHopChooser, createSpf, readSpfApi } from "./game/spf";
 import { objectiveLabel } from "./map/farmArea";
 import { installMapPins } from "./map/pins";
 import { installPinButtons } from "./questlog/pinButtons";
@@ -234,6 +235,12 @@ function start(): Game | null {
     maps: () => neighbours.around(C_Map.GetBestMapForUnit("player")),
     zoneOf: (uiMapId) => neighbours.zoneOf(uiMapId),
   }, planFor);
+  const spf = createSpf({
+    api: () => readSpfApi(),
+    toMap: (pos) => worldToMap(pos),
+    report: (reason) => reportOnce("spfReason", t("spfRefused").replace("{reason}", reason)),
+  });
+  const hopFor = createHopChooser(spf, routing);
   const follower = createRouteFollower({
     db: charDb,
     faction: () => playerFaction(),
@@ -254,7 +261,7 @@ function start(): Game | null {
       completion: (snap) => routing.completion(snap),
       // A failing route disables itself once; the engine then falls back to completion.
       route: (snap) => guard("route", () => follower.targets(snap)) ?? null,
-      firstHop: (target) => routing.firstHop(target),
+      firstHop: (target) => hopFor(target),
       getQuest: (id) => repo.get(id),
       allQuests: () => routing.quests(),
       onTargets: (_list, current) => {

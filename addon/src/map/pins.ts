@@ -4,6 +4,7 @@ import { t } from "../core/l10n";
 import { guard } from "../core/report";
 import type { CharDb } from "../core/storage";
 import type { Target } from "../targets/completion";
+import { worldToMap, type MapPoint } from "../game/positions";
 import { COLOR, FONT_TITLE } from "../ui/theme";
 import { FARM_FEATURE, installFarmArea } from "./farmArea";
 import { MAP_MEDIA } from "./media";
@@ -37,12 +38,6 @@ interface Slot {
   world: Pin;
   minimap: Pin | null;
   key: string | null;
-}
-
-interface MapPoint {
-  uiMapId: number;
-  x: number;
-  y: number;
 }
 
 const FEATURE = "mapPins";
@@ -170,23 +165,6 @@ function createSlot(step: number, size: number, current: boolean): Slot {
   };
 }
 
-function inUnitRange(value: number): boolean {
-  return value >= 0 && value <= 1;
-}
-
-function mapPoint(pos: WorldPos): MapPoint | null {
-  const toMap = C_Map.GetMapPosFromWorldPos;
-  if (toMap == null) return null;
-  const world = CreateVector2D(pos.x, pos.y);
-  const [uiMapId, point] = toMap(pos.continent, world);
-  if (uiMapId != null && point != null) return { uiMapId, x: point.x, y: point.y };
-  const best = C_Map.GetBestMapForUnit("player");
-  if (best == null) return null;
-  const [, local] = toMap(pos.continent, world, best);
-  if (local == null || !inUnitRange(local.x) || !inUnitRange(local.y)) return null;
-  return { uiMapId: best, x: local.x, y: local.y };
-}
-
 function sameWaypoint(a: WowUserWaypoint, b: MapPoint): boolean {
   return (
     a.uiMapID === b.uiMapId &&
@@ -218,7 +196,7 @@ function createWaypoint(): { sync(on: boolean, target: Target | null): void } {
   const apply = (pos: WorldPos): void => {
     const player = playerPosition();
     if (player == null || player.continent !== pos.continent) return clear();
-    const point = mapPoint(pos);
+    const point = worldToMap(pos);
     const canSet = C_Map.CanSetUserWaypointOnMap;
     const setWaypoint = C_Map.SetUserWaypoint;
     const createPoint = UiMapPoint?.CreateFromCoordinates;

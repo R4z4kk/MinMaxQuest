@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CONSTANTS } from "../src/core/constants";
 import type { WorldPos } from "../src/core/geometry";
 import { TRAVEL, type TravelData } from "../src/data/generated/travel";
-import { buildGraph, firstHop, hearthPenaltyOf, solveFrom, taxiDestination, travelTime, type TravelContext } from "../src/travel/graph";
+import { buildGraph, detourHop, firstHop, hearthPenaltyOf, solveFrom, taxiDestination, travelTime, type TravelContext } from "../src/travel/graph";
 
 const SPEED = 7;
 const WALK = CONSTANTS.detourFactor.value / SPEED;
@@ -391,5 +391,33 @@ describe("taxiDestination", () => {
   it("is null when the path walks", () => {
     expect(destination(TAXI, [1], pos(300, 400))).toBeNull();
     expect(destination(TAXI, [1, 2], pos(50, 0))).toBeNull();
+  });
+});
+
+describe("detourHop", () => {
+  const FAST_TAXI = data({
+    taxiNodes: [
+      { id: 1, name: "A", pos: pos(100, 0), faction: "AH" },
+      { id: 2, name: "B", pos: pos(5000, 0), faction: "AH" },
+    ],
+    taxiEdges: [{ from: 1, to: 2, seconds: 60 }],
+  });
+
+  function detour(travel: TravelData, known: number[], target: WorldPos) {
+    const ctx = context({ knownTaxiNodes: new Set(known) });
+    const graph = buildGraph(travel, ctx);
+    const plan = solveFrom(graph, pos(0, 0), ctx);
+    return { best: firstHop(plan, graph, target, ctx), detour: detourHop(plan, graph, target, ctx) };
+  }
+
+  it("gives the best way that does not start by walking straight to the target", () => {
+    const { best, detour: alternative } = detour(FAST_TAXI, [1, 2], pos(2500, 0));
+    expect(best?.kind).toBe("walk");
+    expect(alternative).toEqual({ kind: "taxi", pos: pos(100, 0), taxiNodeId: 1 });
+  });
+
+  it("is null when no other way exists", () => {
+    expect(detour(data({}), [], pos(900, 0)).detour).toBeNull();
+    expect(detour(FAST_TAXI, [], pos(2500, 0)).detour).toBeNull();
   });
 });

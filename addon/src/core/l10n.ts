@@ -88,6 +88,7 @@ export type L10nKey =
   | "bannerBuild"
   | "bannerExpired"
   | "featureDisabled"
+  | "spfRefused"
   | "repositoryReadFailed"
   | "repositoryLastError"
   | "questInfo"
@@ -218,6 +219,7 @@ const EN: Record<L10nKey, string> = {
   bannerBuild: "Data built for build {build}",
   bannerExpired: "Expired data: {names}",
   featureDisabled: "{feature} disabled: {error}",
+  spfRefused: "Shortest Path Forever refused the trip: {reason}",
   repositoryReadFailed: "QuestieDB read failed ({method}): {error}",
   repositoryLastError: "last QuestieDB error: {error}",
   questInfo: "[{id}] {name} level {level}, {n} objective(s)",
@@ -349,6 +351,7 @@ const FR: Record<L10nKey, string> = {
   bannerBuild: "Données générées pour le build {build}",
   bannerExpired: "Données expirées : {names}",
   featureDisabled: "{feature} désactivé : {error}",
+  spfRefused: "Shortest Path Forever a refusé le trajet : {reason}",
   repositoryReadFailed: "lecture QuestieDB échouée ({method}) : {error}",
   repositoryLastError: "dernière erreur QuestieDB : {error}",
   questInfo: "[{id}] {name} niveau {level}, {n} objectif(s)",

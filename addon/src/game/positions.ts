@@ -17,6 +17,29 @@ export function uiMapToWorld(uiMapId: number, x: number, y: number): WorldPos | 
   return { continent, x: vec.x, y: vec.y };
 }
 
+export interface MapPoint {
+  uiMapId: number;
+  x: number;
+  y: number;
+}
+
+function inUnitRange(value: number): boolean {
+  return value >= 0 && value <= 1;
+}
+
+export function worldToMap(pos: WorldPos): MapPoint | null {
+  const toMap = C_Map.GetMapPosFromWorldPos;
+  if (toMap == null) return null;
+  const world = CreateVector2D(pos.x, pos.y);
+  const [uiMapId, point] = toMap(pos.continent, world);
+  if (uiMapId != null && point != null) return { uiMapId, x: point.x, y: point.y };
+  const best = C_Map.GetBestMapForUnit("player");
+  if (best == null) return null;
+  const [, local] = toMap(pos.continent, world, best);
+  if (local == null || !inUnitRange(local.x) || !inUnitRange(local.y)) return null;
+  return { uiMapId: best, x: local.x, y: local.y };
+}
+
 export function mapToWorld(repo: QuestRepository): AreaToWorld {
   return (point) => {
     const uiMapId = repo.uiMapIdForArea(point.areaId);
