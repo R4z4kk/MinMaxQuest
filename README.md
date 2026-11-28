@@ -9,7 +9,7 @@
 **0.2.0-beta.2**: first working beta. 0.2.0-beta.1 had two problems in game. It did not load, because one function went past a WoW Lua limit. Once loaded, the Access tab failed and blocked the tabs, because a bag item count got a wrong argument. Both are fixed, and the tests now check both causes. Everything below was introduced in 0.2.0-beta.1.
 - **Quest tab follows a full level 1-60 route.** Precomputed for each faction, with return trips for the dungeons you tick, and Re-sync when you leave it.
 - **New BetterBags-style window.** Sections with counts, a type icon on every row, and one fixed size for every tab.
-- **Access tab lists every unlockable.** Dungeons, raids, keys and more, built from Attune and QuestieDB, with step progress and "Track in route".
+- **Access tab lists what you have to unlock.** Raid attunements, dungeon keys (Seal of Ascension included) and more, built from Attune and QuestieDB, with step progress and "Track in route".
 - **Completion:**
   - sub-tabs Proximity, Zone and Log;
   - Proximity is limited to your zone and its neighbours;
@@ -68,7 +68,7 @@
 - Repeatable quests and holiday or event quests (Darkmoon Faire, Winter Veil, Lunar Festival...) are never suggested, in Completion or in the route. At max level, cloth donation quests are hidden too.
 
 ### Access tab
-- Lists every unlockable for your faction (70 entries in total, 39 for each faction) in four collapsible sections (**Dungeons**, **Raids**, **Keys**, **Misc**), each header showing done / total.
+- Lists what your faction has to unlock (18 entries in total, 13 for each faction) in three collapsible sections (**Raids**, **Keys**, **Misc**), each header showing done / total. Dungeons that need no key are not listed.
 - Each entry has an icon (done, in progress, untouched) and shows its level range, or a small gold progress bar once started. Click it to expand its steps: done steps are struck through and greyed, the current one is marked ».
 - **Steps:** quests (names from the game client), items, "Reach level N", Kill / Talk to / Use with the NPC or object name, reputation and profession steps.
 - **Progress:** quests turned in or in your log, items in your bags with their count, level and reputation earned. A step that can't be checked counts as done once a later step is.

@@ -7,11 +7,11 @@ Review this report with the diff of `addon/src/data/generated/access.ts` before 
 
 | Group | A | H | AH | Entries | Steps |
 |---|---|---|---|---|---|
-| dungeon | 27 | 27 | 0 | 54 | 1341 |
+| dungeon | 0 | 0 | 0 | 0 | 0 |
 | raid | 1 | 1 | 3 | 5 | 88 |
-| key | 2 | 2 | 3 | 7 | 66 |
+| key | 3 | 3 | 3 | 9 | 121 |
 | misc | 1 | 1 | 2 | 4 | 128 |
-| all | 31 | 31 | 8 | 70 | 1623 |
+| all | 5 | 5 | 8 | 18 | 337 |
 
 Completions: 0 dungeon entries and 45 dungeon quests added from QuestieDB.
 
@@ -25,9 +25,9 @@ None.
 
 The snapshot only holds items that QuestieDB quests reference, so an item listed here may still exist in the game.
 
-- 351 Zul'Farrak (H), step 420: 9321
-- 340 Dire Maul (A), step 230: 18501
-- 341 Dire Maul (H), step 230: 18501
+- 351, step 420: 9321
+- 340, step 230: 18501
+- 341, step 230: 18501
 - 365 Upper Blackrock Spire (A), step 650: 12241
 - 366 Upper Blackrock Spire (H), step 650: 12241
 - 159 Tome of Dalaran (AH), step 30: 276561
@@ -62,11 +62,11 @@ The snapshot only holds items that QuestieDB quests reference, so an item listed
 
 Steps removed from one entry (follows of later steps rewired to the removed step's own follows):
 
-- 166 The Hall of Thanes (H), step 120: quest 96403 Important Heirlooms, Alliance-only quest listed in a Horde entry; rewired steps 130
-- 166 The Hall of Thanes (H), step 140: quest 96403 Important Heirlooms, Alliance-only quest listed in a Horde entry; rewired steps 150
-- 351 Zul'Farrak (H), step 725: quest 2769 The Brassbolts Brothers, Alliance-only quest listed in a Horde entry; rewired steps 720
-- 356 Alcaz Prison (H), step 1490: quest 96377 State Secrets, Alliance-only quest listed in a Horde entry
-- 356 Alcaz Prison (H), step 1480: quest 95262 The Secret Prison, Alliance-only quest listed in a Horde entry
+- 166, step 120: quest 96403 Important Heirlooms, Alliance-only quest listed in a Horde entry; rewired steps 130
+- 166, step 140: quest 96403 Important Heirlooms, Alliance-only quest listed in a Horde entry; rewired steps 150
+- 351, step 725: quest 2769 The Brassbolts Brothers, Alliance-only quest listed in a Horde entry; rewired steps 720
+- 356, step 1490: quest 96377 State Secrets, Alliance-only quest listed in a Horde entry
+- 356, step 1480: quest 95262 The Secret Prison, Alliance-only quest listed in a Horde entry
 
 ## Faction conflicts
 
@@ -95,64 +95,64 @@ None.
 
 None of their quests has a party dungeon as `zoneOrSort`; no quest was added to them.
 
-- 275 The Drowned City (A)
-- 276 The Drowned City (H)
-- 295 Krol'dok Stronghold (A)
-- 296 Krol'dok Stronghold (H)
-- 355 Alcaz Prison (A)
-- 356 Alcaz Prison (H)
-- 405 Blackmaw Hold (A)
-- 406 Blackmaw Hold (H)
-- 415 The Shapers Terrace (A)
-- 417 The Shapers Terrace (H)
+- 275
+- 276
+- 295
+- 296
+- 355
+- 356
+- 405
+- 406
+- 415
+- 417
 
 ## Dungeon quests added from QuestieDB
 
-- 210 Blackfathom Deeps (H): quest 1198 In Search of Thaelrid
-- 230 Gnomeregan (A): quest 2952 The Sparklematic 5200!
-- 240 Gnomeregan (H): quest 2952 The Sparklematic 5200!
-- 320 Uldaman (A): quest 704 Agmond's Fate
-- 330 Uldaman (H): quest 2338 Translating the Journal
-- 345 Lower Blackrock Spire (A): quest 4765 Delivery to Ridgewell
-- 345 Lower Blackrock Spire (A): quest 4907 Tinkee Steamboil
-- 345 Lower Blackrock Spire (A): quest 8966 The Left Piece of Lord Valthalak's Amulet
-- 345 Lower Blackrock Spire (A): quest 8989 The Right Piece of Lord Valthalak's Amulet
-- 345 Lower Blackrock Spire (A): quest 8995 Mea Culpa, Lord Valthalak
-- 346 Lower Blackrock Spire (H): quest 4907 Tinkee Steamboil
-- 346 Lower Blackrock Spire (H): quest 8966 The Left Piece of Lord Valthalak's Amulet
-- 346 Lower Blackrock Spire (H): quest 8989 The Right Piece of Lord Valthalak's Amulet
-- 346 Lower Blackrock Spire (H): quest 8995 Mea Culpa, Lord Valthalak
-- 346 Lower Blackrock Spire (H): quest 98325 Blood and Thunder
-- 390 Blackrock Depths (A): quest 4324 Yuka Screwspigot
-- 400 Blackrock Depths (H): quest 4121 Precarious Predicament
-- 400 Blackrock Depths (H): quest 4122 Grark Lorkrub
-- 400 Blackrock Depths (H): quest 4133 Vivian Lagrave
-- 400 Blackrock Depths (H): quest 4324 Yuka Screwspigot
-- 360 Stratholme (A): quest 8945 Dead Man's Plea
-- 360 Stratholme (A): quest 8968 The Left Piece of Lord Valthalak's Amulet
-- 360 Stratholme (A): quest 8991 The Right Piece of Lord Valthalak's Amulet
-- 361 Stratholme (H): quest 8945 Dead Man's Plea
-- 361 Stratholme (H): quest 8968 The Left Piece of Lord Valthalak's Amulet
-- 361 Stratholme (H): quest 8991 The Right Piece of Lord Valthalak's Amulet
-- 410 Scholomance (A): quest 8969 The Left Piece of Lord Valthalak's Amulet
-- 410 Scholomance (A): quest 8992 The Right Piece of Lord Valthalak's Amulet
-- 420 Scholomance (H): quest 8969 The Left Piece of Lord Valthalak's Amulet
-- 420 Scholomance (H): quest 8992 The Right Piece of Lord Valthalak's Amulet
-- 340 Dire Maul (A): quest 7462 The Treasure of the Shen'dralar
-- 340 Dire Maul (A): quest 7877 The Treasure of the Shen'dralar
-- 340 Dire Maul (A): quest 8948 Anthion's Old Friend
-- 340 Dire Maul (A): quest 8949 Falrin's Vendetta
-- 340 Dire Maul (A): quest 8950 The Instigator's Enchantment
-- 340 Dire Maul (A): quest 8967 The Left Piece of Lord Valthalak's Amulet
-- 340 Dire Maul (A): quest 8990 The Right Piece of Lord Valthalak's Amulet
-- 341 Dire Maul (H): quest 7877 The Treasure of the Shen'dralar
-- 341 Dire Maul (H): quest 8948 Anthion's Old Friend
-- 341 Dire Maul (H): quest 8949 Falrin's Vendetta
-- 341 Dire Maul (H): quest 8950 The Instigator's Enchantment
-- 341 Dire Maul (H): quest 8967 The Left Piece of Lord Valthalak's Amulet
-- 341 Dire Maul (H): quest 8990 The Right Piece of Lord Valthalak's Amulet
-- 195 Excavation Site: Wetlands (A): quest 98824 Prehistoric Prism
-- 196 Excavation Site: Wetlands (H): quest 98823 Earthen Echo
+- 210: quest 1198 In Search of Thaelrid
+- 230: quest 2952 The Sparklematic 5200!
+- 240: quest 2952 The Sparklematic 5200!
+- 320: quest 704 Agmond's Fate
+- 330: quest 2338 Translating the Journal
+- 345: quest 4765 Delivery to Ridgewell
+- 345: quest 4907 Tinkee Steamboil
+- 345: quest 8966 The Left Piece of Lord Valthalak's Amulet
+- 345: quest 8989 The Right Piece of Lord Valthalak's Amulet
+- 345: quest 8995 Mea Culpa, Lord Valthalak
+- 346: quest 4907 Tinkee Steamboil
+- 346: quest 8966 The Left Piece of Lord Valthalak's Amulet
+- 346: quest 8989 The Right Piece of Lord Valthalak's Amulet
+- 346: quest 8995 Mea Culpa, Lord Valthalak
+- 346: quest 98325 Blood and Thunder
+- 390: quest 4324 Yuka Screwspigot
+- 400: quest 4121 Precarious Predicament
+- 400: quest 4122 Grark Lorkrub
+- 400: quest 4133 Vivian Lagrave
+- 400: quest 4324 Yuka Screwspigot
+- 360: quest 8945 Dead Man's Plea
+- 360: quest 8968 The Left Piece of Lord Valthalak's Amulet
+- 360: quest 8991 The Right Piece of Lord Valthalak's Amulet
+- 361: quest 8945 Dead Man's Plea
+- 361: quest 8968 The Left Piece of Lord Valthalak's Amulet
+- 361: quest 8991 The Right Piece of Lord Valthalak's Amulet
+- 410: quest 8969 The Left Piece of Lord Valthalak's Amulet
+- 410: quest 8992 The Right Piece of Lord Valthalak's Amulet
+- 420: quest 8969 The Left Piece of Lord Valthalak's Amulet
+- 420: quest 8992 The Right Piece of Lord Valthalak's Amulet
+- 340: quest 7462 The Treasure of the Shen'dralar
+- 340: quest 7877 The Treasure of the Shen'dralar
+- 340: quest 8948 Anthion's Old Friend
+- 340: quest 8949 Falrin's Vendetta
+- 340: quest 8950 The Instigator's Enchantment
+- 340: quest 8967 The Left Piece of Lord Valthalak's Amulet
+- 340: quest 8990 The Right Piece of Lord Valthalak's Amulet
+- 341: quest 7877 The Treasure of the Shen'dralar
+- 341: quest 8948 Anthion's Old Friend
+- 341: quest 8949 Falrin's Vendetta
+- 341: quest 8950 The Instigator's Enchantment
+- 341: quest 8967 The Left Piece of Lord Valthalak's Amulet
+- 341: quest 8990 The Right Piece of Lord Valthalak's Amulet
+- 195: quest 98824 Prehistoric Prism
+- 196: quest 98823 Earthen Echo
 
 ## Class dungeon quests not added
 
@@ -181,9 +181,66 @@ QuestieDB `specialFlags` bit 1 (repeatable).
 - 2557 Dire Maul: quest 7484 Libram of Focus (repeatable)
 - 2557 Dire Maul: quest 7485 Libram of Protection (repeatable)
 
+## Open dungeons not listed
+
+Attune's Dungeons group only lists the quests of dungeons that need no unlock; Upper Blackrock Spire moves to the keys (Seal of Ascension).
+
+- 160 Ragefire Chasm (H)
+- 163 The Hall of Thanes (A)
+- 166 The Hall of Thanes (H)
+- 183 Ruins of Lordaeron (A)
+- 186 Ruins of Lordaeron (H)
+- 177 Wailing Caverns (A)
+- 180 Wailing Caverns (H)
+- 170 The Deadmines (A)
+- 190 Shadowfang Keep (H)
+- 200 Blackfathom Deeps (A)
+- 210 Blackfathom Deeps (H)
+- 220 The Stockade (A)
+- 195 Excavation Site: Wetlands (A)
+- 196 Excavation Site: Wetlands (H)
+- 225 City of Dalaran (A)
+- 226 City of Dalaran (H)
+- 230 Gnomeregan (A)
+- 240 Gnomeregan (H)
+- 250 Razorfen Kraul (A)
+- 251 Razorfen Kraul (H)
+- 260 Scarlet Monastery (A)
+- 270 Scarlet Monastery (H)
+- 275 The Drowned City (A)
+- 276 The Drowned City (H)
+- 280 Razorfen Downs (A)
+- 290 Razorfen Downs (H)
+- 295 Krol'dok Stronghold (A)
+- 296 Krol'dok Stronghold (H)
+- 320 Uldaman (A)
+- 330 Uldaman (H)
+- 350 Zul'Farrak (A)
+- 351 Zul'Farrak (H)
+- 300 Maraudon (A)
+- 310 Maraudon (H)
+- 355 Alcaz Prison (A)
+- 356 Alcaz Prison (H)
+- 370 The Temple of Atal'Hakkar (A)
+- 380 The Temple of Atal'Hakkar (H)
+- 390 Blackrock Depths (A)
+- 400 Blackrock Depths (H)
+- 340 Dire Maul (A)
+- 341 Dire Maul (H)
+- 345 Lower Blackrock Spire (A)
+- 346 Lower Blackrock Spire (H)
+- 405 Blackmaw Hold (A)
+- 406 Blackmaw Hold (H)
+- 360 Stratholme (A)
+- 361 Stratholme (H)
+- 410 Scholomance (A)
+- 415 The Shapers Terrace (A)
+- 417 The Shapers Terrace (H)
+- 420 Scholomance (H)
+
 ## Addon access chains
 
-- dalaran-sewers: found in Attune 225 City of Dalaran (A), 154 Dalaran Sewer Key (A)
+- dalaran-sewers: found in Attune 225, 154 Dalaran Sewer Key (A)
 
 ## Attune data notes
 
