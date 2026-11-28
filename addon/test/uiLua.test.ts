@@ -461,11 +461,15 @@ it("creates no frame, texture or font string when the engine redraws an open tab
     await s.cmd("");
     await s.click("MinMaxQuestTabcompletion");
     const before = await created();
+    const times = async () => (await s.texts()).filter((line) => line.endsWith("min")).pop();
+    const first = await times();
+    await s.clearCalls();
     for (const x of [1500, 1800]) {
       await s.run(`player = { ${x}, 2000 }; now = now + 3`);
       await s.tick();
     }
-    expect(await s.texts()).toContain("To pick up");
+    expect(await s.texts()).toContain("» Second");
+    expect(await times()).not.toBe(first);
     expect(await created()).toBe(before);
     await s.click("MinMaxQuestTabaccess");
     const access = await created();

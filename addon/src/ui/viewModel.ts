@@ -5,6 +5,7 @@ import type { CharDb } from "../core/storage";
 import { sameKey, targetName } from "../game/engine";
 import type { Target, TargetKind, ZoneProgress } from "../targets/completion";
 import type { ZoneIndex } from "./maps";
+import { reportOnce } from "../core/report";
 import { COLOR, colorCode, GLYPH, type IconKind } from "./theme";
 
 export type CompletionLine =
@@ -117,6 +118,7 @@ function rowIcon(target: Target, getQuest: QuestGetter): IconKind {
   if (target.kind === "accept") return "accept";
   const quest = target.questId == null ? null : getQuest(target.questId);
   const objective = quest?.objectives.find((o) => o.index === target.objectiveIndex);
+  if (objective == null) reportOnce(`completionIcon${target.questId}`, `quest ${target.questId} objective ${target.objectiveIndex} not found`);
   return objective?.kind === "npc" ? "kill" : "collect";
 }
 
@@ -150,10 +152,34 @@ export function completionLines(targets: Target[], current: Target | null, getQu
     for (const target of picked) lines.push(rowLine(target, sameKey(target, current), getQuest));
   }
   if (lines.length <= slots) return lines;
-  const kept = lines.slice(0, Math.max(slots - 1, 0));
-  if (kept.length > 0 && kept[kept.length - 1].kind === "section") kept.pop();
+  const kept = cutLines(lines, current, slots - 1);
   const total = lines.filter((l) => l.kind === "row").length;
   const shown = kept.filter((l) => l.kind === "row").length;
   if (slots > 0) kept.push({ kind: "row", icon: "empty", level: "", name: t("moreRows").replace("{n}", String(total - shown)), time: "", tone: "more" });
   return kept;
+}
+
+function trimOrphan(lines: CompletionLine[]): void {
+  if (lines.length > 0 && lines[lines.length - 1].kind === "section") lines.pop();
+}
+
+function cutLines(lines: CompletionLine[], current: Target | null, room: number): CompletionLine[] {
+  const kept = lines.slice(0, Math.max(room, 0));
+  trimOrphan(kept);
+  if (current == null) return kept;
+  const at = lines.findIndex((l) => l.kind === "row" && l.tone === "target");
+  if (at < kept.length) return kept;
+  let header = at - 1;
+  while (lines[header].kind !== "section") header--;
+  const prefix = lines.slice(0, Math.max(room - 1, 0));
+  trimOrphan(prefix);
+  if (header >= prefix.length) {
+    const shorter = lines.slice(0, Math.max(room - 2, 0));
+    trimOrphan(shorter);
+    shorter.push(lines[header]);
+    shorter.push(lines[at]);
+    return shorter;
+  }
+  prefix.push(lines[at]);
+  return prefix;
 }

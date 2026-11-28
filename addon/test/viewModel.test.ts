@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { resetReports, setReportSink } from "../src/core/report";
 import { formatDuration, type WorldPos } from "../src/core/geometry";
 import { setLocale } from "../src/core/l10n";
 import type { QuestInfo } from "../src/data/questRepository";
@@ -33,6 +34,12 @@ const names: Record<number, string> = { 1: "Wolves", 2: "Kodos", 3: "Grey one", 
 const getQuest = (id: number): QuestInfo | null =>
   names[id] == null ? null : ({ id, name: names[id], objectives: [] } as unknown as QuestInfo);
 
+let reported: string[] = [];
+beforeEach(() => {
+  reported = [];
+  resetReports();
+  setReportSink((line) => reported.push(line));
+});
 afterEach(() => setLocale("enUS"));
 
 describe("formatting", () => {
@@ -147,6 +154,9 @@ describe("completionLines", () => {
     ];
     const rows = completionLines(list, null, get, 20).filter((l) => l.kind === "row");
     expect(rows.map((r) => r.icon)).toEqual(["turnin", "kill", "collect", "collect", "accept"]);
+    expect(reported).toEqual(["MinMaxQuest: quest 9 objective 1 not found"]);
+    completionLines(list, null, get, 20);
+    expect(reported.length).toBe(1);
   });
 
   it("keeps one row per quest, the time without penalty, the level and the elite tag", () => {
@@ -170,6 +180,27 @@ describe("completionLines", () => {
     const dropped = completionLines([target(1, { kind: "turnin" }), target(2)], null, getQuest, 3);
     expect(dropped.map((l) => l.kind)).toEqual(["section", "row", "row"]);
     expect(dropped[2]).toMatchObject({ tone: "more", name: "+1 more..." });
+  });
+
+  it("keeps the arrow target visible when it sits in a lower section", () => {
+    setLocale("enUS");
+    const list = [
+      ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((id) => target(id, { kind: "turnin" })),
+      ...[11, 12, 13, 14, 15, 16, 17, 18, 19].map((id) => target(id)),
+      target(20),
+    ];
+    const lines = completionLines(list, list[19], getQuest, 8);
+    expect(lines.length).toBe(8);
+    expect(lines[7]).toMatchObject({ tone: "more", name: "+15 more..." });
+    expect(lines[6]).toMatchObject({ tone: "target", name: `${GLYPH.current}#20` });
+    expect(lines[5]).toEqual({ kind: "section", label: "To pick up", count: 10 });
+    expect(lines[0]).toEqual({ kind: "section", label: "To turn in", count: 10 });
+    const inSection = completionLines(list, list[14], getQuest, 14);
+    expect(inSection.filter((l) => l.kind === "row" && l.tone === "target").length).toBe(1);
+    expect(inSection[inSection.length - 1]).toMatchObject({ tone: "more" });
+    for (let i = 0; i < inSection.length - 1; i++) {
+      if (inSection[i].kind === "section") expect(inSection[i + 1].kind).toBe("row");
+    }
   });
 
   it("returns no lines for no targets and never lists route steps", () => {
