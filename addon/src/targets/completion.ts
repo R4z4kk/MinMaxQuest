@@ -46,6 +46,8 @@ export interface Target {
   zoneAreaId: number | null;
   route: RouteRef | null;
   obtain?: TargetObtain;
+  // Item to loot that starts the quest (accept of an item-started route step).
+  loot?: string;
 }
 
 export interface CompletionOptions {

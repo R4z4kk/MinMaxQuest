@@ -396,3 +396,22 @@ describe("profession steps", () => {
     expect(f.targets(snap)?.[0]?.obtain).toBeUndefined();
   });
 });
+
+it("points a loot accept at the item's drop spawns and names the item", () => {
+  const book: QuestInfo = { ...quest, id: 902, name: "Nibbled", requiredLevel: 1, starterItems: [700] };
+  install({ segmentEndLevel: 10 }, [{ ...grind(11, 115, "accept"), questId: 902, npcId: 5 }, grind(12, 300)]);
+  const spawns: WorldPos[] = [{ continent: 0, x: 110, y: 0 }, { continent: 0, x: 120, y: 0 }, { continent: 0, x: 900, y: 0 }];
+  const f = follower(loadCharDb(null), { on: false }, {
+    quest: (id) => (id === 902 ? book : null),
+    starterLoot: (q, npcId) => (q.id === 902 && npcId === 5 ? { item: "Nibbled Book", points: spawns } : null),
+  });
+  const target = f.targets(snapshot(11))?.[0];
+  expect(target).toMatchObject({ kind: "accept", questId: 902, loot: "Nibbled Book", pos: { continent: 0, x: 115, y: 0 } });
+  expect(target?.cluster?.points).toEqual([spawns[0], spawns[1]]);
+  expect(f.view()?.currentText).toBe("Nibbled · loot Nibbled Book to start it");
+  const taken = snapshot(11);
+  taken.log.set(902, { complete: false, objectivesDone: new Set() });
+  taken.state.inLog.add(902);
+  f.targets(taken);
+  expect(f.view()?.current).toBe(1);
+});

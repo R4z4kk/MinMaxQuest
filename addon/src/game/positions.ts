@@ -1,6 +1,6 @@
 import { distance, type WorldPos } from "../core/geometry";
 import { PROFESSIONS, type ProfessionData } from "../data/generated/professions";
-import type { AreaPoint, QuestRepository } from "../data/questRepository";
+import type { AreaPoint, QuestInfo, QuestRepository } from "../data/questRepository";
 import type { PlaceFor } from "../route/insert";
 import type { CompletionInput } from "../targets/completion";
 import type { PlanFor } from "./professions";
@@ -191,5 +191,36 @@ export function createPositions(
       itemSources[objective.id] = sources;
     }
     return collect(sources.npcs, sources.objects);
+  };
+}
+
+// Quest started by a looted item: the item to loot and where its sources spawn.
+export type StarterLoot = (q: QuestInfo, npcId: number | null) => { item: string; points: WorldPos[] } | null;
+
+export function createStarterLoot(repo: QuestRepository, toWorld: AreaToWorld, itemName: (itemId: number) => string | null): StarterLoot {
+  return (q, npcId) => {
+    if (q.starterNpcs.length + q.starterObjects.length > 0 || q.starterItems.length === 0) return null;
+    let itemId = q.starterItems[0];
+    let sources = repo.itemSources(itemId);
+    if (npcId != null) {
+      for (const id of q.starterItems) {
+        const found = repo.itemSources(id);
+        if (found.npcs.includes(npcId)) {
+          itemId = id;
+          sources = found;
+          break;
+        }
+      }
+    }
+    const points: WorldPos[] = [];
+    for (const id of sources.npcs) for (const p of repo.npcSpawns(id)) {
+      const pos = toWorld(p);
+      if (pos != null) points.push(pos);
+    }
+    for (const id of sources.objects) for (const p of repo.objectSpawns(id)) {
+      const pos = toWorld(p);
+      if (pos != null) points.push(pos);
+    }
+    return { item: itemName(itemId) ?? `#${itemId}`, points };
   };
 }

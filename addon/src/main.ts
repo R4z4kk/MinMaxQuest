@@ -11,7 +11,7 @@ import { createQuestRepository, type QuestInfo, type QuestRepository, type RepoR
 import { createCommands } from "./game/commands";
 import { createEngine, describeTarget, sameKey, targetQuest, type Engine } from "./game/engine";
 import { clientItemName, createPlayerState, HEARTHSTONE_SPELL_ID, itemCount, playerFaction, type PlayerStateReader } from "./game/playerState";
-import { createPlaceFor, createPositions, mapToWorld, uiMapToWorld, worldToMap } from "./game/positions";
+import { createPlaceFor, createPositions, createStarterLoot, mapToWorld, uiMapToWorld, worldToMap } from "./game/positions";
 import { clientSpellKnown, createPlanFor, createPlayerSkills, type PlayerSkills } from "./game/professions";
 import { createNeighbourFinder, type HbdMapData } from "./game/neighbours";
 import { createRouting } from "./game/routing";
@@ -252,6 +252,7 @@ function start(): Game | null {
     inCombat: () => InCombatLockdown(),
     taxiNodes: TRAVEL.taxiNodes,
     planFor,
+    starterLoot: createStarterLoot(repo, mapToWorld(repo), (itemId) => clientItemName(itemId) ?? repo.itemName(itemId)),
   });
   const engine = createEngine(
     {
