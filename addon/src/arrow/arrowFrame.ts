@@ -17,7 +17,7 @@ export interface ArrowApi {
 }
 
 const FRAME_NAME = "MinMaxQuestArrow";
-const TEXTURE_PATH = "Interface\\AddOns\\MinMaxQuest\\addon\\src\\arrow\\arrow.tga";
+export const ARROW_TEXTURE = "Interface\\AddOns\\MinMaxQuest\\media\\arrow.tga";
 const FONT_PATH = "Fonts\\ARIALN.TTF";
 const REFRESH_INTERVAL = 1 / 30;
 const ARROW_SIZE = 44;
@@ -40,7 +40,7 @@ export function createArrow(db: CharDb): ArrowApi {
   const arrow = frame.CreateTexture(null, "ARTWORK");
   arrow.SetSize(ARROW_SIZE, ARROW_SIZE);
   arrow.SetPoint("TOP", frame, "TOP", 0, 0);
-  arrow.SetTexture(TEXTURE_PATH);
+  arrow.SetTexture(ARROW_TEXTURE);
 
   const distanceText = frame.CreateFontString(null, "OVERLAY");
   distanceText.SetFont(FONT_PATH, 14, "OUTLINE");

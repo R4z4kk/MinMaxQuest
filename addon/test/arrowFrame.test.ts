@@ -80,7 +80,7 @@ it("points straight up and shows the distance when the target is ahead", async (
     expect(calls).toContain("texture|SetRotation|0.0");
     expect(calls).toContain("font|SetText|100 m");
     expect(calls).toContain("font|SetText|Test");
-    expect(calls).toContain("texture|SetTexture|Interface\\AddOns\\MinMaxQuest\\addon\\src\\arrow\\arrow.tga");
+    expect(calls).toContain("texture|SetTexture|Interface\\AddOns\\MinMaxQuest\\media\\arrow.tga");
     expect(lastWith(calls, "frame|Show")).toBe("frame|Show");
   } finally {
     s.close();
