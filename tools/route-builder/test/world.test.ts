@@ -4,6 +4,8 @@ import type { QuestieSnapshot } from "../ingest/snapshot";
 import type { CmangosCounts, CmangosLoot } from "../ingest/cmangos";
 import { parseInstanceTypes } from "../ingest/instances";
 import { zonePercentToWorld } from "../ingest/zones";
+import { BUILDER, COLLECT_QUANTILE } from "../model/constants";
+import { killsForItems } from "../model/drops";
 import { buildWorld } from "../model/world";
 import { ELWYNN, WESTFALL, snapshot, travel, zones } from "./fixtures";
 
@@ -307,9 +309,18 @@ describe("buildWorld with item-started quests", () => {
       34: quest("Deep drop", { startedBy: [[], [], [704]] }),
       35: quest("Elite drop", { startedBy: [[], [], [705]] }),
       36: quest("No starter", { startedBy: [[], [], []] }),
+      37: quest("Rare drop", { startedBy: [[], [], [706]] }),
+      38: quest("Lone rare", { startedBy: [[], [], [707]] }),
+      39: quest("Ranked rare", { startedBy: [[], [], [708]] }),
     },
-    questXp: { ...base.questXp, 30: [5, 100], 31: [5, 100], 32: [5, 100], 33: [5, 100], 34: [5, 100], 35: [5, 100], 36: [5, 100] },
-    npcs: { ...base.npcs, 120: npc({ 12: [[70, 70]] }, { name: "Old Grizzled", rank: 1, minLevel: 9, maxLevel: 9, npcFlags: 0 }) },
+    questXp: { ...base.questXp, 30: [5, 100], 31: [5, 100], 32: [5, 100], 33: [5, 100], 34: [5, 100], 35: [5, 100], 36: [5, 100], 37: [5, 100], 38: [5, 100], 39: [5, 100] },
+    npcs: {
+      ...base.npcs,
+      120: npc({ 12: [[70, 70], [71, 70]] }, { name: "Old Grizzled", rank: 1, minLevel: 9, maxLevel: 9, npcFlags: 0 }),
+      121: npc({ 12: [[72, 70]] }, { name: "Lonely Rare", minLevel: 9, maxLevel: 9, npcFlags: 0 }),
+      122: npc({ 12: [[73, 70], [74, 70]] }, { name: "Ranked Rare", rank: 4, minLevel: 9, maxLevel: 9, npcFlags: 0 }),
+      201: npc({ 12: [[60, 50], [60.5, 50]] }, { name: "Defias Thug", minLevel: 8, maxLevel: 8, npcFlags: 0 }),
+    },
     items: {
       ...base.items,
       700: { name: "Nibbled Book", class: 12, npcDrops: [200], objectDrops: [] },
@@ -318,10 +329,13 @@ describe("buildWorld with item-started quests", () => {
       703: { name: "Bottle Note", class: 12, npcDrops: [], objectDrops: [600] },
       704: { name: "Deep Note", class: 12, npcDrops: [106], objectDrops: [] },
       705: { name: "Grizzled Paw", class: 12, npcDrops: [120], objectDrops: [] },
+      706: { name: "Rare Note", class: 12, npcDrops: [200], objectDrops: [] },
+      707: { name: "Lonely Fang", class: 12, npcDrops: [121], objectDrops: [] },
+      708: { name: "Ranked Fang", class: 12, npcDrops: [122], objectDrops: [] },
     },
     dropRates: { ...base.dropRates, 701: { 201: 50 } },
   });
-  const rates = new Map([["700:200", 0.04], ["701:201", 0.1], ["705:120", 1]]);
+  const rates = new Map([["700:200", 0.04], ["701:201", 0.1], ["705:120", 1], ["706:200", 0.01], ["707:121", 1], ["708:122", 1]]);
   const loot: CmangosLoot = { dropRate: (itemId, npcId) => rates.get(`${itemId}:${npcId}`) ?? null };
   const w = buildWorld(s, zones(), "A", taxi(), INSTANCES, COUNTS, loot);
 
@@ -350,6 +364,14 @@ describe("buildWorld with item-started quests", () => {
     expect(w.quests.has(36)).toBe(false);
     expect(w.excluded.get("noPosition")).toBe(2);
     expect(w.excluded.get("noStarter")).toBe(1);
+  });
+
+  it("leaves starters that need more kills than the cap, or drop from a rare or a lone spawn", () => {
+    expect(killsForItems(1, 0.04, COLLECT_QUANTILE)).toBeLessThanOrEqual(BUILDER.maxStarterKills.value);
+    expect(killsForItems(1, 0.01, COLLECT_QUANTILE)).toBeGreaterThan(BUILDER.maxStarterKills.value);
+    expect(w.quests.has(30)).toBe(true);
+    for (const id of [37, 38, 39]) expect(w.quests.has(id)).toBe(false);
+    expect(w.excluded.get("rareStarter")).toBe(3);
   });
 
   it("marks the quest elite when the dropping mob is", () => {

@@ -19,7 +19,8 @@ import { textCount } from "../ingest/counts";
 import { INSTANCE_PARTY, INSTANCE_PVP, INSTANCE_RAID } from "../ingest/instances";
 import { dropRate, hasFlag, npcInfo, snapshotLib, type QuestieSnapshot } from "../ingest/snapshot";
 import { zonePercentToWorld, type UiMapRect } from "../ingest/zones";
-import { BUILDER } from "./constants";
+import { BUILDER, COLLECT_QUANTILE } from "./constants";
+import { killsForItems } from "./drops";
 
 export interface Place { pos: WorldPos; uiMapId: number; x: number; y: number; npcId: number | null; objectId: number | null }
 export type TaskKind = "kill" | "collect" | "use";
@@ -93,7 +94,8 @@ export type ExclusionReason =
   | "noDropRate"
   | "noMobLevel"
   | "noCount"
-  | "raidOrBattleground";
+  | "raidOrBattleground"
+  | "rareStarter";
 
 // Race ids: QuestieDB src/corrections/enum/expansions.lua, Forever raceKeys ALL_ALLIANCE / ALL_HORDE.
 export const FACTION_RACES: Record<"A" | "H", number[]> = { A: [1, 3, 4, 7, 95], H: [2, 5, 6, 8, 96] };
@@ -386,11 +388,20 @@ export function buildWorld(
 
   // QuestieDB rate first, cmangos loot second: QuestieDB's drop tables hardly know starter items.
   const starterRate: RateOf = (itemId, npcId) => dropRate(s, itemId, npcId) ?? loot.dropRate(itemId, npcId);
+  // QuestieDB ranks: 2 rare elite, 3 boss, 4 rare. A single spawn point is how most rares show up with rank 0.
+  const RARE_RANKS = new Set([2, 3, 4]);
+  const routableStarter = (task: Task): Task => {
+    const npcId = task.cluster.center.npcId;
+    if (task.kind === "use" || npcId == null) return task;
+    if (RARE_RANKS.has(s.npcs[npcId]?.rank ?? 0) || npcPlaces(npcId).length < 2) exclude("rareStarter");
+    if (!task.assumedDropChance && killsForItems(1, task.dropChance, COLLECT_QUANTILE) > BUILDER.maxStarterKills.value) exclude("rareStarter");
+    return task;
+  };
   const starterTask = (items: number[]): Task => {
     let last: Excluded | null = null;
     for (const itemId of items) {
       try {
-        return itemTask(itemId, 1, { objectiveIndex: 0, dropChance: 1, assumedDropChance: false }, starterRate);
+        return routableStarter(itemTask(itemId, 1, { objectiveIndex: 0, dropChance: 1, assumedDropChance: false }, starterRate));
       } catch (error) {
         if (!(error instanceof Excluded)) throw error;
         last = error;

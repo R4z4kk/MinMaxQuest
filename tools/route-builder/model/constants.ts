@@ -19,6 +19,8 @@ export const BUILDER = {
   lootSec: dated(3, SPEC),
   objectYield: dated(1, `${SPEC} (items per object use)`),
   segmentEndLevel: dated(10, "MinMaxQuest spec §7.7"),
+  // 40 kills at the 0.8 quantile keeps drops of 4 % and more (Westfall Deed); 1 % drops would take 161.
+  maxStarterKills: dated(40, "unverified estimate, design 2026-11-28-item-started-quests (no farming a rare starter drop)"),
 };
 
 export const COLLECT_QUANTILE = 0.8;
