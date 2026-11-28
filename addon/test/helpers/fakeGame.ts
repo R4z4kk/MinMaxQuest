@@ -83,14 +83,16 @@ hearthCount = 1
 -- Bag counts and item spells by item id; the hearthstone count stays hearthCount.
 bags = {}
 itemSpells = {}
+-- Like the client, reject a non-number id: a TSTL self argument passed by mistake must fail here too.
+function needNumber(api, id) if type(id) ~= "number" then error("bad argument #1 to '" .. api .. "'") end end
 C_Item = {
-  GetItemCount = function(id) if id == 6948 then return hearthCount end return bags[id] or 0 end,
+  GetItemCount = function(id) needNumber("GetItemCount", id) if id == 6948 then return hearthCount end return bags[id] or 0 end,
   GetItemSpell = function(id) if itemSpells[id] then return itemSpells[id], 1 end end,
   GetItemIconByID = function(id) return 1000 + id end,
 }
 -- Earned reputation by faction id; unknown factions return nothing.
 reps = {}
-C_Reputation = { GetFactionDataByID = function(id) if reps[id] then return { name = "F" .. id, currentStanding = reps[id] } end end }
+C_Reputation = { GetFactionDataByID = function(id) needNumber("GetFactionDataByID", id) if reps[id] then return { name = "F" .. id, currentStanding = reps[id] } end end }
 GetFactionInfoByID = function() end
 player = { 1000, 2000 }
 UnitPosition = function() return player[1], player[2], 0, 0 end
@@ -131,7 +133,7 @@ LibStub = function(name)
 end
 C_Map = {
   GetBestMapForUnit = function() return 1429 end,
-  GetWorldPosFromMapPos = function(map, v) return 0, { x = 1000 + v.x * 100, y = 2000 + v.y * 100 } end,
+  GetWorldPosFromMapPos = function(map, v) needNumber("GetWorldPosFromMapPos", map) return 0, { x = 1000 + v.x * 100, y = 2000 + v.y * 100 } end,
 }
 C_Timer = { NewTicker = function(seconds, fn) ticker = fn end }
 quests = {

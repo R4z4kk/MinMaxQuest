@@ -253,7 +253,7 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
     pos: snap.pos,
     bindPos: snap.hearth.pos,
     hearthBoundWhileCurrent,
-    toWorld,
+    toWorld: (uiMapId, x, y) => toWorld(uiMapId, x, y),
     taxiPos: (id) => taxiNode(id)?.pos ?? null,
   });
 
