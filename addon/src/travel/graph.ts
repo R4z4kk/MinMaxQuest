@@ -10,11 +10,19 @@ export interface TravelContext {
   hearthPenaltySec: number;
 }
 
+// Nearest walk places of a point, nearest first; places -1 and dists Infinity past count.
+export interface Landmarks {
+  places: number[];
+  dists: number[];
+  count: number;
+}
+
 export interface TravelPlan {
   times: Map<number, number>;
   via: Map<number, number>;
   viaKind: Map<number, number>;
   nodePos: Map<number, WorldPos>;
+  originMarks: Landmarks;
 }
 
 export interface TaxiLeg {
@@ -43,8 +51,20 @@ export interface TravelGraph {
   heapPos: number[];
   heapSize: number;
   bestCost: number;
-  // Nearest slots per target point (by identity); the graph is rebuilt, never mutated, so this never goes stale.
-  nearest: Map<WorldPos, number[]>;
+  places: WorldPos[];
+  // Baked walking yards between walk places, row-major; Infinity where there is no way through.
+  placeYards: number[];
+  slotPlace: number[];
+  // Walking yards between fixed slots, row-major with stride slotCount; the origin row is filled per solve.
+  walkYards: number[];
+  originYards: number[];
+  // Nearest slots and walk places per target point (by identity); the graph is rebuilt, never mutated, so this never goes stale.
+  nearest: Map<WorldPos, TargetLinks>;
+}
+
+interface TargetLinks {
+  slots: number[];
+  marks: Landmarks;
 }
 
 export const ORIGIN_ID = -1;
@@ -58,6 +78,8 @@ const HEARTH = 3;
 const PORTAL = 4;
 const DIRECT = -100;
 const UNREACHABLE = -101;
+const NO_PLACE = -1;
+const MARK_COUNT = 3;
 
 function factionAllowed(allowed: "A" | "H" | "AH" | null, faction: "A" | "H"): boolean {
   return allowed == null || allowed === "AH" || allowed === faction;
@@ -69,14 +91,88 @@ function assertSpeed(ctx: TravelContext): void {
   }
 }
 
-function walkSeconds(yards: number, ctx: TravelContext): number {
-  return (yards * CONSTANTS.detourFactor.value) / ctx.speed;
+function straightYards(a: WorldPos, b: WorldPos): number {
+  return distance(a, b) * CONSTANTS.detourFactor.value;
 }
 
 function filled(length: number, value: number): number[] {
   const values: number[] = [];
   for (let i = 0; i < length; i++) values.push(value);
   return values;
+}
+
+function posKey(pos: WorldPos): string {
+  return `${pos.continent}:${pos.x}:${pos.y}`;
+}
+
+function bakedYards(data: TravelData): number[] {
+  const count = data.walkPlaces.length;
+  const walks = data.walks;
+  if (walks.length % 4 !== 0) throw new Error(`travel graph: walks length ${walks.length} is not a multiple of 4`);
+  const yards = filled(count * count, Infinity);
+  for (let place = 0; place < count; place++) yards[place * count + place] = 0;
+  for (let i = 0; i < walks.length; i += 4) {
+    const a = walks[i];
+    const b = walks[i + 1];
+    if (a < 0 || b < 0 || a >= count || b >= count || a === b) throw new Error(`travel graph: bad walk places ${a} ${b}`);
+    if (walks[i + 2] >= 0) yards[a * count + b] = walks[i + 2];
+    if (walks[i + 3] >= 0) yards[b * count + a] = walks[i + 3];
+  }
+  return yards;
+}
+
+function emptyMarks(): Landmarks {
+  return { places: filled(MARK_COUNT, NO_PLACE), dists: filled(MARK_COUNT, Infinity), count: 0 };
+}
+
+function findMarks(places: WorldPos[], point: WorldPos, marks: Landmarks): Landmarks {
+  for (let place = 0; place < places.length; place++) {
+    const pos = places[place];
+    if (pos.continent !== point.continent) continue;
+    const dist = Math.sqrt((pos.x - point.x) ** 2 + (pos.y - point.y) ** 2);
+    if (dist >= marks.dists[MARK_COUNT - 1]) continue;
+    let index = MARK_COUNT - 1;
+    while (index > 0 && marks.dists[index - 1] > dist) {
+      marks.places[index] = marks.places[index - 1];
+      marks.dists[index] = marks.dists[index - 1];
+      index -= 1;
+    }
+    marks.places[index] = place;
+    marks.dists[index] = dist;
+    if (marks.count < MARK_COUNT) marks.count += 1;
+  }
+  return marks;
+}
+
+// A free point (player, target) is on the landmass of its nearest walk place that has a baked walk to the
+// other end: the walk is at least that baked walk minus the straight lines to it, and never below the straight estimate.
+function freeToPlaceYards(graph: TravelGraph, marks: Landmarks, place: number, straight: number, outbound: boolean): number {
+  if (marks.count === 0) return straight;
+  const count = graph.places.length;
+  for (let i = 0; i < marks.count; i++) {
+    const mark = marks.places[i];
+    const baked = outbound ? graph.placeYards[mark * count + place] : graph.placeYards[place * count + mark];
+    if (baked !== Infinity) return Math.max(straight, baked - marks.dists[i]);
+  }
+  return Infinity;
+}
+
+function freeToFreeYards(graph: TravelGraph, from: Landmarks, to: Landmarks, straight: number): number {
+  if (from.count === 0 || to.count === 0) return straight;
+  const count = graph.places.length;
+  let nearest = Infinity;
+  let bound = 0;
+  for (let i = 0; i < from.count; i++) {
+    for (let j = 0; j < to.count; j++) {
+      const baked = graph.placeYards[from.places[i] * count + to.places[j]];
+      const dists = from.dists[i] + to.dists[j];
+      if (baked !== Infinity && dists < nearest) {
+        nearest = dists;
+        bound = baked - dists;
+      }
+    }
+  }
+  return nearest === Infinity ? Infinity : Math.max(straight, bound);
 }
 
 export function buildGraph(data: TravelData, ctx: TravelContext): TravelGraph {
@@ -88,11 +184,15 @@ export function buildGraph(data: TravelData, ctx: TravelContext): TravelGraph {
   const edgeKind: number[][] = [];
   const slotOf = new Map<number, number>();
   const dockSlots = new Map<string, number>();
+  const slotPlace: number[] = [];
+  const placeOf = new Map<string, number>();
+  data.walkPlaces.forEach((pos, place) => placeOf.set(posKey(pos), place));
 
-  const addNode = (id: number, pos: WorldPos): number => {
+  const addNode = (id: number, pos: WorldPos, place: number): number => {
     const slot = ids.length;
     ids.push(id);
     positions.push(pos);
+    slotPlace.push(place);
     edgeTo.push([]);
     edgeCost.push([]);
     edgeKind.push([]);
@@ -105,16 +205,16 @@ export function buildGraph(data: TravelData, ctx: TravelContext): TravelGraph {
     edgeKind[from].push(kind);
   };
   const dockSlot = (pos: WorldPos): number => {
-    const key = `${pos.continent}:${pos.x}:${pos.y}`;
+    const key = posKey(pos);
     const known = dockSlots.get(key);
     if (known != null) return known;
-    const slot = addNode(DOCK_ID_BASE + dockSlots.size, pos);
+    const slot = addNode(DOCK_ID_BASE + dockSlots.size, pos, placeOf.get(key) ?? NO_PLACE);
     dockSlots.set(key, slot);
     return slot;
   };
 
   for (const node of data.taxiNodes) {
-    if (ctx.knownTaxiNodes.has(node.id) && factionAllowed(node.faction, ctx.faction)) addNode(node.id, node.pos);
+    if (ctx.knownTaxiNodes.has(node.id) && factionAllowed(node.faction, ctx.faction)) addNode(node.id, node.pos, placeOf.get(posKey(node.pos)) ?? NO_PLACE);
   }
   for (const edge of data.taxiEdges) {
     const from = slotOf.get(edge.from);
@@ -125,11 +225,26 @@ export function buildGraph(data: TravelData, ctx: TravelContext): TravelGraph {
     if (!factionAllowed(leg.faction == null ? null : leg.faction, ctx.faction)) continue;
     addEdge(dockSlot(leg.fromDock), dockSlot(leg.toDock), leg.periodSec / 2 + leg.seconds, BOAT);
   }
-  for (const portal of data.portals) addEdge(dockSlot(portal.from), dockSlot(portal.to), CONSTANTS.portalSec.value, PORTAL);
-  const hearthSlot = ctx.hearth.pos == null ? -1 : addNode(HEARTH_ID, ctx.hearth.pos);
+  for (const portal of data.portals) {
+    if (!factionAllowed(portal.faction == null ? null : portal.faction, ctx.faction)) continue;
+    addEdge(dockSlot(portal.from), dockSlot(portal.to), CONSTANTS.portalSec.value, PORTAL);
+  }
+  const hearthSlot = ctx.hearth.pos == null ? -1 : addNode(HEARTH_ID, ctx.hearth.pos, NO_PLACE);
 
-  const originSlot = addNode(ORIGIN_ID, { continent: -1, x: 0, y: 0 });
+  const originSlot = addNode(ORIGIN_ID, { continent: -1, x: 0, y: 0 }, NO_PLACE);
   const slotCount = originSlot + 1;
+  const placeCount = data.walkPlaces.length;
+  const placeYards = bakedYards(data);
+  const walkYards = filled(slotCount * slotCount, Infinity);
+  for (let from = 0; from < originSlot; from++) {
+    for (let to = 0; to < originSlot; to++) {
+      const a = slotPlace[from];
+      const b = slotPlace[to];
+      let yards = 0;
+      if (from !== to) yards = a >= 0 && b >= 0 ? placeYards[a * placeCount + b] : straightYards(positions[from], positions[to]);
+      walkYards[from * slotCount + to] = yards;
+    }
+  }
   return {
     ids,
     positions,
@@ -145,7 +260,12 @@ export function buildGraph(data: TravelData, ctx: TravelContext): TravelGraph {
     heapPos: filled(slotCount, -1),
     heapSize: 0,
     bestCost: Infinity,
-    nearest: new Map<WorldPos, number[]>(),
+    places: data.walkPlaces,
+    placeYards,
+    slotPlace,
+    walkYards,
+    originYards: filled(slotCount, Infinity),
+    nearest: new Map<WorldPos, TargetLinks>(),
   };
 }
 
@@ -225,14 +345,20 @@ export function solveFrom(graph: TravelGraph, origin: WorldPos, ctx: TravelConte
   graph.heap[0] = originSlot;
   graph.heapPos[originSlot] = 0;
   graph.heapSize = 1;
+  const originMarks = findMarks(graph.places, origin, emptyMarks());
+  for (let other = 0; other < originSlot; other++) {
+    const straight = straightYards(origin, graph.positions[other]);
+    const place = graph.slotPlace[other];
+    graph.originYards[other] = place >= 0 ? freeToPlaceYards(graph, originMarks, place, straight, true) : straight;
+  }
 
   while (graph.heapSize > 0) {
     const current = popMin(graph);
-    const here = graph.positions[current];
+    const row = current * graph.slotCount;
     for (let other = 0; other < originSlot; other++) {
       if (other === current) continue;
-      const yards = distance(here, graph.positions[other]);
-      if (yards !== Infinity) relax(graph, current, other, walkSeconds(yards, ctx), WALK);
+      const yards = current === originSlot ? graph.originYards[other] : graph.walkYards[row + other];
+      if (yards !== Infinity) relax(graph, current, other, yards / ctx.speed, WALK);
     }
     const targets = graph.edgeTo[current];
     if (targets != null) {
@@ -250,6 +376,7 @@ export function solveFrom(graph: TravelGraph, origin: WorldPos, ctx: TravelConte
     via: new Map<number, number>(),
     viaKind: new Map<number, number>(),
     nodePos: new Map<number, WorldPos>(),
+    originMarks,
   };
   for (let slot = 0; slot < graph.slotCount; slot++) {
     if (graph.dist[slot] === Infinity) continue;
@@ -264,8 +391,7 @@ export function solveFrom(graph: TravelGraph, origin: WorldPos, ctx: TravelConte
   return plan;
 }
 
-// Walking links every node of a continent, so reachability is per continent and the nearest
-// slots can be chosen once per target, whatever the origin; unreachable ones cost Infinity.
+// The nearest slots are chosen once per target by straight distance, whatever the origin; unreachable ones cost Infinity.
 function nearestSlots(graph: TravelGraph, target: WorldPos): number[] {
   let slotA = -1;
   let slotB = -1;
@@ -308,20 +434,24 @@ function bestApproach(plan: TravelPlan, graph: TravelGraph, target: WorldPos, ct
   graph.bestCost = Infinity;
   if (origin == null) return bestId;
 
-  const direct = distance(origin, target);
+  let links = graph.nearest.get(target);
+  if (links == null) {
+    links = { slots: nearestSlots(graph, target), marks: findMarks(graph.places, target, emptyMarks()) };
+    graph.nearest.set(target, links);
+  }
+
+  const direct = freeToFreeYards(graph, plan.originMarks, links.marks, straightYards(origin, target));
   if (direct !== Infinity) {
-    graph.bestCost = walkSeconds(direct, ctx);
+    graph.bestCost = direct / ctx.speed;
     bestId = DIRECT;
   }
 
-  let slots = graph.nearest.get(target);
-  if (slots == null) {
-    slots = nearestSlots(graph, target);
-    graph.nearest.set(target, slots);
-  }
-  for (const slot of slots) {
+  for (const slot of links.slots) {
     const id = graph.ids[slot];
-    const cost = (plan.times.get(id) ?? Infinity) + walkSeconds(distance(graph.positions[slot], target), ctx);
+    const straight = straightYards(graph.positions[slot], target);
+    const place = graph.slotPlace[slot];
+    const yards = place >= 0 ? freeToPlaceYards(graph, links.marks, place, straight, false) : straight;
+    const cost = (plan.times.get(id) ?? Infinity) + yards / ctx.speed;
     if (cost < graph.bestCost) {
       graph.bestCost = cost;
       bestId = id;

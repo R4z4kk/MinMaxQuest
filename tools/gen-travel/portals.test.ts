@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { importPortals, type PortalSources } from "./portals";
+import { importPortals, mergePortals, type PortalImport, type PortalSources, type SpfPortal } from "./portals";
 
 const CREATE = [
   "CREATE TABLE `areatrigger_teleport` (",
@@ -47,6 +47,7 @@ describe("importPortals", () => {
   it("sorts by id", () => {
     const result = importPortals(sources("(5,'b',0,0,0,0,1,1000,100,0),(2,'a',0,0,0,0,1,100,1000,0)"));
     expect(result.portals.map((portal) => portal.name)).toEqual(["a", "b"]);
+    expect(result.ids).toEqual([2, 5]);
   });
 
   it("reports a free open-world teleport that has no trigger position", () => {
@@ -57,5 +58,51 @@ describe("importPortals", () => {
 
   it("throws on a non numeric target position", () => {
     expect(() => importPortals(sources("(5,'bad',0,0,0,0,1,NULL,100,0)"))).toThrow(/target position/);
+  });
+});
+
+describe("mergePortals", () => {
+  const darnassus = { name: "Teddrassil - Ruth Theran", from: { continent: 1, x: 9947.5, y: 2630 }, to: { continent: 1, x: 8785.8, y: 967 } };
+  const other = { name: "other", from: { continent: 1, x: 0, y: 0 }, to: { continent: 1, x: 900, y: 0 } };
+  const imported: PortalImport = {
+    portals: [darnassus, other],
+    ids: [527, 600],
+    triggers: new Map([
+      [527, { continent: 1, x: 9947.48, y: 2630.04 }],
+      [600, { continent: 1, x: 0, y: 0 }],
+      [2173, { continent: 0, x: -8346.46, y: 514.031 }],
+    ]),
+    candidates: 2,
+    noTrigger: [],
+  };
+  const spf: SpfPortal[] = [
+    { name: "Portal to Rut'theran Village", faction: "", from: { map: 1, x: 9947.48, y: 2630.04 }, to: { map: 1, x: 8785.79, y: 966.983 } },
+    { name: "Passage to Deeprun Tram (Stormwind)", faction: "", from: { map: 0, x: -8346.46, y: 514.031 }, to: { map: 369, x: 67.761, y: 2490.98 } },
+    { name: "Portal to Stormwind", faction: "Alliance", from: { map: 571, x: 5807.06, y: 506.244 }, to: { map: 0, x: -8842.09, y: 626.358 } },
+    { name: "Gated", faction: "Horde", from: { map: 0, x: 10, y: 10 }, to: { map: 0, x: 5000, y: 10 } },
+  ];
+  const result = mergePortals(spf, imported, new Set([0, 1]));
+
+  it("replaces the cmangos teleporter of the same area trigger by SPF's", () => {
+    expect(result.portals.filter((portal) => portal.from.x === 9947.5)).toEqual([
+      { name: "Portal to Rut'theran Village", from: { continent: 1, x: 9947.5, y: 2630 }, to: { continent: 1, x: 8785.8, y: 967 } },
+    ]);
+  });
+
+  it("keeps the cmangos teleporters SPF does not list", () => {
+    expect(result.portals).toContainEqual(other);
+  });
+
+  it("keeps SPF's faction gate", () => {
+    expect(result.portals).toContainEqual({ name: "Gated", faction: "H", from: { continent: 0, x: 10, y: 10 }, to: { continent: 0, x: 5000, y: 10 } });
+  });
+
+  it("drops and reports portals with an end on a map the graph does not model", () => {
+    expect(result.portals.map((portal) => portal.name)).not.toContain("Portal to Stormwind");
+    expect(result.dropped).toEqual(["Passage to Deeprun Tram (Stormwind) (0 -> 369)", "Portal to Stormwind (571 -> 0)"]);
+  });
+
+  it("refuses an unknown faction", () => {
+    expect(() => mergePortals([{ ...spf[3], faction: "Scourge" }], imported, new Set([0, 1]))).toThrow(/Scourge/);
   });
 });

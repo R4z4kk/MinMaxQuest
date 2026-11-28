@@ -1,1 +1,2 @@
 v1.48.0 (cjber/shortest-path-forever, commit 3f7008ec66f5455295283588ddf6de80ff4991a7), retrieved 2026-11-27 from GitHub release; file header build 1.60.1.71139; Zones.lua from the same tag (Data/Zones.lua)
+Walks.lua and Portals.lua: Data/Walks.lua and Data/Portals.lua of the same commit (git blobs 387e3b2065fa67815f210bb54065053c6994960b and 8c4750951e1d6c47b1271ddcaed07d619d6e8bd2), fetched 2026-11-28. Walks.lua road weights derive from Polestar (Fitz), used by Shortest Path Forever with permission (its THIRD_PARTY.md).

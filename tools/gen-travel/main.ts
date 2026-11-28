@@ -3,21 +3,22 @@ import { join } from "node:path";
 import { LuaFactory } from "wasmoon";
 import { fetchCmangos, readSqlFile } from "../route-builder/ingest/cmangos";
 import { CMANGOS_CLASSIC_DB, WAGO_DB2 } from "../route-builder/sources";
-import { importPortals } from "./portals";
+import { importPortals, mergePortals, type SpfPortal } from "./portals";
+import { importWalks, type OurPlace, type SpfPair, type SpfPlace } from "./walks";
 import type { WorldPos } from "../../addon/src/core/geometry";
 import type { TravelData } from "../../addon/src/data/generated/travel";
 
 const VENDOR_DIR = "vendor/shortest-path-forever";
 const WAGO_DIR = "vendor/wago";
 const OUTPUT_FILE = "addon/src/data/generated/travel.ts";
-const LUA_FILES = ["Taxi.lua", "Routes.lua", "Transports.lua"];
+const LUA_FILES = ["Taxi.lua", "Routes.lua", "Transports.lua", "Walks.lua", "Portals.lua"];
 const TRANSPORT_KINDS = ["boat", "zeppelin", "tram"];
 const MS_PER_SECOND = 1000;
 const VALID_DAYS = 30;
 const MS_PER_DAY = 86400000;
 
 const EXTRACT = `
-local out = { nodes = {}, paths = {}, docks = {}, routes = {} }
+local out = { nodes = {}, paths = {}, docks = {}, routes = {}, places = {}, walks = {}, portals = {} }
 for id, n in pairs(ns.TaxiNodes) do
   out.nodes[#out.nodes + 1] = { id, n.map, n.x, n.y, n.name, n.faction or "" }
 end
@@ -32,6 +33,19 @@ for id, r in pairs(ns.Routes) do
   local stops = {}
   for _, s in ipairs(r.stops) do stops[#stops + 1] = { s.dock, s.arrive, s.depart } end
   out.routes[#out.routes + 1] = { id, r.kind, r.faction or "", r.period, stops }
+end
+for map, places in pairs(ns.WalkPlaces) do
+  for id, p in pairs(places) do out.places[#out.places + 1] = { map, id, p[1], p[2] } end
+end
+for map, walks in pairs(ns.Walks) do
+  for key, w in pairs(walks) do
+    local back = w[3]
+    if back == nil then back = w[1] end
+    out.walks[#out.walks + 1] = { map, key, w[1], back }
+  end
+end
+for _, p in ipairs(ns.Portals) do
+  out.portals[#out.portals + 1] = { p.name, p.faction or "", p.from.map, p.from.x, p.from.y, p.to.map, p.to.x, p.to.y }
 end
 return out
 `;
@@ -80,11 +94,20 @@ function addDays(isoDate: string, days: number): string {
   return new Date(time + days * MS_PER_DAY).toISOString().slice(0, 10);
 }
 
-function readVersion(versionText: string): { version: string; verifiedOn: string } {
+function readVersion(versionText: string): { version: string; commit: string; verifiedOn: string } {
   const version = /^v?([\d.]+)/.exec(versionText);
+  const commit = /commit ([0-9a-f]{40})/.exec(versionText);
   const date = /retrieved (\d{4}-\d{2}-\d{2})/.exec(versionText);
-  if (version == null || date == null) throw new Error("gen-travel: unreadable VERSION file");
-  return { version: version[1], verifiedOn: date[1] };
+  if (version == null || commit == null || date == null) throw new Error("gen-travel: unreadable VERSION file");
+  return { version: version[1], commit: commit[1], verifiedOn: date[1] };
+}
+
+function walkCost(value: unknown, what: string): number | false {
+  return value === false ? false : num(value, what);
+}
+
+function posKey(pos: WorldPos): string {
+  return `${pos.continent}:${pos.x}:${pos.y}`;
 }
 
 function seconds(milliseconds: number): number {
@@ -93,7 +116,7 @@ function seconds(milliseconds: number): number {
 
 export async function generateTravel(vendorDir: string): Promise<TravelData> {
   const taxiSource = readFileSync(join(vendorDir, "Taxi.lua"), "utf8");
-  const { version, verifiedOn } = readVersion(readFileSync(join(vendorDir, "VERSION"), "utf8"));
+  const { version, commit, verifiedOn } = readVersion(readFileSync(join(vendorDir, "VERSION"), "utf8"));
   const lua = await new LuaFactory().createEngine();
   let extracted: Record<string, unknown>;
   try {
@@ -162,7 +185,7 @@ export async function generateTravel(vendorDir: string): Promise<TravelData> {
   const cmangosFile = fetchCmangos();
   const areaTriggerFile = join(WAGO_DIR, `AreaTrigger-${WAGO_DB2.build}.csv`);
   const mapFile = join(WAGO_DIR, `Map-${WAGO_DB2.build}.csv`);
-  const { portals, candidates, noTrigger } = importPortals({
+  const imported = importPortals({
     cmangosSql: readSqlFile(cmangosFile),
     cmangosLabel: cmangosFile,
     areaTriggerCsv: readFileSync(areaTriggerFile, "utf8"),
@@ -171,11 +194,52 @@ export async function generateTravel(vendorDir: string): Promise<TravelData> {
     mapLabel: mapFile,
   });
 
-  console.log(`gen-travel: ${portals.length} portals kept of ${candidates} free open-world teleports (${noTrigger.length} without a wago trigger row: ${noTrigger.join(",")})`);
+  console.log(
+    `gen-travel: cmangos: ${imported.portals.length} portals kept of ${imported.candidates} free open-world teleports (${imported.noTrigger.length} without a wago trigger row: ${imported.noTrigger.join(",")})`,
+  );
+
+  const modelled = new Set<number>(taxiNodes.map((node) => node.pos.continent));
+  for (const dock of docks.values()) modelled.add(dock.continent);
+  const spfPortals: SpfPortal[] = asRows(extracted.portals, "portals").map((row) => ({
+    name: str(row[0], "portal name"),
+    faction: str(row[1], "portal faction"),
+    from: { map: num(row[2], "portal from"), x: num(row[3], "portal from"), y: num(row[4], "portal from") },
+    to: { map: num(row[5], "portal to"), x: num(row[6], "portal to"), y: num(row[7], "portal to") },
+  }));
+  const { portals, dropped } = mergePortals(spfPortals, imported, modelled);
+  console.log(`gen-travel: ${portals.length} portals (${portals.map((portal) => portal.name).join(", ")}); dropped, map not modelled: ${dropped.join(", ")}`);
+
+  const points = new Map<string, WorldPos>();
+  for (const leg of transports) for (const dock of [leg.fromDock, leg.toDock]) points.set(posKey(dock), dock);
+  for (const portal of portals) for (const end of [portal.from, portal.to]) points.set(posKey(end), end);
+  const ours: OurPlace[] = [
+    ...taxiNodes.map((node) => ({ pos: node.pos, taxiId: node.id })),
+    ...[...points.values()]
+      .sort((a, b) => a.continent - b.continent || a.x - b.x || a.y - b.y)
+      .map((pos) => ({ pos, taxiId: null })),
+  ];
+  const spfPlaces: SpfPlace[] = asRows(extracted.places, "walk places").map((row) => ({
+    map: num(row[0], "walk place map"),
+    id: str(row[1], "walk place id"),
+    x: num(row[2], "walk place x"),
+    y: num(row[3], "walk place y"),
+  }));
+  const spfPairs: SpfPair[] = asRows(extracted.walks, "walks").map((row) => ({
+    map: num(row[0], "walk map"),
+    key: str(row[1], "walk key"),
+    there: walkCost(row[2], "walk cost"),
+    back: walkCost(row[3], "walk cost"),
+  }));
+  const walks = importWalks(spfPlaces, spfPairs, ours);
+  console.log(
+    `gen-travel: ${walks.walkPlaces.length} walk places, ${walks.walks.length / 4} baked pairs; no SPF place for ${walks.unbaked.map(posKey).join(", ") || "none"}; SPF places not modelled: ${JSON.stringify(walks.unmodelled)}; unknown kinds: ${walks.unknownKinds.join(", ") || "none"}`,
+  );
+
   return {
     source: {
       name: "Shortest Path Forever",
       version,
+      commit,
       build: readHeaderBuild(taxiSource),
       cmangosCommit: CMANGOS_CLASSIC_DB.commit,
       wagoBuild: WAGO_DB2.build,
@@ -186,6 +250,8 @@ export async function generateTravel(vendorDir: string): Promise<TravelData> {
     taxiEdges,
     transports,
     portals,
+    walkPlaces: walks.walkPlaces,
+    walks: walks.walks,
   };
 }
 
@@ -195,6 +261,7 @@ export interface TravelData {
   source: {
     name: "Shortest Path Forever";
     version: string;
+    commit: string;
     build: string;
     cmangosCommit: string;
     wagoBuild: string;
@@ -210,12 +277,22 @@ export interface TravelData {
     periodSec: number;
     faction?: "A" | "H";
   }[];
-  portals: { name: string; from: WorldPos; to: WorldPos }[];
+  portals: { name: string; from: WorldPos; to: WorldPos; faction?: "A" | "H" }[];
+  // Places with baked walking yards (Shortest Path Forever Walks.lua): taxi nodes, docks and portal ends, at our positions.
+  walkPlaces: WorldPos[];
+  // [from place, to place, yards there, yards back] per walkable pair of the same map; -1 on a blocked side.
+  walks: number[];
 }
 `;
 
 function renderList(items: unknown[]): string {
   return `[\n${items.map((item) => `    ${JSON.stringify(item)},`).join("\n")}\n  ]`;
+}
+
+function renderWalks(walks: number[]): string {
+  const lines: string[] = [];
+  for (let i = 0; i < walks.length; i += 4) lines.push(`    ${walks.slice(i, i + 4).join(", ")},`);
+  return `[\n${lines.join("\n")}\n  ]`;
 }
 
 export function renderTravel(data: TravelData): string {
@@ -227,6 +304,8 @@ export const TRAVEL: TravelData = {
   taxiEdges: ${renderList(data.taxiEdges)},
   transports: ${renderList(data.transports)},
   portals: ${renderList(data.portals)},
+  walkPlaces: ${renderList(data.walkPlaces)},
+  walks: ${renderWalks(data.walks)},
 };
 `;
 }
@@ -235,7 +314,7 @@ async function main(): Promise<void> {
   const data = await generateTravel(VENDOR_DIR);
   writeFileSync(OUTPUT_FILE, renderTravel(data));
   console.log(
-    `gen-travel: ${data.taxiNodes.length} nodes, ${data.taxiEdges.length} edges, ${data.transports.length} transport legs, ${data.portals.length} portals -> ${OUTPUT_FILE}`,
+    `gen-travel: ${data.taxiNodes.length} nodes, ${data.taxiEdges.length} edges, ${data.transports.length} transport legs, ${data.portals.length} portals, ${data.walks.length / 4} baked walks -> ${OUTPUT_FILE}`,
   );
 }
 

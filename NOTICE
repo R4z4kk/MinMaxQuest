@@ -14,6 +14,8 @@ LibStub (libs/HereBeDragons)
 
 Shortest Path Forever data (vendor/shortest-path-forever)
   Copyright cjber. GPL-3.0. https://github.com/cjber/shortest-path-forever
+  Walks.lua (baked walking costs between flight masters, docks and portals) and Portals.lua are used
+  for travel times. Their road weights derive from Polestar by Fitz, used with permission.
   Taxi.lua and Transports.lua embed InFlight duration data under the MIT License:
   Copyright (c) 2009-2024 TotalPackage, 2022 Deranjata, 2025-2026 LudiusMaximus
   (full MIT text in vendor/shortest-path-forever/LICENSE).

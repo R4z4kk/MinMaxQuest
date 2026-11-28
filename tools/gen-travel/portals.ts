@@ -23,16 +23,29 @@ const REQUIREMENTS = ["required_level", "required_item", "required_item2", "requ
 const NOT_TRAVEL = new Set([943]);
 const OPEN_WORLD = 0;
 
+// SPF's portal sources are AreaTrigger positions: a trigger within this distance is the same one.
+const SAME_TRIGGER_YARDS = 1;
+
 export interface Portal {
   name: string;
   from: WorldPos;
   to: WorldPos;
+  faction?: "A" | "H";
 }
 
 export interface PortalImport {
   portals: Portal[];
+  ids: number[];
+  triggers: Map<number, WorldPos>;
   candidates: number;
   noTrigger: number[];
+}
+
+export interface SpfPortal {
+  name: string;
+  faction: string;
+  from: { map: number; x: number; y: number };
+  to: { map: number; x: number; y: number };
 }
 
 export interface PortalSources {
@@ -56,8 +69,8 @@ function openWorldMaps(mapCsv: string, label: string): Set<number> {
   return maps;
 }
 
-function triggerPositions(csv: string, label: string): Map<number, { continent: number; x: number; y: number }> {
-  const triggers = new Map<number, { continent: number; x: number; y: number }>();
+function triggerPositions(csv: string, label: string): Map<number, WorldPos> {
+  const triggers = new Map<number, WorldPos>();
   parseCsv(csv, label).forEach((row, i) => {
     const at = i + 2;
     triggers.set(csvNumber(row, "ID", label, at), {
@@ -104,5 +117,46 @@ export function importPortals(sources: PortalSources): PortalImport {
     });
   }
   found.sort((a, b) => a.id - b.id);
-  return { portals: found.map((entry) => entry.portal), candidates, noTrigger };
+  return { portals: found.map((entry) => entry.portal), ids: found.map((entry) => entry.id), triggers, candidates, noTrigger };
+}
+
+function spfFaction(label: string): "A" | "H" | null {
+  if (label === "Alliance") return "A";
+  if (label === "Horde") return "H";
+  if (label === "") return null;
+  throw new Error(`gen-travel: unknown SPF portal faction "${label}"`);
+}
+
+function triggerAt(triggers: Map<number, WorldPos>, at: SpfPortal["from"]): number | null {
+  for (const [id, trigger] of triggers) {
+    if (trigger.continent === at.map && Math.hypot(trigger.x - at.x, trigger.y - at.y) <= SAME_TRIGGER_YARDS) return id;
+  }
+  return null;
+}
+
+// SPF's portals replace the cmangos import entry of the same AreaTrigger; both ends must be on maps the graph models.
+export function mergePortals(spf: SpfPortal[], imported: PortalImport, modelled: Set<number>): { portals: Portal[]; dropped: string[] } {
+  const byTrigger = new Map<number, Portal>();
+  imported.portals.forEach((portal, i) => byTrigger.set(imported.ids[i], portal));
+  const extra: Portal[] = [];
+  const dropped: string[] = [];
+  for (const entry of spf) {
+    const portal: Portal = {
+      name: entry.name,
+      from: { continent: entry.from.map, x: round1(entry.from.x), y: round1(entry.from.y) },
+      to: { continent: entry.to.map, x: round1(entry.to.x), y: round1(entry.to.y) },
+    };
+    const faction = spfFaction(entry.faction);
+    if (faction != null) portal.faction = faction;
+    const trigger = triggerAt(imported.triggers, entry.from);
+    if (trigger != null) byTrigger.delete(trigger);
+    if (!modelled.has(entry.from.map) || !modelled.has(entry.to.map)) {
+      dropped.push(`${entry.name} (${entry.from.map} -> ${entry.to.map})`);
+      continue;
+    }
+    if (trigger == null) extra.push(portal);
+    else byTrigger.set(trigger, portal);
+  }
+  const sorted = [...byTrigger.entries()].sort(([a], [b]) => a - b).map(([, portal]) => portal);
+  return { portals: [...sorted, ...extra], dropped };
 }

@@ -57,6 +57,7 @@ Prérequis : `npm test` (construit `build/MinMaxQuest.lua`), puis lancer WoW For
 ## Trajets et griffons
 - [ ] Parler à un maître de vol enregistre les points connus ; une cible lointaine fait passer la flèche par le maître de vol.
 - [ ] À Darnassus, avec une cible vers Rut'theran ou plus loin, la flèche dit « Prends le portail » et mène au portail violet avant le maître de vol (et inversement à Rut'theran).
+- [ ] Depuis le Repaire des Grumegueules, avec une cible au mont Hyjal et les points de vol connus : la flèche envoie au maître de vol, pas à pied vers Hyjal.
 - [ ] Vol automatique vers la bonne destination ; Maj enfoncée → pas de décollage ; option décochée (onglet Quête) → pas de décollage ; destination inconnue → message, pas de décollage.
 - [ ] Après avoir lié la pierre de foyer puis utilisée, la route peut proposer « Utilise ta pierre de foyer ».
 

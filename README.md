@@ -54,6 +54,7 @@
 - **Only quests you can take:** level, race, class, faction, prerequisites and exclusive quests are all taken into account.
 - **Travel:** the route goes through flight masters, boats, teleporters (for example Darnassus ⇄ Rut'theran) and your hearthstone when that is faster (the hearthstone only when it saves at least about 5 minutes, or 15 minutes in Completion). The arrow then says "Go to the flight master", "Take the boat", "Take the portal" or "Use Hearthstone".
 - **Travel times:** walking or mount speed is assumed from your level: on foot below 40, mount at 40, epic mount at 60.
+- **Walking follows real paths:** walks between flight masters, docks and teleporters use walking distances precomputed on the game terrain by Shortest Path Forever, so mountains and enclosed zones (Mount Hyjal) are no longer crossed in a straight line. A walk from or to any other point is never estimated shorter than the real path between the nearest of those places, and places with no walking path between them are only reached by flight, boat or teleporter.
 
 ### Completion tab
 - Lists every quest you can still do, at any level, and keeps working past level 60.
@@ -123,7 +124,7 @@
 
 ### Data and safety
 - Quest, NPC, object and item data come from **QuestieDB**, which is required.
-- **Travel data:** flight paths, boats, teleporters and flight times are versioned and dated. A banner warns you, without blocking anything, when the data was built for another game build or has expired.
+- **Travel data:** flight paths, boats, teleporters, flight times and walking distances are versioned and dated. A banner warns you, without blocking anything, when the data was built for another game build or has expired.
 - **Errors:**
   - every feature is isolated: an error disables only that feature, with a single chat message;
   - QuestieDB read errors are reported.
@@ -165,7 +166,7 @@
 
 MinMaxQuest is free software under the **GPL-3.0** license.
 
-- Travel graph from [Shortest Path Forever](https://github.com/cjber/shortest-path-forever) (GPL-3.0), including flight timings from InFlight (MIT); teleporter destinations from [cmangos classic-db](https://github.com/cmangos/classic-db) (GPL-3.0)
+- Travel graph, teleporters and precomputed walking distances from [Shortest Path Forever](https://github.com/cjber/shortest-path-forever) (GPL-3.0), including flight timings from InFlight (MIT) and road weights from Polestar by Fitz (used with permission); teleporter destinations from [cmangos classic-db](https://github.com/cmangos/classic-db) (GPL-3.0)
 - [HereBeDragons](https://github.com/Nevcairiel/HereBeDragons) (BSD) for map pins
 - Quest data from [QuestieDB](https://github.com/Questie/QuestieDB)
 - Access entries imported from [Attune](https://warcraftratings.com) by CixiDelmont (version 16001-46). Attune declares no license; its data is reused with credit

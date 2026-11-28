@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { LUA51_MAX_LOCALS, LUA51_MAX_UPVALUES, luaFunctionLimits } from "./helpers/luaLimits";
+import { LUA51_MAX_CONSTANTS, LUA51_MAX_LOCALS, LUA51_MAX_UPVALUES, luaFunctionLimits } from "./helpers/luaLimits";
 
 const locals = (n: number, prefix: string) => Array.from({ length: n }, (_, i) => `local ${prefix}${i} = ${i}`).join("\n");
 const uses = (n: number, prefix: string) => Array.from({ length: n }, (_, i) => `${prefix}${i}`).join(" + ");
@@ -27,12 +27,17 @@ describe("luaFunctionLimits", () => {
     const source = `local function f()\n  do ${locals(5, "x")} end\n  do ${locals(3, "y")} end\nend`;
     expect(luaFunctionLimits(source)[0].locals).toBe(5);
   });
+
+  it("counts each distinct constant of a function once: literals, field names and globals", () => {
+    const source = `local function f(a) local t = { 1, 2, 2, "x", key = 3.5 } return t.key + print(a) + 1 end`;
+    expect(luaFunctionLimits(source)[0].constants).toBe(6);
+  });
 });
 
 describe("compiled addon", () => {
   it("stays within the Lua 5.1 upvalue and local limits WoW enforces", () => {
     const over = luaFunctionLimits(readFileSync("build/MinMaxQuest.lua", "utf8")).filter(
-      (f) => f.upvalues > LUA51_MAX_UPVALUES || f.locals > LUA51_MAX_LOCALS,
+      (f) => f.upvalues > LUA51_MAX_UPVALUES || f.locals > LUA51_MAX_LOCALS || f.constants > LUA51_MAX_CONSTANTS,
     );
     expect(over).toEqual([]);
   });
