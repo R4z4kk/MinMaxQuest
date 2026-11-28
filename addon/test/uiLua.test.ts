@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { entriesFor, visibleSteps } from "../src/access/chains";
+import { entriesFor, entryQuests, visibleSteps } from "../src/access/chains";
 import { loggedIn, QUEST_MODE } from "./helpers/fakeGame";
 
 const UI_FAKES = `
@@ -242,7 +242,8 @@ it("labels the Completion sub-tabs in both locales", async () => {
   }
 });
 
-const ALLIANCE_DUNGEONS = entriesFor("A").filter((entry) => entry.group === "dungeon");
+const ALLIANCE_RAIDS = entriesFor("A").filter((entry) => entry.group === "raid");
+const RAID_ITEM = visibleSteps(ALLIANCE_RAIDS[0], 1).find((step) => step.kind === "item")?.ref ?? 0;
 const ROW_POOL = 22;
 
 async function accessTab(setup = "") {
@@ -261,13 +262,14 @@ it("renders Access groups as section headers with done / total for an Alliance c
       return match == null ? [] : [{ label: all[i - 1], total: Number(match[1]) }];
     });
     const total = (group: string) => entriesFor("A").filter((entry) => entry.group === group).length;
-    expect(headers.map((header) => header.label)).toEqual(["Dungeons", "Raids", "Keys", "Misc"]);
-    expect(headers.map((header) => header.total)).toEqual([total("dungeon"), total("raid"), total("key"), total("misc")]);
-    expect(await s.texts()).not.toContain(ALLIANCE_DUNGEONS[0].name.enUS);
+    expect(headers.map((header) => header.label)).toEqual(["Raids", "Keys", "Misc"]);
+    expect(headers.map((header) => header.total)).toEqual([total("raid"), total("key"), total("misc")]);
+    expect(await s.texts()).not.toContain(ALLIANCE_RAIDS[0].name.enUS);
     await s.click("MinMaxQuestAccessRow1");
     const texts = await s.texts();
-    expect(texts).toContain(ALLIANCE_DUNGEONS[0].name.enUS);
-    expect(texts).not.toContain("Ragefire Chasm");
+    expect(texts).toContain(ALLIANCE_RAIDS[0].name.enUS);
+    const allianceNames = new Set(entriesFor("A").map((entry) => entry.name.enUS));
+    for (const entry of entriesFor("H")) if (!allianceNames.has(entry.name.enUS)) expect(texts).not.toContain(entry.name.enUS);
     expect(await s.last("MinMaxQuestWindow|SetSize")).toBe("MinMaxQuestWindow|SetSize|320|480");
     expect(await s.printed()).toBe("");
   } finally {
@@ -281,12 +283,12 @@ it("expands an access entry with its step states and collapses it again", async 
     await s.click("MinMaxQuestAccessRow1");
     await s.clearCalls();
     await s.click("MinMaxQuestAccessRow2");
-    expect(await s.run("return MinMaxQuestCharDB.expandedChain")).toBe(ALLIANCE_DUNGEONS[0].id);
+    expect(await s.run("return MinMaxQuestCharDB.expandedChain")).toBe(ALLIANCE_RAIDS[0].id);
     const texts = await s.texts();
-    expect(texts).toContain("Reach level 10");
-    expect(texts.some((line) => line.endsWith(`Client ${ALLIANCE_DUNGEONS[0].steps[1].ref}`))).toBe(true);
+    expect(texts.some((line) => /Reach level \d+$/.test(line))).toBe(true);
+    expect(texts.some((line) => line.endsWith(`Client ${ALLIANCE_RAIDS[0].steps[1].ref}`))).toBe(true);
     expect(texts.filter((line) => line.startsWith("» "))).toHaveLength(1);
-    expect(texts.some((line) => /^1\/\d+ steps$/.test(line))).toBe(true);
+    expect(texts.some((line) => /^0\/\d+ steps$/.test(line))).toBe(true);
     await s.click("MinMaxQuestAccessRow2");
     expect(await s.run("return MinMaxQuestCharDB.expandedChain == nil")).toBe(true);
     expect(await s.printed()).toBe("");
@@ -298,10 +300,10 @@ it("expands an access entry with its step states and collapses it again", async 
 it("scrolls the access list without creating frames", async () => {
   const s = await accessTab();
   const created = async () => (await s.run("return created")) as number;
-  const last = ALLIANCE_DUNGEONS[ALLIANCE_DUNGEONS.length - 1].name.enUS;
+  const last = ALLIANCE_RAIDS[ALLIANCE_RAIDS.length - 1].name.enUS;
   try {
     await s.click("MinMaxQuestAccessRow1");
-    expect(await s.texts()).not.toContain(last);
+    await s.click("MinMaxQuestAccessRow3");
     const before = await created();
     await s.clearCalls();
     for (let i = 0; i < 20; i++) await s.run(`scripts["MinMaxQuestAccessList.OnMouseWheel"](nil, -1)`);
@@ -317,14 +319,14 @@ it("scrolls the access list without creating frames", async () => {
 it("stores a tracked access entry and refreshes the targets", async () => {
   const s = await accessTab(QUEST_MODE);
   const reads = async () => (await s.run("return raceCalls")) as number;
-  const track = `MinMaxQuestAccessRow${2 + visibleSteps(ALLIANCE_DUNGEONS[0], 1).length + 1}Track`;
+  const track = `MinMaxQuestAccessRow${2 + visibleSteps(ALLIANCE_RAIDS[0], 1).length + 1}Track`;
   try {
     await s.click("MinMaxQuestAccessRow1");
     await s.click("MinMaxQuestAccessRow2");
     expect(await s.visibilityOf(track)).toBe(`${track}|Show`);
     const before = await reads();
     await s.click(track);
-    expect(await s.run("return MinMaxQuestCharDB.trackedChains[1]")).toBe(ALLIANCE_DUNGEONS[0].id);
+    expect(await s.run("return MinMaxQuestCharDB.trackedChains[1]")).toBe(ALLIANCE_RAIDS[0].id);
     expect(await reads()).toBe(before + 1);
     expect(await s.texts()).toContain("1 chain tracked");
     await s.click(track);
@@ -342,17 +344,17 @@ it("redraws a visible Access tab on the next tick once an item name is received"
     expect(await s.calls()).toContain("MinMaxQuestEvents|RegisterEvent|GET_ITEM_INFO_RECEIVED");
     await s.click("MinMaxQuestAccessRow1");
     await s.click("MinMaxQuestAccessRow2");
-    expect(await s.texts()).toContain("#274286");
-    await s.run("itemNames[274286] = 'Ancient Rune'");
+    expect((await s.texts()).some((line) => line.startsWith(`#${RAID_ITEM}`))).toBe(true);
+    await s.run(`itemNames[${RAID_ITEM}] = 'Ancient Rune'`);
     await s.clearCalls();
-    await s.event(`"GET_ITEM_INFO_RECEIVED", 274286, true`);
+    await s.event(`"GET_ITEM_INFO_RECEIVED", ${RAID_ITEM}, true`);
     expect(await named()).toBe(false);
     await s.tick();
     expect(await named()).toBe(true);
     await s.click("MinMaxQuestTabquest");
-    await s.run("itemNames[274286] = 'Ancient Rune 2'");
+    await s.run(`itemNames[${RAID_ITEM}] = 'Ancient Rune 2'`);
     await s.clearCalls();
-    await s.event(`"GET_ITEM_INFO_RECEIVED", 274286, true`);
+    await s.event(`"GET_ITEM_INFO_RECEIVED", ${RAID_ITEM}, true`);
     await s.tick();
     expect(await named()).toBe(false);
     expect(await s.printed()).toBe("");
@@ -366,7 +368,7 @@ it("opens the group of a tracked entry and keeps the others collapsed", async ()
   try {
     const texts = await s.texts();
     expect(texts).toContain("Dalaran Sewer Key");
-    expect(texts).not.toContain(ALLIANCE_DUNGEONS[0].name.enUS);
+    expect(texts).not.toContain(ALLIANCE_RAIDS[0].name.enUS);
   } finally {
     s.close();
   }
@@ -657,12 +659,32 @@ it("shows Routes not installed when the variant fails to decode", async () => {
   }
 });
 
-it("shows Route finished at the maximum level", async () => {
+it("hides the Quest tab at the maximum level and opens Completion instead", async () => {
   const s = await routeTab("UnitLevel = function() return 60 end");
   try {
     await s.run("now = now + 3");
     await s.tick();
-    expect(await s.texts()).toContain("Route finished");
+    await s.cmd("");
+    await s.cmd("");
+    expect(await s.visibilityOf("MinMaxQuestTabquest")).toBe("MinMaxQuestTabquest|Hide");
+    expect(await s.run("return MinMaxQuestCharDB.tab")).toBe("completion");
+    expect(await s.run("return MinMaxQuestCharDB.activeMode")).toBe("completion");
+    expect(await s.last("MinMaxQuestTabaccess|SetSize")).toBe("MinMaxQuestTabaccess|SetSize|160.0|24");
+  } finally {
+    s.close();
+  }
+});
+
+it("switches the open Quest tab to Completion on the ding to the maximum level", async () => {
+  const s = await routeTab();
+  try {
+    expect(await s.run("return MinMaxQuestCharDB.tab")).toBe("quest");
+    expect(await s.visibilityOf("MinMaxQuestTabquest")).toBe("MinMaxQuestTabquest|Show");
+    await s.run("UnitLevel = function() return 60 end; now = now + 3");
+    await s.event('"PLAYER_LEVEL_UP", 60');
+    await s.tick();
+    expect(await s.visibilityOf("MinMaxQuestTabquest")).toBe("MinMaxQuestTabquest|Hide");
+    expect(await s.run("return MinMaxQuestCharDB.tab")).toBe("completion");
   } finally {
     s.close();
   }
@@ -702,17 +724,6 @@ it("hides the kind icon on the more row", async () => {
         end
         return "no more row"`),
     ).toBe(false);
-  } finally {
-    s.close();
-  }
-});
-
-it("shows no kind icon on Route finished", async () => {
-  const s = await routeTab("UnitLevel = function() return 60 end");
-  try {
-    await s.run("now = now + 3");
-    await s.tick();
-    expect(await shownKindIcons(s)).toBe(0);
   } finally {
     s.close();
   }
@@ -1066,9 +1077,10 @@ it("shows the quest item button for the target's usable bag item, right of the a
     expect(await s.run(`return templates.MinMaxQuestItemButton`)).toBe("SecureActionButtonTemplate");
     expect(await s.run(`return templates.MinMaxQuestItemButtonCooldown`)).toBe("CooldownFrameTemplate");
     const calls = await s.calls();
-    expect(calls).toContain("MinMaxQuestItemButton|SetAttribute|type|item");
-    expect(calls.filter((c) => c.startsWith("MinMaxQuestItemButton|SetAttribute|item|")).pop()).toBe(
-      "MinMaxQuestItemButton|SetAttribute|item|item:900",
+    expect(calls).toContain("MinMaxQuestItemButton|SetAttribute|type|macro");
+    expect(calls.filter((c) => c.startsWith("MinMaxQuestItemButton|SetAttribute|item|"))).toEqual([]);
+    expect(calls.filter((c) => c.startsWith("MinMaxQuestItemButton|SetAttribute|macrotext|")).pop()).toBe(
+      "MinMaxQuestItemButton|SetAttribute|macrotext|/use item:900",
     );
     expect(calls.filter((c) => c.startsWith("MinMaxQuestItemHolder|SetPoint|")).pop()).toMatch(/\|TOPLEFT\|.*\|BOTTOMLEFT\|160\|700$/);
     expect(await s.visibilityOf("MinMaxQuestItemHolder")).toBe("MinMaxQuestItemHolder|Show");
@@ -1093,7 +1105,7 @@ it("defers an item change in combat until PLAYER_REGEN_ENABLED", async () => {
     await s.run("inCombat = false");
     await s.event(`"PLAYER_REGEN_ENABLED"`);
     const calls = await s.calls();
-    expect(calls).toContain("MinMaxQuestItemButton|SetAttribute|item|item:901");
+    expect(calls).toContain("MinMaxQuestItemButton|SetAttribute|macrotext|/use item:901");
     expect(await s.visibilityOf("MinMaxQuestItemHolder")).toBe("MinMaxQuestItemHolder|Show");
     expect(await s.printed()).toBe("");
   } finally {
@@ -1101,14 +1113,17 @@ it("defers an item change in combat until PLAYER_REGEN_ENABLED", async () => {
   }
 });
 
-it("drags the item holder by its grip only while unlocked and out of combat", async () => {
+it("drags the item button by its icon only while unlocked and out of combat, and uses the item on release only", async () => {
   const s = await ui(ITEM_FAKES);
   const drag = async () => {
     await s.clearCalls();
-    await s.run(`scripts["MinMaxQuestItemHolder.OnDragStart"](nil); scripts["MinMaxQuestItemHolder.OnDragStop"](nil)`);
+    await s.run(`scripts["MinMaxQuestItemButton.OnDragStart"](nil); scripts["MinMaxQuestItemButton.OnDragStop"](nil)`);
     return (await s.calls()).includes("MinMaxQuestItemHolder|StartMoving");
   };
   try {
+    expect(await s.calls()).toContain("MinMaxQuestItemButton|RegisterForClicks|AnyUp|AnyDown");
+    expect(await s.calls()).toContain("MinMaxQuestItemButton|SetAttribute|useOnKeyDown|false");
+    expect(await s.calls()).toContain("MinMaxQuestItemButton|RegisterForDrag|LeftButton");
     await s.cmd("arrow lock");
     expect(await drag()).toBe(false);
     expect(await s.run("return MinMaxQuestCharDB.itemButton == nil")).toBe(true);
@@ -1165,7 +1180,7 @@ it("clears the item icon when the item goes away and sets no attribute when the 
     await s.run("bags[901] = 1; C_Item.GetItemIconByID = nil");
     await s.clearCalls();
     await s.event(`"BAG_UPDATE_DELAYED"`);
-    expect((await s.calls()).filter((c) => c.startsWith("MinMaxQuestItemButton|SetAttribute|item|"))).toEqual([]);
+    expect((await s.calls()).filter((c) => c.startsWith("MinMaxQuestItemButton|SetAttribute|macrotext|"))).toEqual([]);
   } finally {
     s.close();
   }
@@ -1298,6 +1313,103 @@ it("does not redraw the open window when unlocking the arrow", async () => {
     await s.cmd("arrow move");
     expect((await s.calls()).filter((c) => c.startsWith(`${WINDOW}|SetSize`))).toEqual([]);
     expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+const pinned = async (s: Awaited<ReturnType<typeof ui>>) => (await s.run("return MinMaxQuestCharDB.pinnedQuestId")) as number | null;
+
+it("pins a quest by clicking its Completion line, unpins on a second click, and ignores section headers", async () => {
+  const s = await ui();
+  try {
+    await s.cmd("");
+    await s.click("MinMaxQuestTabcompletion");
+    await s.click("MinMaxQuestCompletionLine1");
+    expect(await pinned(s)).toBeNull();
+    await s.click("MinMaxQuestCompletionLine2");
+    expect([100, 101]).toContain(await pinned(s));
+    expect(await s.visibilityOf("MinMaxQuestCompletionUnpin")).toBe("MinMaxQuestCompletionUnpin|Show");
+    await s.click("MinMaxQuestCompletionLine2");
+    expect(await pinned(s)).toBeNull();
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("pins the focus quest when an Access entry expands and unpins it on collapse", async () => {
+  const s = await accessTab(`C_QuestLog.GetTitleForQuestID = function(id) return "Client " .. id end`);
+  try {
+    await s.click("MinMaxQuestAccessRow1");
+    expect(await pinned(s)).toBeNull();
+    await s.click("MinMaxQuestAccessRow2");
+    const focus = await pinned(s);
+    expect(ALLIANCE_RAIDS[0].steps.filter((step) => step.kind === "quest" || step.kind === "pickUp").map((step) => step.ref)).toContain(focus);
+    await s.click("MinMaxQuestAccessRow2");
+    expect(await pinned(s)).toBeNull();
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("toggles the pin of a quest step line in the Access tab", async () => {
+  const s = await accessTab(`C_QuestLog.GetTitleForQuestID = function(id) return "Client " .. id end`);
+  try {
+    await s.click("MinMaxQuestAccessRow1");
+    await s.click("MinMaxQuestAccessRow2");
+    await s.run("MinMaxQuestCharDB.pinnedQuestId = nil");
+    const questAt = visibleSteps(ALLIANCE_RAIDS[0], 1).findIndex((step) => step.kind === "quest" || step.kind === "pickUp");
+    const row = `MinMaxQuestAccessRow${3 + questAt}`;
+    await s.click(row);
+    expect(await pinned(s)).toBe(visibleSteps(ALLIANCE_RAIDS[0], 1)[questAt].ref);
+    await s.click(row);
+    expect(await pinned(s)).toBeNull();
+  } finally {
+    s.close();
+  }
+});
+
+it("pins the quest of a Next row, unpins on a second click and from the current step row", async () => {
+  const s = await routeTab();
+  try {
+    const rows = ["MinMaxQuestNextRow1", "MinMaxQuestNextRow2", "MinMaxQuestNextRow3"];
+    let pickedRow: string | null = null;
+    for (const row of rows) {
+      await s.click(row);
+      if ((await pinned(s)) != null) {
+        pickedRow = row;
+        break;
+      }
+    }
+    expect(pickedRow).not.toBeNull();
+    await s.click(pickedRow ?? "");
+    expect(await pinned(s)).toBeNull();
+    await s.click(pickedRow ?? "");
+    expect(await pinned(s)).not.toBeNull();
+    await s.click("MinMaxQuestCurrentRow");
+    expect(await pinned(s)).toBeNull();
+    await s.click("MinMaxQuestCurrentRow");
+    expect(await pinned(s)).toBeNull();
+    expect(await s.printed()).not.toMatch(/attempt|error/i);
+  } finally {
+    s.close();
+  }
+});
+
+it("unpins the focus quest of the entry it leaves when another Access entry expands, even one without a focus quest", async () => {
+  const keys = entriesFor("A").filter((entry) => entry.group === "key");
+  const from = keys.findIndex((entry) => entryQuests(entry, 1).length > 0 && keys[keys.indexOf(entry) + 1] != null && entryQuests(keys[keys.indexOf(entry) + 1], 1).length === 0);
+  const s = await accessTab(`C_QuestLog.GetTitleForQuestID = function(id) return "Client " .. id end`);
+  try {
+    await s.click("MinMaxQuestAccessRow2");
+    await s.click(`MinMaxQuestAccessRow${3 + from}`);
+    expect(await s.run("return MinMaxQuestCharDB.expandedChain")).toBe(keys[from].id);
+    expect(await pinned(s)).not.toBeNull();
+    await s.click(`MinMaxQuestAccessRow${3 + from + visibleSteps(keys[from], 1).length + 2}`);
+    expect(await s.run("return MinMaxQuestCharDB.expandedChain")).toBe(keys[from + 1].id);
+    expect(await pinned(s)).toBeNull();
   } finally {
     s.close();
   }

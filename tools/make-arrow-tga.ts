@@ -66,6 +66,6 @@ for (let py = 0; py < SIZE; py++) {
   }
 }
 
-const target = "addon/src/arrow/arrow.tga";
+const target = "media/arrow.tga";
 mkdirSync(dirname(target), { recursive: true });
 writeFileSync(target, out);

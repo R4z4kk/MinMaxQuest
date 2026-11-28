@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { WorldPos } from "../src/core/geometry";
-import { CLUSTER_RADIUS_YARDS, WAYPOINT_MAX, WAYPOINT_RADIUS_YARDS, clusterSpawns, killLoop, nearestCluster, nextLoopIndex, pickCluster, waypointLoop } from "../src/targets/spawns";
+import { CLUSTER_RADIUS_YARDS, SPAWN_CAP, WAYPOINT_MAX, WAYPOINT_RADIUS_YARDS, clusterSpawns, killLoop, nearbyClusters, nearestCluster, nextLoopIndex, pickCluster, waypointLoop } from "../src/targets/spawns";
 
 const at = (x: number, y: number, continent = 0): WorldPos => ({ continent, x, y });
 
@@ -96,4 +96,39 @@ describe("nearestCluster", () => {
     expect(nearestCluster([a, b], at(0, 0, 1))).toBeNull();
   });
   it("returns null without clusters", () => expect(nearestCluster([], at(0, 0))).toBeNull());
+});
+
+describe("nearbyClusters", () => {
+  const spread = (n: number, continent = 0): WorldPos[] => Array.from({ length: n }, (_, i) => ({ continent, x: i * 100, y: 0 }));
+
+  it("clusters every point of a small objective once and caches it", () => {
+    const cache = new Map();
+    let reads = 0;
+    const read = () => {
+      reads++;
+      return spread(10);
+    };
+    expect(nearbyClusters(cache, "k", at(0, 0), read)).toHaveLength(10);
+    nearbyClusters(cache, "k", at(90000, 0), read);
+    expect(reads).toBe(1);
+  });
+
+  it("keeps only the nearest points on the player's continent above the cap, per map cell", () => {
+    const cache = new Map();
+    const points = [...spread(SPAWN_CAP * 3), ...spread(50, 1)];
+    let reads = 0;
+    const read = () => {
+      reads++;
+      return points;
+    };
+    const near = nearbyClusters(cache, "k", at(0, 0), read);
+    expect(near).toHaveLength(SPAWN_CAP);
+    expect(Math.max(...near.map((c) => c.center.x))).toBe((SPAWN_CAP - 1) * 100);
+    expect(near.every((c) => c.center.continent === 0)).toBe(true);
+    nearbyClusters(cache, "k", at(10, 0), read);
+    expect(reads).toBe(1);
+    const far = nearbyClusters(cache, "k", at(SPAWN_CAP * 300, 0), read);
+    expect(reads).toBe(2);
+    expect(Math.min(...far.map((c) => c.center.x))).toBe(SPAWN_CAP * 200);
+  });
 });

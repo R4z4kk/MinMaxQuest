@@ -17,7 +17,7 @@ export function snapshot(overrides: Partial<QuestieSnapshot> = {}): QuestieSnaps
     objectiveFirst: {},
     dropRates: {},
     dungeons: {},
-    npcFlagValues: { innkeeper: 0, flightMaster: 0 },
+    npcFlagValues: { innkeeper: 0, flightMaster: 0, auctioneer: 0 },
     raceMaskById: {},
     ...overrides,
   };
@@ -38,10 +38,13 @@ export function zones(): Map<number, UiMapRect> {
 
 export function travel(overrides: Partial<TravelData> = {}): TravelData {
   return {
-    source: { name: "Shortest Path Forever", version: "test", build: "test", verifiedOn: "2026-11-27", expiresOn: "2026-12-27" },
+    source: { name: "Shortest Path Forever", version: "test", build: "test", cmangosCommit: "test", wagoBuild: "test", commit: "test", verifiedOn: "2026-11-27", expiresOn: "2026-12-27" },
     taxiNodes: [],
     taxiEdges: [],
     transports: [],
+    portals: [],
+    walkPlaces: [],
+    walks: [],
     ...overrides,
   };
 }

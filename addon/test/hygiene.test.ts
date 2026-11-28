@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { expect, it } from "vitest";
+import { ARROW_TEXTURE } from "../src/arrow/arrowFrame";
+import { MAP_MEDIA } from "../src/map/media";
 
 const ROOTS = ["addon/src", "tools"];
 const ANY_TYPE = /(:\s*any\b|<\s*any\b|\bas\s+any\b|\bany\s*(\[\]|[|&>,)=;])|[|&]\s*any\b)/;
@@ -42,4 +44,13 @@ it("ships the route files and not the route report", () => {
   const ignored = readFileSync(".pkgmeta", "utf8").split(/\r?\n/).map((line) => line.replace(/^\s*-\s*/, "").trim());
   expect(ignored).toContain("data/routes/report.md");
   expect(ignored).not.toContain("data");
+});
+
+it("ships the map and arrow textures outside the ignored folders", () => {
+  const ignored = readFileSync(".pkgmeta", "utf8").split(/\r?\n/).map((line) => line.replace(/^\s*-\s*/, "").trim());
+  for (const path of [...Object.values(MAP_MEDIA), ARROW_TEXTURE]) {
+    const file = path.split("\\").slice(3).join("/");
+    expect(existsSync(file)).toBe(true);
+    expect(ignored).not.toContain(file.split("/")[0]);
+  }
 });

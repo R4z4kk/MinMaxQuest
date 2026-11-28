@@ -15,6 +15,8 @@ export interface WindowApi {
   setTab(tab: TabId): void;
   isShown(): boolean;
   setShown(shown: boolean): void;
+  // Re-applies the tab when the Quest tab availability changed, e.g. on the ding to the maximum level.
+  syncQuestTab(): void;
 }
 
 const TAB_ORDER: TabId[] = ["quest", "access", "completion"];
@@ -60,7 +62,8 @@ export function placeTabs(parent: WowFrame, tabs: TabButton[], width: number, y:
   });
 }
 
-export function createWindow(db: CharDb, tabs: Record<TabId, TabView>, hideAll: () => void): WindowApi {
+// questAvailable: false once the route is over (max level), the Quest tab is then hidden; null while unknown.
+export function createWindow(db: CharDb, tabs: Record<TabId, TabView>, hideAll: () => void, questAvailable: () => boolean | null): WindowApi {
   const frame = CreateFrame("Frame", "MinMaxQuestWindow", UIParent);
   frame.SetFrameStrata("MEDIUM");
   frame.SetClampedToScreen(true);
@@ -129,15 +132,22 @@ export function createWindow(db: CharDb, tabs: Record<TabId, TabView>, hideAll: 
     return created;
   };
 
-  const setTab = (tab: TabId): void => {
+  let quest = true;
+  const setTab = (wanted: TabId): void => {
+    quest = questAvailable() ?? quest;
+    const tab = wanted === "quest" && !quest ? "completion" : wanted;
     db.tab = tab;
     if (tab !== "access") db.activeMode = tab;
     const view = tabs[tab];
     frame.SetSize(WINDOW_WIDTH, WINDOW_HEIGHT);
-    placeTabs(frame, buttons, WINDOW_WIDTH, -HEADER_HEIGHT);
+    placeTabs(frame, buttons.filter((_, i) => quest || TAB_ORDER[i] !== "quest"), WINDOW_WIDTH, -HEADER_HEIGHT);
     TAB_ORDER.forEach((id, i) => {
       const active = id === tab;
       buttons[i].setActive(active);
+      if (id === "quest") {
+        if (quest) buttons[i].frame.Show();
+        else buttons[i].frame.Hide();
+      }
       const existing = contents[id];
       if (!active && existing != null) existing.Hide();
     });
@@ -157,6 +167,10 @@ export function createWindow(db: CharDb, tabs: Record<TabId, TabView>, hideAll: 
       }
       frame.Show();
       setTab(db.tab);
+    },
+    syncQuestTab() {
+      const known = questAvailable();
+      if (frame.IsShown() && known != null && known !== quest) setTab(db.tab);
     },
   };
   return api;

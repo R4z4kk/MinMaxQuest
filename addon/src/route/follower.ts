@@ -4,11 +4,12 @@ import { currentLocale, t } from "../core/l10n";
 import { reportOnce } from "../core/report";
 import type { CharDb } from "../core/storage";
 import type { QuestInfo } from "../data/questRepository";
-import { questLabel, type PlayerSnapshot } from "../game/engine";
+import { describeTarget, questLabel, type PlayerSnapshot } from "../game/engine";
 import { isFriendlyTo } from "../game/positions";
+import type { ObtainPlan, PlanFor } from "../game/professions";
 import { isAvailable } from "../quests/availability";
-import type { CompletionInput, Target, TargetKind } from "../targets/completion";
-import { objectiveClusters, nearestCluster, type SpawnCluster } from "../targets/spawns";
+import { clusterKey, targetObtain, type CompletionInput, type Target, type TargetKind } from "../targets/completion";
+import { nearbyClusters, nearestCluster, pickCluster, type SpawnCluster } from "../targets/spawns";
 import type { TaxiLeg } from "../travel/graph";
 import { follow, type FollowView } from "./follow";
 import type { EmittedStep, StepType } from "./format";
@@ -29,6 +30,8 @@ export interface FollowerDeps {
   timeTo(snap: PlayerSnapshot): ((p: WorldPos) => number) | null;
   inCombat(): boolean;
   taxiNodes: { id: number; name: string; pos: WorldPos; faction: "A" | "H" | "AH" }[];
+  // Profession items are retargeted in game: the routes are built without the player's skills.
+  planFor?: PlanFor;
 }
 
 export interface RouteView extends FollowView {
@@ -39,6 +42,8 @@ export interface RouteView extends FollowView {
   nextTexts: string[];
   currentType: StepType | null;
   nextTypes: StepType[];
+  // 0 stands for "no quest": a nil inside a Lua array would end iteration.
+  nextQuestIds: number[];
   currentQuestId: number | null;
   currentIndex: number | null;
   currentProgress: ObjectiveCount | null;
@@ -52,6 +57,8 @@ export interface RouteFollower {
   resync(): void;
   hearthBound(): void;
   taxiLeg(target: Target): TaxiLeg | null;
+  // Where a fly step leads: the first later step that is not travel.
+  flyGoal(target: Target): WorldPos | null;
   unavailable(): string | null;
   returnDungeons(): number[];
   routesBuild(): string | null;
@@ -80,6 +87,8 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
   let hearthBoundWhileCurrent = false;
   let lastCurrent = -1;
   let taxiById: Map<number, { name: string; pos: WorldPos }> | null = null;
+  // Targets of the last refresh by step index: their labels follow the in-game retargeting.
+  let built = new Map<number, Target>();
 
   const load = (): FactionRoutes | null => {
     if (routes != null || unavailable != null) return routes;
@@ -259,34 +268,41 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
 
   const clusterCache = new Map<string, SpawnCluster[]>();
 
-  const objectiveCluster = (s: EmittedStep, quest: QuestInfo | null, pos: WorldPos): SpawnCluster | null => {
-    if (quest == null || s.objectiveIndex == null) return null;
-    const key = `${quest.id}:${s.objectiveIndex}`;
-    let clusters = clusterCache.get(key);
-    if (clusters == null) {
-      clusters = objectiveClusters(deps.positionsFor(quest, "objective", s.objectiveIndex));
-      clusterCache.set(key, clusters);
-    }
-    return nearestCluster(clusters, pos);
-  };
+  const clustersOf = (quest: QuestInfo, objectiveIndex: number, plan: ObtainPlan | null, from: WorldPos | null): SpawnCluster[] =>
+    nearbyClusters(clusterCache, clusterKey(quest.id, objectiveIndex, plan), from, () => deps.positionsFor(quest, "objective", objectiveIndex));
 
-  const toTarget = (i: number, timeTo: (p: WorldPos) => number): Target | null => {
+  const toTarget = (i: number, timeTo: (p: WorldPos) => number, snap: PlayerSnapshot): Target | null => {
     const s = steps[i];
-    const pos = deps.toWorld(s.uiMapId, s.x, s.y);
-    if (pos == null) {
+    const stepPos = deps.toWorld(s.uiMapId, s.x, s.y);
+    if (stepPos == null) {
       reportOnce("routeStepPlace", t("routeStepUnplaced").replace("{n}", String(i + 1)));
       return null;
     }
     const kind = QUEST_KIND[s.type] ?? "route";
     const questId = kind === "route" ? null : (s.questId ?? null);
     const quest = questId == null ? null : deps.quest(questId);
-    const seconds = timeTo(pos);
-    return {
+    const index = kind === "objective" ? (s.objectiveIndex ?? null) : null;
+    const plan = quest == null || index == null ? null : (deps.planFor?.(quest, index) ?? null);
+    const objective = plan == null ? null : (quest?.objectives.find((o) => o.index === index) ?? null);
+    let obtain = targetObtain(plan, objective?.kind === "item" ? objective.required : 1, questId == null || index == null ? null : (snap.log.get(questId)?.counts?.[index - 1] ?? null));
+    let pos: WorldPos | null = stepPos;
+    let cluster: SpawnCluster | null = null;
+    if (quest != null && index != null) {
+      const clusters = clustersOf(quest, index, plan, snap.pos);
+      cluster = plan == null ? nearestCluster(clusters, stepPos) : pickCluster(clusters, timeTo);
+      if (obtain != null && obtain.how === "buy" && (cluster == null || timeTo(cluster.center) === Infinity)) {
+        reportOnce(`noAuctioneer:${obtain.item}`, t("noAuctioneer").replace("{item}", obtain.item));
+        obtain = null;
+        cluster = null;
+      } else if (plan != null) pos = cluster?.center ?? (obtain != null ? null : stepPos);
+    }
+    const seconds = pos == null ? 0 : timeTo(pos);
+    const target: Target = {
       questId,
       kind,
-      objectiveIndex: kind === "objective" ? (s.objectiveIndex ?? null) : null,
+      objectiveIndex: index,
       pos,
-      cluster: kind === "objective" ? objectiveCluster(s, quest, pos) : null,
+      cluster,
       otherSpots: 0,
       seconds: Number.isNaN(seconds) ? Infinity : seconds,
       penaltySec: 0,
@@ -296,6 +312,8 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
       zoneAreaId: quest?.zoneAreaId ?? null,
       route: { index: i, type: s.type, label: kind === "route" ? stepText(s) : "" },
     };
+    if (obtain != null) target.obtain = obtain;
+    return target;
   };
 
   const targets = (snap: PlayerSnapshot): Target[] | null => {
@@ -342,14 +360,18 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
     const view = follow(steps, next, ctx, timeTo, realizable, snap.maxLevel, quest, snap.state, startIndex, skipped);
     followed = view;
     const out: Target[] = [];
+    const shown = new Map<number, Target>();
     const add = (i: number | null): void => {
       if (i == null) return;
-      const target = toTarget(i, timeTo);
-      if (target != null) out.push(target);
+      const target = toTarget(i, timeTo, snap);
+      if (target == null) return;
+      out.push(target);
+      shown.set(i, target);
     };
     add(view.target);
     if (view.current !== view.target) add(view.current);
     for (const i of view.next) if (i !== view.target) add(i);
+    built = shown;
     return out;
   };
 
@@ -358,12 +380,18 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
     view() {
       const v = followed;
       if (v == null) return null;
-      const text = (i: number | null): string | null => (i == null || steps[i] == null ? null : stepText(steps[i]));
+      const label = (i: number): string => {
+        const target = built.get(i);
+        return target == null ? stepText(steps[i]) : describeTarget(target, target.questId == null ? null : quest(target.questId));
+      };
+      const text = (i: number | null): string | null => (i == null || steps[i] == null ? null : label(i));
       const nextTexts: string[] = [];
       const nextTypes: StepType[] = [];
+      const nextQuestIds: number[] = [];
       for (const i of v.next) {
-        nextTexts.push(stepText(steps[i]));
+        nextTexts.push(label(i));
         nextTypes.push(steps[i].type);
+        nextQuestIds.push(steps[i].questId ?? 0);
       }
       const cur = v.current == null ? null : steps[v.current];
       const progress = cur != null && cur.type === "complete" && cur.questId != null && cur.objectiveIndex != null
@@ -381,6 +409,7 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
         nextTexts,
         currentType: cur?.type ?? null,
         nextTypes,
+        nextQuestIds,
         currentQuestId: cur?.questId ?? null,
         currentIndex: v.current,
         currentProgress: progress,
@@ -397,6 +426,15 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
     hearthBound() {
       if (cursor != null && steps[cursor.current]?.type === "setHearth") hearthBoundWhileCurrent = true;
     },
+    flyGoal(target) {
+      const ref = target.route;
+      if (ref == null || steps[ref.index]?.type !== "fly") return null;
+      for (let i = ref.index + 1; i < steps.length; i++) {
+        const s = steps[i];
+        if (TRAVEL_STEPS[s.type] !== true) return toWorld(s.uiMapId, s.x, s.y);
+      }
+      return null;
+    },
     taxiLeg(target) {
       const ref = target.route;
       const s = ref == null ? null : steps[ref.index];
@@ -406,7 +444,7 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
       const side = deps.faction();
       for (const node of deps.taxiNodes) {
         if (side != null && !isFriendlyTo(node.faction, side)) continue;
-        const d = distance(node.pos, target.pos);
+        const d = target.pos == null ? Infinity : distance(node.pos, target.pos);
         if (d < best) {
           best = d;
           from = node.id;

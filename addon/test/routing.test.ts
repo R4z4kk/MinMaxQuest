@@ -31,14 +31,18 @@ const repo: QuestRepository = {
   npcFriendlyTo: () => null,
   npcName: () => null,
   objectName: () => null,
+  itemName: () => null,
   lastError: () => null,
 };
 
 const NO_TRAVEL: TravelData = {
-  source: { name: "Shortest Path Forever", version: "test", build: "test", verifiedOn: "2026-11-27", expiresOn: "2026-12-27" },
+  source: { name: "Shortest Path Forever", version: "test", build: "test", cmangosCommit: "test", wagoBuild: "test", commit: "test", verifiedOn: "2026-11-27", expiresOn: "2026-12-27" },
   taxiNodes: [],
   taxiEdges: [],
   transports: [],
+  portals: [],
+  walkPlaces: [],
+  walks: [],
 };
 
 const snapshot = (pos: WorldPos | null): PlayerSnapshot => ({

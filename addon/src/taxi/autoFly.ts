@@ -109,6 +109,13 @@ function onTaxiMapOpened(deps: AutoFlyDeps): void {
   TakeTaxiNode(slot);
 }
 
+// The route was built with the flight paths known offline; a leg re-planned from the same flight master
+// with the player's own known nodes can fly further (Rut'theran straight to Moonglade, not Auberdine).
+export function pickTaxiLeg(routeLeg: TaxiLeg | null, replanned: TaxiLeg | null): TaxiLeg | null {
+  if (routeLeg == null) return replanned;
+  return replanned != null && replanned.from === routeLeg.from ? replanned : routeLeg;
+}
+
 export function installAutoFly(deps: AutoFlyDeps): void {
   const frame = CreateFrame("Frame", "MinMaxQuestTaxi", UIParent);
   frame.RegisterEvent("TAXIMAP_OPENED");

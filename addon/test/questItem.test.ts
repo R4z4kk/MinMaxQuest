@@ -54,3 +54,16 @@ describe("questItemFor", () => {
     expect(questItemFor(null, deps({}, []))).toBeNull();
   });
 });
+
+describe("The Love Potion (4201)", () => {
+  // QuestieDB v1.1.6: sourceItemId 11412 Nagmara's Vial (usable at the spigot), objective 11413 Nagmara's Filled Vial.
+  const lovePotion = quest(11412, []);
+
+  it("holds the empty vial, the usable one, even with the filled vial in the bags", () => {
+    expect(questItemFor(lovePotion, deps({ 11412: 1, 11413: 1 }, [11412, 11413]))).toBe(11412);
+  });
+
+  it("never offers the filled vial", () => {
+    expect(questItemFor(lovePotion, deps({ 11413: 1 }, [11413]))).toBeNull();
+  });
+});

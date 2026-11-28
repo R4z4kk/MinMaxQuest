@@ -1,5 +1,6 @@
 import type { WorldPos } from "../core/geometry";
 import type { QuestInfo } from "../data/questRepository";
+import type { ObtainPlan, PlanFor } from "../game/professions";
 import type { StepType } from "../route/format";
 import {
   isAvailable,
@@ -8,7 +9,7 @@ import {
   passesMaxLevelOption,
   type PlayerQuestState,
 } from "../quests/availability";
-import { objectiveClusters, pickCluster, type SpawnCluster } from "./spawns";
+import { nearbyClusters, pickCluster, type SpawnCluster } from "./spawns";
 
 export type TargetKind = "accept" | "objective" | "turnin" | "route";
 export type QuestTargetKind = Exclude<TargetKind, "route">;
@@ -20,12 +21,20 @@ export interface RouteRef {
   label: string;
 }
 
+// A profession item to buy, craft or fish instead of farming mobs (design 2026-11-28-professions).
+export interface TargetObtain {
+  how: Exclude<ObtainPlan["how"], "gather">;
+  item: string;
+  count: number;
+}
+
 export interface Target {
   // Null only for non-quest route steps.
   questId: number | null;
   kind: TargetKind;
   objectiveIndex: number | null;
-  pos: WorldPos;
+  // Null for an objective done anywhere (craft, fish): listed, never shown by the arrow.
+  pos: WorldPos | null;
   cluster: SpawnCluster | null;
   otherSpots: number;
   seconds: number;
@@ -36,6 +45,7 @@ export interface Target {
   elite: boolean;
   zoneAreaId: number | null;
   route: RouteRef | null;
+  obtain?: TargetObtain;
 }
 
 export interface CompletionOptions {
@@ -59,8 +69,11 @@ export interface CompletionInput {
   timeTo: (p: WorldPos) => number;
   // Spawns never change, so clusters are kept across refreshes, keyed by questId:objectiveIndex.
   clusters: Map<string, SpawnCluster[]>;
+  // Player position: objectives with very many spawns only cluster the nearest ones.
+  origin?: WorldPos | null;
   uiMapOf?: (zoneAreaId: number) => number | null;
   penaltyOf?: (p: WorldPos) => number;
+  planFor?: PlanFor;
 }
 
 export interface ZoneProgress {
@@ -72,6 +85,15 @@ function inNearbyMaps(q: QuestInfo, maps: Set<number>, uiMapOf: CompletionInput[
   if (q.zoneAreaId == null || uiMapOf == null) return false;
   const uiMapId = uiMapOf(q.zoneAreaId);
   return uiMapId != null && maps.has(uiMapId);
+}
+
+export function clusterKey(questId: number, objectiveIndex: number, plan: ObtainPlan | null): string {
+  return plan == null ? `${questId}:${objectiveIndex}` : `${questId}:${objectiveIndex}:${plan.key}`;
+}
+
+export function targetObtain(plan: ObtainPlan | null, required: number, count: { have: number; need: number } | null): TargetObtain | null {
+  if (plan == null || plan.how === "gather") return null;
+  return { how: plan.how, item: plan.item, count: count == null ? required : Math.max(count.need - count.have, 0) };
 }
 
 export function selectTargets(input: CompletionInput, opts: CompletionOptions): Target[] {
@@ -92,25 +114,28 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
     trivial: boolean,
     kind: QuestTargetKind,
     objectiveIndex: number | null,
-    pos: WorldPos,
+    pos: WorldPos | null,
     cluster: SpawnCluster | null,
     otherSpots: number,
+    obtain: TargetObtain | null = null,
   ): void => {
-    targets.push({
+    const target: Target = {
       questId: q.id,
       kind,
       objectiveIndex,
       pos,
       cluster,
       otherSpots,
-      seconds: timeTo(pos),
-      penaltySec: input.penaltyOf?.(pos) ?? 0,
+      seconds: pos == null ? Infinity : timeTo(pos),
+      penaltySec: pos == null ? 0 : (input.penaltyOf?.(pos) ?? 0),
       questLevel: q.level,
       trivial,
       elite: q.isElite,
       zoneAreaId: q.zoneAreaId,
       route: null,
-    });
+    };
+    if (obtain != null) target.obtain = obtain;
+    targets.push(target);
   };
 
   const nearest = (points: WorldPos[]): WorldPos | null => {
@@ -150,19 +175,18 @@ export function selectTargets(input: CompletionInput, opts: CompletionOptions): 
     } else {
       for (const obj of q.objectives) {
         if (entry.objectivesDone.has(obj.index)) continue;
-        const key = `${q.id}:${obj.index}`;
-        let clusters = input.clusters.get(key);
-        if (clusters == null) {
-          clusters = objectiveClusters(positionsFor(q, "objective", obj.index));
-          input.clusters.set(key, clusters);
-        }
+        const plan = input.planFor?.(q, obj.index) ?? null;
+        const clusters = nearbyClusters(input.clusters, clusterKey(q.id, obj.index, plan), input.origin ?? null, () => positionsFor(q, "objective", obj.index));
+        const obtain = targetObtain(plan, obj.kind === "item" ? obj.required : 1, entry.counts?.[obj.index - 1] ?? null);
         const cluster = pickCluster(clusters, timeTo);
-        if (cluster != null) push(q, trivial, "objective", obj.index, cluster.center, cluster, clusters.length - 1);
+        if (cluster != null) push(q, trivial, "objective", obj.index, cluster.center, cluster, clusters.length - 1, obtain);
+        else if (obtain != null && obtain.how !== "buy") push(q, trivial, "objective", obj.index, null, null, 0, obtain);
       }
     }
   }
 
   targets.sort((a, b) => {
+    if ((a.pos == null) !== (b.pos == null)) return a.pos == null ? 1 : -1;
     if (a.seconds !== b.seconds) return a.seconds < b.seconds ? -1 : 1;
     if (a.questId !== b.questId) return (a.questId ?? 0) - (b.questId ?? 0);
     return (a.objectiveIndex ?? 0) - (b.objectiveIndex ?? 0);

@@ -13,9 +13,10 @@ export const REFRESH_INTERVAL_SEC = 2;
 export const LOOP_ADVANCE_YARDS = 25;
 export const IDLE_YARDS = 10;
 
-const HOP_LABEL: Record<"taxi" | "boat" | "hearth", L10nKey> = {
+const HOP_LABEL: Record<"taxi" | "boat" | "portal" | "hearth", L10nKey> = {
   taxi: "goFlightMaster",
   boat: "goBoat",
+  portal: "takePortal",
   hearth: "useHearth",
 };
 
@@ -76,8 +77,12 @@ export interface Engine {
   profile(): RefreshProfile;
 }
 
+const OBTAIN_LABEL: Record<"buy" | "craft" | "fish", L10nKey> = { buy: "obtainBuy", craft: "obtainCraft", fish: "obtainFish" };
+
 export function targetAction(target: Target): string {
   if (target.kind === "route") return target.route?.label ?? "";
+  const obtain = target.obtain;
+  if (obtain != null) return t(OBTAIN_LABEL[obtain.how]).replace("{item}", obtain.item).replace("{n}", String(obtain.count));
   if (target.kind === "accept") return t("targetAccept");
   if (target.kind === "turnin") return t("targetTurnin");
   return `${t("targetObjective")} ${target.objectiveIndex ?? ""}`;
@@ -116,6 +121,7 @@ function sameTargets(a: Target[], b: Target[]): boolean {
 
 function sameArrow(a: ArrowTarget | null, b: ArrowTarget | null): boolean {
   if (a == null || b == null) return a === b;
+  if (a.pos == null || b.pos == null) return a.label === b.label && a.pos === b.pos;
   return a.label === b.label && a.pos.continent === b.pos.continent && a.pos.x === b.pos.x && a.pos.y === b.pos.y;
 }
 
@@ -136,13 +142,23 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
   let loopKey = "";
   const listeners: Listener[] = [];
 
+  // Targets without a position (craft, fish) stay listed; the arrow goes to the next one unless that quest is pinned.
   const pick = (): Target | null => {
     const pinned = db.pinnedQuestId;
-    if (pinned != null) for (const target of pinPool ?? list) if (target.questId === pinned) return target;
-    return list.length > 0 ? list[0] : null;
+    if (pinned != null) {
+      let positionless: Target | null = null;
+      for (const target of pinPool ?? list) {
+        if (target.questId !== pinned) continue;
+        if (target.pos != null) return target;
+        if (positionless == null) positionless = target;
+      }
+      if (positionless != null) return positionless;
+    }
+    for (const target of list) if (target.pos != null) return target;
+    return null;
   };
 
-  const showArrow = (pos: WorldPos, text: string): void => {
+  const showArrow = (pos: WorldPos | null, text: string): void => {
     const next = { pos, label: text };
     if (!sameArrow(arrow, next)) arrow = next;
   };
@@ -158,10 +174,17 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
       return;
     }
     label = describeTarget(target, targetQuest(target, (id) => deps.getQuest(id)));
+    const at = target.pos;
+    if (at == null) {
+      loop = null;
+      loopKey = "";
+      showArrow(null, label);
+      return;
+    }
     if (target.cluster == null) {
       loop = null;
       loopKey = "";
-      showArrow(target.pos, label);
+      showArrow(at, label);
       return;
     }
     const center = target.cluster.center;
@@ -174,12 +197,12 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
     const key = `${target.questId}:${target.objectiveIndex}:${center.continent}:${target.cluster.points.length}:${sumX}:${sumY}`;
     if (loop == null || key !== loopKey) {
       loopKey = key;
-      loop = killLoop(target.cluster, pos ?? target.pos);
+      loop = killLoop(target.cluster, pos ?? at);
       loopIndex = 0;
     } else if (pos != null) {
       loopIndex = nextLoopIndex(loop, loopIndex, pos, LOOP_ADVANCE_YARDS);
     }
-    showArrow(loop.length > 0 ? loop[loopIndex] : target.pos, label);
+    showArrow(loop.length > 0 ? loop[loopIndex] : at, label);
   };
 
   const advanceLoop = (pos: WorldPos | null): void => {
@@ -216,7 +239,7 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
     lastRunPos = snap.pos;
     const skipped = new Set(db.skippedQuests);
     const kept = (target: Target): boolean => target.questId == null || !skipped.has(target.questId);
-    const route = db.activeMode === "quest" ? deps.route(snap) : null;
+    const route = db.activeMode === "quest" && snap.state.level < snap.maxLevel ? deps.route(snap) : null;
     const next = (route ?? deps.completion(snap)).filter((target) => kept(target));
     pinPool = route != null && db.pinnedQuestId != null ? deps.completion(snap).filter((target) => kept(target)) : null;
     const changed = !sameTargets(list, next);

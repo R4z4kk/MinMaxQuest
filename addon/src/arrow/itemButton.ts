@@ -62,8 +62,13 @@ export function createItemButton(db: CharDb, anchor: () => WowFrame): ItemButton
   const button = CreateFrame("Button", BUTTON_NAME, holder, "SecureActionButtonTemplate");
   button.SetSize(BUTTON_SIZE, BUTTON_SIZE);
   button.SetPoint("CENTER", holder, "CENTER", 0, 0);
+  // Both: with ActionButtonUseKeyDown on (the default), a secure button registered for up only never fires.
+  // useOnKeyDown false asks the template to act on release so a drag does not use the item.
   button.RegisterForClicks("AnyUp", "AnyDown");
-  button.SetAttribute("type", "item");
+  button.SetAttribute("useOnKeyDown", false);
+  button.RegisterForDrag("LeftButton");
+  // A macro: the "item" type did not use some quest items (Nagmara's Vial 11412) that work from the bags.
+  button.SetAttribute("type", "macro");
 
   const icon = button.CreateTexture(null, "ARTWORK");
   icon.SetAllPoints(button);
@@ -123,7 +128,7 @@ export function createItemButton(db: CharDb, anchor: () => WowFrame): ItemButton
   function apply(): void {
     if (wish !== applied) {
       const texture = wish == null ? null : (itemIcon(wish) ?? UNKNOWN_ICON);
-      button.SetAttribute("item", wish == null ? null : `item:${wish}`);
+      button.SetAttribute("macrotext", wish == null ? null : `/use item:${wish}`);
       icon.SetTexture(texture);
       applied = wish;
     }
@@ -149,14 +154,18 @@ export function createItemButton(db: CharDb, anchor: () => WowFrame): ItemButton
     if (left != null && top != null) db.itemButton = { x: left, y: top };
   }
 
-  holder.SetScript("OnDragStart", () => {
+  const dragStart = (): void => {
     if (locked || InCombatLockdown()) return;
     moving = true;
     holder.StartMoving();
-  });
-  holder.SetScript("OnDragStop", () => {
+  };
+  const dragStop = (): void => {
     if (moving && !InCombatLockdown()) stopMoving();
-  });
+  };
+  holder.SetScript("OnDragStart", dragStart);
+  holder.SetScript("OnDragStop", dragStop);
+  button.SetScript("OnDragStart", dragStart);
+  button.SetScript("OnDragStop", dragStop);
 
   apply();
 

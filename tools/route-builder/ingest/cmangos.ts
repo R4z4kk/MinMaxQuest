@@ -15,7 +15,7 @@ const SLOTS = [1, 2, 3, 4];
 const REQUIRED_COLUMNS = ["entry", ...["ReqCreatureOrGOId", "ReqCreatureOrGOCount", "ReqItemId", "ReqItemCount"].flatMap((c) => SLOTS.map((slot) => `${c}${slot}`))];
 const ESCAPES: Record<string, string> = { "0": "\0", b: "\b", n: "\n", r: "\r", t: "\t", Z: "\x1a" };
 
-type SqlValue = string | number | null;
+export type SqlValue = string | number | null;
 
 function key(questId: number, kind: "npcOrObject" | "item", id: number): string {
   return `${questId}:${kind}:${id}`;
@@ -108,17 +108,22 @@ function tuples(line: string, from: number, where: string): SqlValue[][] {
   }
 }
 
-export function parseCmangosCounts(sql: string, file: string): CmangosCounts {
+export interface SqlRow {
+  where: string;
+  value(column: string): SqlValue;
+  int(column: string): number;
+}
+
+export function parseSqlTable(sql: string, file: string, table: string, requiredColumns: string[]): SqlRow[] {
   const lines = sql.split(/\r?\n/);
   let columns: string[] | null = null;
   let seen = false;
-  let parsedRows = 0;
-  const counts = new Map<string, number>();
-  const insertPrefix = new RegExp(`^INSERT INTO \`${TABLE}\`\\s*(?:\\(([^)]*)\\))?\\s*VALUES\\s*`);
+  const rows: SqlRow[] = [];
+  const insertPrefix = new RegExp(`^INSERT INTO \`${table}\`\\s*(?:\\(([^)]*)\\))?\\s*VALUES\\s*`);
   for (let n = 0; n < lines.length; n++) {
     const line = lines[n];
     const where = `${file}:${n + 1}`;
-    if (line.startsWith(`CREATE TABLE \`${TABLE}\``)) {
+    if (line.startsWith(`CREATE TABLE \`${table}\``)) {
       seen = true;
       columns = [];
       for (n++; n < lines.length; n++) {
@@ -126,60 +131,70 @@ export function parseCmangosCounts(sql: string, file: string): CmangosCounts {
         if (column == null) break;
         columns.push(column[1]);
       }
-      if (columns.length === 0) throw new Error(`${where}: ${TABLE} has no columns`);
+      if (columns.length === 0) throw new Error(`${where}: ${table} has no columns`);
       continue;
     }
     const insert = insertPrefix.exec(line);
     if (insert == null) continue;
     seen = true;
     const names = insert[1] != null ? columnList(insert[1], where) : columns;
-    if (names == null) throw new Error(`${where}: INSERT into ${TABLE} before its CREATE TABLE`);
+    if (names == null) throw new Error(`${where}: INSERT into ${table} before its CREATE TABLE`);
     const index = new Map(names.map((name, i) => [name, i]));
-    const missing = REQUIRED_COLUMNS.filter((column) => !index.has(column));
-    if (missing.length > 0) throw new Error(`${where}: ${TABLE} has no column ${missing.join(", ")}`);
-    const entryAt = index.get("entry");
-    if (entryAt == null) throw new Error(`${where}: no entry column`);
+    const missing = requiredColumns.filter((column) => !index.has(column));
+    if (missing.length > 0) throw new Error(`${where}: ${table} has no column ${missing.join(", ")}`);
     for (const row of tuples(line, insert[0].length, where)) {
       if (row.length !== names.length) throw new Error(`${where}: row has ${row.length} values for ${names.length} columns`);
-      parsedRows++;
-      const int = (column: string): number => {
+      const value = (column: string): SqlValue => {
         const at = index.get(column);
-        if (at == null) throw new Error(`${where}: ${TABLE} has no column ${column}`);
-        const value = row[at];
-        if (typeof value !== "number" || !Number.isInteger(value)) throw new Error(`${where}: quest ${String(row[entryAt])} ${column} is not an integer`);
-        return value;
+        if (at == null) throw new Error(`${where}: ${table} has no column ${column}`);
+        return row[at];
       };
-      const questId = int("entry");
-      for (const slot of SLOTS) {
-        for (const [kind, idColumn, countColumn] of [
-          ["npcOrObject", `ReqCreatureOrGOId${slot}`, `ReqCreatureOrGOCount${slot}`],
-          ["item", `ReqItemId${slot}`, `ReqItemCount${slot}`],
-        ] as const) {
-          const id = int(idColumn);
-          const count = int(countColumn);
-          if (id === 0 || count <= 0) continue;
-          const k = key(questId, kind, id);
-          const previous = counts.get(k);
-          if (previous != null && previous !== count) throw new Error(`${where}: quest ${questId} ${kind} ${id} has counts ${previous} and ${count}`);
-          counts.set(k, count);
-        }
+      const int = (column: string): number => {
+        const v = value(column);
+        if (typeof v !== "number" || !Number.isInteger(v)) throw new Error(`${where}: ${table} ${column} is not an integer`);
+        return v;
+      };
+      rows.push({ where, value, int });
+    }
+  }
+  if (!seen) throw new Error(`${file}: no ${table} table`);
+  if (rows.length === 0) throw new Error(`${file}: no ${table} row parsed`);
+  return rows;
+}
+
+export function parseCmangosCounts(sql: string, file: string): CmangosCounts {
+  const counts = new Map<string, number>();
+  for (const row of parseSqlTable(sql, file, TABLE, REQUIRED_COLUMNS)) {
+    const questId = row.int("entry");
+    for (const slot of SLOTS) {
+      for (const [kind, idColumn, countColumn] of [
+        ["npcOrObject", `ReqCreatureOrGOId${slot}`, `ReqCreatureOrGOCount${slot}`],
+        ["item", `ReqItemId${slot}`, `ReqItemCount${slot}`],
+      ] as const) {
+        const id = row.int(idColumn);
+        const count = row.int(countColumn);
+        if (id === 0 || count <= 0) continue;
+        const k = key(questId, kind, id);
+        const previous = counts.get(k);
+        if (previous != null && previous !== count) throw new Error(`${row.where}: quest ${questId} ${kind} ${id} has counts ${previous} and ${count}`);
+        counts.set(k, count);
       }
     }
   }
-  if (!seen) throw new Error(`${file}: no quest_template table`);
-  if (parsedRows === 0) throw new Error(`${file}: no quest_template row parsed`);
   return { get: (questId, kind, id) => counts.get(key(questId, kind, id)) ?? null };
 }
 
-export function loadCmangosCounts(file: string): CmangosCounts {
-  let sql: string;
+export function readSqlFile(file: string): string {
   try {
     const raw = readFileSync(file);
-    sql = (file.endsWith(".gz") ? gunzipSync(raw) : raw).toString("utf8");
+    return (file.endsWith(".gz") ? gunzipSync(raw) : raw).toString("utf8");
   } catch (error) {
     throw new Error(`${file}: cannot read (${error instanceof Error ? error.message : String(error)})`);
   }
-  return parseCmangosCounts(sql, file);
+}
+
+export function loadCmangosCounts(file: string): CmangosCounts {
+  return parseCmangosCounts(readSqlFile(file), file);
 }
 
 export function cmangosPath(): string {

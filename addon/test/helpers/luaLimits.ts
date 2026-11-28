@@ -4,11 +4,14 @@ import { parse } from "luaparse";
 // Lua 5.1 (WoW) refuses to load a chunk past these: lparser.c LUAI_MAXUPVALUES and LUAI_MAXVARS.
 export const LUA51_MAX_UPVALUES = 60;
 export const LUA51_MAX_LOCALS = 200;
+// lcode.c addk: "constant table overflow" past MAXARG_Bx.
+export const LUA51_MAX_CONSTANTS = 262143;
 
 export interface FunctionLimits {
   line: number;
   upvalues: number;
   locals: number;
+  constants: number;
 }
 
 interface Variable {
@@ -19,6 +22,7 @@ interface FnState {
   line: number;
   parent: FnState | null;
   upvalues: Set<Variable>;
+  constants: Set<string>;
   active: number;
   maxActive: number;
 }
@@ -32,7 +36,7 @@ export function luaFunctionLimits(source: string): FunctionLimits[] {
   const ast = parse(source, { luaVersion: "5.1", locations: true, comments: false }) as unknown as Node;
   const results: FunctionLimits[] = [];
   const scopes: Map<string, Variable>[] = [];
-  let current: FnState = { line: 0, parent: null, upvalues: new Set(), active: 0, maxActive: 0 };
+  let current: FnState = { line: 0, parent: null, upvalues: new Set(), constants: new Set(), active: 0, maxActive: 0 };
 
   const declare = (name: string): void => {
     scopes[scopes.length - 1].set(name, { fn: current });
@@ -47,6 +51,7 @@ export function luaFunctionLimits(source: string): FunctionLimits[] {
       for (let fn: FnState | null = current; fn != null && fn !== variable.fn; fn = fn.parent) fn.upvalues.add(variable);
       return;
     }
+    current.constants.add(`s:${name}`);
   };
 
   const block = (body: unknown, before: () => void = () => {}): void => {
@@ -61,12 +66,12 @@ export function luaFunctionLimits(source: string): FunctionLimits[] {
   const fn = (node: Node, self: boolean): void => {
     const line = (node.loc as { start: { line: number } }).start.line;
     const parent = current;
-    current = { line, parent, upvalues: new Set(), active: 0, maxActive: 0 };
+    current = { line, parent, upvalues: new Set(), constants: new Set(), active: 0, maxActive: 0 };
     block(node.body, () => {
       if (self) declare("self");
       for (const param of node.parameters as Node[]) if (param.type === "Identifier") declare(param.name as string);
     });
-    results.push({ line, upvalues: current.upvalues.size, locals: current.maxActive });
+    results.push({ line, upvalues: current.upvalues.size, locals: current.maxActive, constants: current.constants.size });
     current = parent;
   };
 
@@ -81,10 +86,18 @@ export function luaFunctionLimits(source: string): FunctionLimits[] {
         reference(node.name as string);
         return;
       case "MemberExpression":
+        if (node.indexer === "." && isNode(node.identifier)) current.constants.add(`s:${node.identifier.name as string}`);
         visitAll(node.base);
         return;
       case "TableKeyString":
+        if (isNode(node.key)) current.constants.add(`s:${node.key.name as string}`);
         visitAll(node.value);
+        return;
+      case "NumericLiteral":
+        current.constants.add(`n:${node.value as number}`);
+        return;
+      case "StringLiteral":
+        current.constants.add(`s:${(node.raw as string).slice(1, -1)}`);
         return;
       case "LocalStatement":
         visitAll(node.init);
@@ -137,6 +150,6 @@ export function luaFunctionLimits(source: string): FunctionLimits[] {
   }
 
   block((ast as { body: unknown }).body);
-  results.push({ line: 0, upvalues: 0, locals: current.maxActive });
+  results.push({ line: 0, upvalues: 0, locals: current.maxActive, constants: current.constants.size });
   return results;
 }

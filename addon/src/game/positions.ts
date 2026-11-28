@@ -1,7 +1,9 @@
-import type { WorldPos } from "../core/geometry";
+import { distance, type WorldPos } from "../core/geometry";
+import { PROFESSIONS, type ProfessionData } from "../data/generated/professions";
 import type { AreaPoint, QuestRepository } from "../data/questRepository";
 import type { PlaceFor } from "../route/insert";
 import type { CompletionInput } from "../targets/completion";
+import type { PlanFor } from "./professions";
 
 export type AreaToWorld = (point: AreaPoint) => WorldPos | null;
 
@@ -13,6 +15,29 @@ export function uiMapToWorld(uiMapId: number, x: number, y: number): WorldPos | 
   const [continent, vec] = C_Map.GetWorldPosFromMapPos(uiMapId, CreateVector2D(x / PERCENT, y / PERCENT));
   if (continent == null || vec == null || !Number.isFinite(vec.x) || !Number.isFinite(vec.y)) return null;
   return { continent, x: vec.x, y: vec.y };
+}
+
+export interface MapPoint {
+  uiMapId: number;
+  x: number;
+  y: number;
+}
+
+function inUnitRange(value: number): boolean {
+  return value >= 0 && value <= 1;
+}
+
+export function worldToMap(pos: WorldPos): MapPoint | null {
+  const toMap = C_Map.GetMapPosFromWorldPos;
+  if (toMap == null) return null;
+  const world = CreateVector2D(pos.x, pos.y);
+  const [uiMapId, point] = toMap(pos.continent, world);
+  if (uiMapId != null && point != null) return { uiMapId, x: point.x, y: point.y };
+  const best = C_Map.GetBestMapForUnit("player");
+  if (best == null) return null;
+  const [, local] = toMap(pos.continent, world, best);
+  if (local == null || !inUnitRange(local.x) || !inUnitRange(local.y)) return null;
+  return { uiMapId: best, x: local.x, y: local.y };
 }
 
 export function mapToWorld(repo: QuestRepository): AreaToWorld {
@@ -30,14 +55,38 @@ export function isFriendlyTo(read: "A" | "H" | "AH" | null, side: "A" | "H"): bo
 const FRIENDLY = "friendly";
 const HOSTILE = "hostile";
 
-// First convertible spawn of the quest's starter, objective source or finisher, for route insertion.
-export function createPlaceFor(repo: QuestRepository, faction: () => "A" | "H" | null): PlaceFor {
+function friendlyAuctioneers(auctioneers: ProfessionData["auctioneers"], side: "A" | "H" | null): number[] {
+  const out: number[] = [];
+  for (const a of auctioneers) if (side == null || isFriendlyTo(a.faction, side)) out.push(a.npcId);
+  return out;
+}
+
+// Spawn of the quest's starter, objective source or finisher for route insertion: the one nearest to the
+// player (a battleground quest's finisher stands in every capital), else the first convertible one.
+export function createPlaceFor(
+  repo: QuestRepository,
+  faction: () => "A" | "H" | null,
+  near: () => WorldPos | null,
+  toWorld: (uiMapId: number, x: number, y: number) => WorldPos | null = uiMapToWorld,
+  planFor: PlanFor | null = null,
+  auctioneers: ProfessionData["auctioneers"] = PROFESSIONS.auctioneers,
+): PlaceFor {
   const first = (points: AreaPoint[]): { uiMapId: number; x: number; y: number } | null => {
+    const from = near();
+    let best: { uiMapId: number; x: number; y: number } | null = null;
+    let bestYards = Infinity;
     for (const point of points) {
       const uiMapId = repo.uiMapIdForArea(point.areaId);
-      if (uiMapId != null && uiMapToWorld(uiMapId, point.x, point.y) != null) return { uiMapId, x: point.x, y: point.y };
+      const pos = uiMapId == null ? null : toWorld(uiMapId, point.x, point.y);
+      if (uiMapId == null || pos == null) continue;
+      if (from == null) return { uiMapId, x: point.x, y: point.y };
+      const yards = distance(from, pos);
+      if (best == null || yards < bestYards) {
+        best = { uiMapId, x: point.x, y: point.y };
+        bestYards = yards;
+      }
     }
-    return null;
+    return best;
   };
   const from = (npcs: number[], objects: number[], friendlyOnly: boolean): { uiMapId: number; x: number; y: number } | null => {
     const side = faction();
@@ -60,8 +109,16 @@ export function createPlaceFor(repo: QuestRepository, faction: () => "A" | "H" |
     if (objective.kind === "npc") return from([objective.id], [], false);
     if (objective.kind === "object") return from([], [objective.id], false);
     if (objective.kind !== "item") return null;
-    const sources = repo.itemSources(objective.id);
-    return from(sources.npcs, sources.objects, false);
+    const plan = planFor?.(q, objective.index) ?? null;
+    if (plan == null) {
+      const sources = repo.itemSources(objective.id);
+      return from(sources.npcs, sources.objects, false);
+    }
+    if (plan.how === "gather") return from(plan.npcs, plan.objects, false);
+    if (plan.how !== "buy") return "anywhere";
+    const points: AreaPoint[] = [];
+    for (const id of friendlyAuctioneers(auctioneers, faction())) for (const point of repo.npcSpawns(id)) points.push(point);
+    return first(points);
   };
 }
 
@@ -69,6 +126,8 @@ export function createPositions(
   repo: QuestRepository,
   toWorld: AreaToWorld,
   faction: () => "A" | "H" | null,
+  planFor: PlanFor | null = null,
+  auctioneers: ProfessionData["auctioneers"] = PROFESSIONS.auctioneers,
 ): CompletionInput["positionsFor"] {
   const friendly: Record<number, string> = {};
   const npcPoints: Record<number, WorldPos[]> = {};
@@ -121,6 +180,11 @@ export function createPositions(
     if (objective.kind === "npc") return collect([objective.id], []);
     if (objective.kind === "object") return collect([], [objective.id]);
     if (objective.kind !== "item") return [];
+    const plan = planFor?.(q, objective.index) ?? null;
+    if (plan != null) {
+      if (plan.how === "gather") return collect(plan.npcs, plan.objects);
+      return plan.how === "buy" ? collect(friendlyAuctioneers(auctioneers, faction()), []) : [];
+    }
     let sources = itemSources[objective.id];
     if (sources == null) {
       sources = repo.itemSources(objective.id);

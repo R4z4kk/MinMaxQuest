@@ -10,7 +10,7 @@ import { COLOR, colorCode, GLYPH, type IconKind } from "./theme";
 
 export type CompletionLine =
   | { kind: "section"; label: string; count: number }
-  | { kind: "row"; icon: IconKind; level: string; name: string; time: string; tone: "normal" | "grey" | "target" | "more" };
+  | { kind: "row"; icon: IconKind; level: string; name: string; time: string; tone: "normal" | "grey" | "target" | "more"; questId: number | null };
 
 type QuestGetter = (id: number) => QuestInfo | null;
 export type Mode = CharDb["completion"]["mode"];
@@ -129,8 +129,9 @@ function rowLine(target: Target, isCurrent: boolean, getQuest: QuestGetter): Com
     icon: rowIcon(target, getQuest),
     level: String(target.questLevel),
     name: (isCurrent ? GLYPH.current : "") + targetName(target, getQuest) + tag,
-    time: formatDuration(target.seconds - target.penaltySec),
+    time: target.pos == null ? formatDuration(Infinity) : formatDuration(target.seconds - target.penaltySec),
     tone: isCurrent ? "target" : target.trivial ? "grey" : "normal",
+    questId: target.questId,
   };
 }
 
@@ -155,7 +156,7 @@ export function completionLines(targets: Target[], current: Target | null, getQu
   const kept = cutLines(lines, current, slots - 1);
   const total = lines.filter((l) => l.kind === "row").length;
   const shown = kept.filter((l) => l.kind === "row").length;
-  if (slots > 0) kept.push({ kind: "row", icon: "empty", level: "", name: t("moreRows").replace("{n}", String(total - shown)), time: "", tone: "more" });
+  if (slots > 0) kept.push({ kind: "row", icon: "empty", level: "", name: t("moreRows").replace("{n}", String(total - shown)), time: "", tone: "more", questId: null });
   return kept;
 }
 

@@ -80,7 +80,13 @@ export function createUi(ctx: UiContext): Ui {
       game == null
         ? { quest: notice, access: notice, completion: notice }
         : gameTabs(db, ctx.account(), game, () => ctx.arrow(), (tab) => window?.setTab(tab));
-    window = createWindow(db, tabs, () => ctx.hideAll());
+    window = createWindow(db, tabs, () => ctx.hideAll(), () => {
+      if (game == null) return true;
+      const snap = game.engine.snapshot();
+      return snap == null ? null : snap.state.level < snap.maxLevel;
+    });
+    const shown = window;
+    game?.engine.onChange(() => guard(UI_FEATURE, () => shown.syncQuestTab()));
     return { window, banner: createBanner(window.frame, () => (game == null ? null : game.follower.routesBuild())), access: tabs.access };
   };
 

@@ -10,14 +10,17 @@ import { TRAVEL } from "./data/generated/travel";
 import { createQuestRepository, type QuestInfo, type QuestRepository, type RepoResult } from "./data/questRepository";
 import { createCommands } from "./game/commands";
 import { createEngine, describeTarget, sameKey, targetQuest, type Engine } from "./game/engine";
-import { createPlayerState, HEARTHSTONE_SPELL_ID, itemCount, playerFaction, type PlayerStateReader } from "./game/playerState";
-import { createPlaceFor, createPositions, mapToWorld, uiMapToWorld } from "./game/positions";
+import { clientItemName, createPlayerState, HEARTHSTONE_SPELL_ID, itemCount, playerFaction, type PlayerStateReader } from "./game/playerState";
+import { createPlaceFor, createPositions, mapToWorld, uiMapToWorld, worldToMap } from "./game/positions";
+import { clientSpellKnown, createPlanFor, createPlayerSkills, type PlayerSkills } from "./game/professions";
 import { createNeighbourFinder, type HbdMapData } from "./game/neighbours";
 import { createRouting } from "./game/routing";
+import { createHopChooser, createSpf, readSpfApi } from "./game/spf";
+import { objectiveLabel } from "./map/farmArea";
 import { installMapPins } from "./map/pins";
 import { installPinButtons } from "./questlog/pinButtons";
 import { createRouteFollower, type RouteFollower } from "./route/follower";
-import { installAutoFly } from "./taxi/autoFly";
+import { installAutoFly, pickTaxiLeg } from "./taxi/autoFly";
 import { createUi } from "./ui/ui";
 
 _G.MinMaxQuest = { version: "0.2.0-beta.2" };
@@ -35,13 +38,15 @@ const FORCING_EVENTS = [
 ];
 const ITEM_EVENTS = ["BAG_UPDATE_DELAYED", "BAG_UPDATE_COOLDOWN"];
 const ITEM_INFO_EVENT = "GET_ITEM_INFO_RECEIVED";
-const EVENTS = ["PLAYER_LOGIN", "QUEST_LOG_UPDATE", ITEM_INFO_EVENT, "HEARTHSTONE_BOUND", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", ...ITEM_EVENTS, ...FORCING_EVENTS];
+const SKILLS_EVENT = "SKILL_LINES_CHANGED";
+const EVENTS = ["PLAYER_LOGIN", "QUEST_LOG_UPDATE", ITEM_INFO_EVENT, SKILLS_EVENT, "HEARTHSTONE_BOUND", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", ...ITEM_EVENTS, ...FORCING_EVENTS];
 
 interface Game {
   engine: Engine;
   player: PlayerStateReader;
   repo: QuestRepository;
   follower: RouteFollower;
+  skills: PlayerSkills;
   quests(): QuestInfo[];
   refreshPins(): void;
 }
@@ -187,6 +192,7 @@ const commands = createCommands({
 });
 
 function tick(current: Game): void {
+  if (guard("skills", () => current.skills.refresh()) === true) forcePending = true;
   if (logDirty) {
     logDirty = false;
     if (current.player.refreshLog()) forcePending = true;
@@ -197,6 +203,8 @@ function tick(current: Game): void {
   forcePending = false;
   current.engine.refreshTargets(force);
   syncArrow();
+  // Objective counts on the farm area label change without a new target.
+  if (force) current.refreshPins();
   if (itemInfoPending) {
     itemInfoPending = false;
     ui.refreshAccess();
@@ -209,24 +217,41 @@ function start(): Game | null {
   if (repo == null) return null;
   const charDb = getDb();
   const player = createPlayerState(_G.LibQuestieDB as LibQuestieDBApi, charDb);
-  const positionsFor = createPositions(repo, mapToWorld(repo), () => playerFaction());
+  const skills = createPlayerSkills(() => {
+    const known = clientSpellKnown();
+    if (known == null) reportOnce("skills", t("skillsUnknown"));
+    return known;
+  });
+  const planFor = createPlanFor(
+    (itemId) => repo.itemSources(itemId),
+    () => skills.current(),
+    (itemId) => clientItemName(itemId) ?? repo.itemName(itemId),
+  );
+  const positionsFor = createPositions(repo, mapToWorld(repo), () => playerFaction(), planFor);
   const neighbours = createNeighbourFinder(
     () => (LibStub?.("HereBeDragons-2.0", true) as { mapData: HbdMapData } | null)?.mapData ?? null,
   );
   const routing = createRouting(repo, charDb, positionsFor, TRAVEL, {
     maps: () => neighbours.around(C_Map.GetBestMapForUnit("player")),
     zoneOf: (uiMapId) => neighbours.zoneOf(uiMapId),
+  }, planFor);
+  const spf = createSpf({
+    api: () => readSpfApi(),
+    toMap: (pos) => worldToMap(pos),
+    report: (reason) => reportOnce("spfReason", t("spfRefused").replace("{reason}", reason)),
   });
+  const hopFor = createHopChooser(spf, routing);
   const follower = createRouteFollower({
     db: charDb,
     faction: () => playerFaction(),
     quest: (id) => repo.get(id),
     toWorld: (uiMapId, x, y) => uiMapToWorld(uiMapId, x, y),
-    place: createPlaceFor(repo, () => playerFaction()),
+    place: createPlaceFor(repo, () => playerFaction(), () => playerPosition(), uiMapToWorld, planFor),
     positionsFor,
     timeTo: (snap) => routing.timeTo(snap),
     inCombat: () => InCombatLockdown(),
     taxiNodes: TRAVEL.taxiNodes,
+    planFor,
   });
   const engine = createEngine(
     {
@@ -236,7 +261,7 @@ function start(): Game | null {
       completion: (snap) => routing.completion(snap),
       // A failing route disables itself once; the engine then falls back to completion.
       route: (snap) => guard("route", () => follower.targets(snap)) ?? null,
-      firstHop: (target) => routing.firstHop(target),
+      firstHop: (target) => hopFor(target),
       getQuest: (id) => repo.get(id),
       allQuests: () => routing.quests(),
       onTargets: (_list, current) => {
@@ -252,11 +277,12 @@ function start(): Game | null {
     installMapPins({
       db: charDb,
       label: (target) => describeTarget(target, targetQuest(target, (id) => repo.get(id))),
+      areaLabel: (target) => objectiveLabel(target, targetQuest(target, (id) => repo.get(id)), repo, engine.snapshot()?.log ?? null),
       getPins: () => {
         const target = engine.current();
         const waypoint = target?.kind === "objective" ? engine.waypoint() : null;
         const current = target != null && waypoint != null ? { ...target, pos: waypoint } : target;
-        const next = engine.targets().find((other) => !sameKey(other, target)) ?? null;
+        const next = engine.targets().find((other) => other.pos != null && !sameKey(other, target)) ?? null;
         return { current, next };
       },
     }),
@@ -268,6 +294,7 @@ function start(): Game | null {
     player,
     repo,
     follower,
+    skills,
     quests: () => routing.quests(),
     refreshPins: () => mapPins?.refresh(),
   };
@@ -285,7 +312,9 @@ function start(): Game | null {
       refresh: () => engine.refreshTargets(true),
       currentLeg: () => {
         const target = engine.current();
-        return target == null ? null : (follower.taxiLeg(target) ?? routing.taxiLeg(target));
+        if (target == null) return null;
+        const goal = follower.flyGoal(target);
+        return pickTaxiLeg(follower.taxiLeg(target), goal == null ? routing.taxiLeg(target) : routing.taxiLegTo(goal));
       },
     }),
   );
@@ -324,11 +353,14 @@ function onEvent(event: string, arg1: unknown, arg3: unknown): void {
     syncItem();
   } else if (event === ITEM_INFO_EVENT) {
     itemInfoPending = true;
+  } else if (event === SKILLS_EVENT) {
+    current.skills.markDirty();
   } else if (event === "QUEST_LOG_UPDATE") {
     logDirty = true;
   } else if (FORCING_EVENTS.includes(event)) {
     forcePending = true;
     if (event === "PLAYER_ENTERING_WORLD") {
+      current.skills.markDirty();
       player.enteredWorld();
       player.markCompletedDirty();
       logDirty = true;

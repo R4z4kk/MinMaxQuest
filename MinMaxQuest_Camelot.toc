@@ -3,6 +3,7 @@
 ## Notes: Quest guide for WoW Forever
 ## Version: @project-version@
 ## Dependencies: QuestieDB
+## OptionalDeps: ShortestPathForever
 ## SavedVariables: MinMaxQuestDB
 ## SavedVariablesPerCharacter: MinMaxQuestCharDB
 ## X-Curse-Project-ID: 1834675

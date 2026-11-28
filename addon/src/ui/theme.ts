@@ -7,7 +7,7 @@ function hex(value: number, alpha = 1): Color {
 }
 
 export const COLOR = {
-  bg: hex(0x1b1830, 0.93),
+  bg: hex(0x1b1830, 0.75),
   line: hex(0x3a3360),
   title: hex(0xf1e7c8),
   done: hex(0x8f8aa8),
@@ -19,6 +19,8 @@ export const COLOR = {
   text: hex(0xdddddd),
   sub: hex(0x9d95c4),
   accent: hex(0xc9a75a),
+  // Blizzard quest text / icon yellow, for map pins and farm areas.
+  quest: hex(0xffd100),
   grey: hex(0x6f6f6f),
   nextText: hex(0xcfcfcf),
   stepText: hex(0xbdbdbd),

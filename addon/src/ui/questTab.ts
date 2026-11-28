@@ -6,10 +6,10 @@ import type { QuestRepository } from "../data/questRepository";
 import type { ArrowApi } from "../arrow/arrowFrame";
 import type { Engine } from "../game/engine";
 import type { RouteFollower, RouteView } from "../route/follower";
-import { skipStepOrQuest } from "./completionTab";
+import { skipStepOrQuest, togglePin } from "./completionTab";
 import type { StepType } from "../route/format";
 import {
-  bar, button, BUTTON_HEIGHT, checkbox, COLOR, createKindIcon, createSectionHeader, GLYPH, onClick, PAD, SIZE, text, UI_FEATURE, WINDOW_WIDTH,
+  bar, button, BUTTON_HEIGHT, checkbox, COLOR, createKindIcon, createSectionHeader, GLYPH, onClick, paint, PAD, SIZE, text, UI_FEATURE, WINDOW_WIDTH,
   type Bar, type Button, type Checkbox, type IconKind, type KindIcon, type SectionHeader,
 } from "./theme";
 import { formatCount } from "./viewModel";
@@ -79,6 +79,7 @@ export function stepIcon(type: StepType): IconKind {
 }
 
 interface NextRow {
+  hit: WowFrame;
   icon: KindIcon;
   text: WowFontString;
 }
@@ -178,6 +179,9 @@ export function createQuestTab(deps: QuestDeps): TabView {
       setShown(row.icon.frame, type != null);
       if (type != null) row.icon.set(stepIcon(type));
       row.text.SetText(view.nextTexts[i] ?? "");
+      const questId = view.nextQuestIds[i] ?? 0;
+      setShown(row.hit, type != null);
+      paint(row.text, questId !== 0 && questId === db.pinnedQuestId ? COLOR.accent : COLOR.nextText);
     });
     footer?.SetText(
       t("routeFooter")
@@ -257,6 +261,14 @@ export function createQuestTab(deps: QuestDeps): TabView {
     currentText = text(parent, SIZE.body, COLOR.text);
     currentText.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD + ICON_ROOM, CURRENT_ROW_Y - 2);
     currentText.SetWidth(INNER - ICON_ROOM - SKIP_ROOM);
+    const currentHit = CreateFrame("Button", "MinMaxQuestCurrentRow", parent);
+    currentHit.SetSize(INNER - SKIP_ROOM, LINE);
+    currentHit.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, CURRENT_ROW_Y);
+    onClick(currentHit, () => {
+      if (db.pinnedQuestId == null) return;
+      deps.engine.pin(null);
+      draw();
+    });
     const skip = button(parent, "MinMaxQuestRouteSkip", t("skip"), () => {
       const view = viewed;
       if (view != null) skipStepOrQuest(deps.engine, deps.repo, draw, view.currentQuestId, view.currentIndex);
@@ -278,7 +290,18 @@ export function createQuestTab(deps: QuestDeps): TabView {
       const line = text(parent, SIZE.small, COLOR.nextText);
       line.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD + ICON_ROOM, y - 2);
       line.SetWidth(INNER - ICON_ROOM - DISTANCE_ROOM);
-      nextRows.push({ icon, text: line });
+      const hit = CreateFrame("Button", `MinMaxQuestNextRow${i + 1}`, parent);
+      hit.SetSize(INNER, NEXT_PITCH);
+      hit.SetPoint("TOPLEFT", parent, "TOPLEFT", PAD, y);
+      // TSTL shares the loop variable between closures: keep this slot's own copy.
+      const slot = i;
+      onClick(hit, () => {
+        const questId = viewed?.nextQuestIds[slot] ?? 0;
+        if (questId === 0) return;
+        togglePin(deps.engine, db, questId);
+        draw();
+      });
+      nextRows.push({ hit, icon, text: line });
     }
     nextDistance = text(parent, SIZE.small, COLOR.sub, "RIGHT");
     nextDistance.SetPoint("TOPRIGHT", parent, "TOPRIGHT", -PAD, NEXT_ROW_Y - 2);
@@ -286,8 +309,8 @@ export function createQuestTab(deps: QuestDeps): TabView {
     footer = text(parent, SIZE.small, COLOR.sub);
     footer.SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", PAD, 9);
     routeWidgets.push(
-      currentHeader.frame, currentIcon.frame, currentText, skip.frame, progressText, nextHeader.frame, nextDistance, footer,
-      ...nextRows.flatMap((row) => [row.icon.frame, row.text]),
+      currentHeader.frame, currentIcon.frame, currentText, currentHit, skip.frame, progressText, nextHeader.frame, nextDistance, footer,
+      ...nextRows.flatMap((row) => [row.hit, row.icon.frame, row.text]),
     );
   };
 

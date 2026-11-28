@@ -6,11 +6,12 @@ import type { AccessGroup } from "../data/generated/access";
 import type { QuestRepository } from "../data/questRepository";
 import type { Engine } from "../game/engine";
 import { clientFactionName, clientItemName, clientQuestTitle, itemCount, repEarned } from "../game/playerState";
-import { accessLines, accessView, trackedGroups, trackedText, type AccessLine } from "./accessModel";
+import { accessLines, accessView, trackedGroups, trackedText, type AccessLine, type ChainView } from "./accessModel";
 import {
   bar, checkbox, COLOR, createKindIcon, createSectionHeader, fill, GLYPH, hline, onClick, paint, PAD, SIZE, text, UI_FEATURE, WINDOW_HEIGHT,
   WINDOW_WIDTH, type Bar, type Checkbox, type KindIcon, type SectionHeader,
 } from "./theme";
+import { togglePin } from "./completionTab";
 import { CONTENT_TOP, type TabView } from "./window";
 
 export interface AccessDeps {
@@ -54,6 +55,7 @@ export function createAccessTab(deps: AccessDeps): TabView {
   const rows: Row[] = [];
   let thumb: WowTexture | null = null;
   let lines: AccessLine[] = [];
+  let views: ChainView[] = [];
   let offset = 0;
   // Null until the first draw, which opens the groups holding a tracked entry.
   let openGroups: Set<AccessGroup> | null = null;
@@ -69,6 +71,23 @@ export function createAccessTab(deps: AccessDeps): TabView {
     draw();
   };
 
+  // A pin change redraws through the engine listener.
+  const focusEntry = (view: ChainView): boolean => {
+    const left = db.expandedChain;
+    const opening = left !== view.id;
+    db.expandedChain = opening ? view.id : null;
+    if (view.focusQuestId == null) {
+      const stale = opening && left != null ? (views.find((other) => other.id === left)?.focusQuestId ?? null) : null;
+      if (stale == null || db.pinnedQuestId !== stale) return false;
+      engine.pin(null);
+      return true;
+    }
+    if (opening) engine.pin(view.focusQuestId);
+    else if (db.pinnedQuestId === view.focusQuestId) engine.pin(null);
+    else return false;
+    return true;
+  };
+
   const clickRow = (row: Row): void => {
     const line = row.line;
     if (line == null) return;
@@ -77,7 +96,9 @@ export function createAccessTab(deps: AccessDeps): TabView {
       else openGroups.add(line.group);
       draw();
     } else if (line.kind === "entry") {
-      db.expandedChain = db.expandedChain === line.view.id ? null : line.view.id;
+      if (!focusEntry(line.view)) draw();
+    } else if (line.kind === "step" && line.step.questId != null) {
+      togglePin(engine, db, line.step.questId);
       draw();
     }
   };
@@ -111,7 +132,8 @@ export function createAccessTab(deps: AccessDeps): TabView {
       row.left.SetPoint("LEFT", row.frame, "LEFT", PAD + ICON_ROOM, 0);
       row.left.SetWidth(INNER - ICON_ROOM - RIGHT_ROOM);
       row.left.SetText(view.name);
-      paint(row.left, view.tracked ? COLOR.accent : view.complete ? COLOR.done : COLOR.rowText);
+      const focused = view.focusQuestId != null && view.focusQuestId === db.pinnedQuestId;
+      paint(row.left, view.tracked || focused ? COLOR.accent : view.complete ? COLOR.done : COLOR.rowText);
       if (view.started) {
         row.bar.setShown(true);
         row.bar.setFraction(view.fraction);
@@ -124,7 +146,8 @@ export function createAccessTab(deps: AccessDeps): TabView {
       row.left.SetPoint("LEFT", row.frame, "LEFT", PAD + STEP_INDENT, 0);
       row.left.SetWidth(INNER - STEP_INDENT);
       row.left.SetText((state === "current" ? GLYPH.current : "") + line.step.text);
-      paint(row.left, state === "done" ? COLOR.done : state === "current" ? COLOR.accent : COLOR.stepText);
+      const focused = line.step.questId != null && line.step.questId === db.pinnedQuestId;
+      paint(row.left, state === "done" ? COLOR.done : state === "current" || focused ? COLOR.accent : COLOR.stepText);
       if (state === "done") {
         row.strike.SetWidth(Math.min(row.left.GetStringWidth(), INNER - STEP_INDENT));
         row.strike.Show();
@@ -164,7 +187,7 @@ export function createAccessTab(deps: AccessDeps): TabView {
     footerMode?.SetText(t("activeMode").replace("{mode}", t(db.activeMode === "quest" ? "tabQuest" : "tabCompletion")));
     const snap = engine.snapshot();
     if (root == null || snap == null) return;
-    const views = accessView(entriesFor(snap.faction), {
+    views = accessView(entriesFor(snap.faction), {
       level: snap.state.level,
       raceMask: snap.state.raceMask,
       completed: snap.state.completed,

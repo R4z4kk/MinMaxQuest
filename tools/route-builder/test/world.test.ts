@@ -5,7 +5,7 @@ import type { CmangosCounts } from "../ingest/cmangos";
 import { parseInstanceTypes } from "../ingest/instances";
 import { zonePercentToWorld } from "../ingest/zones";
 import { buildWorld } from "../model/world";
-import { ELWYNN, snapshot, travel, zones } from "./fixtures";
+import { ELWYNN, WESTFALL, snapshot, travel, zones } from "./fixtures";
 
 const RACES = { 1: 1, 2: 2, 3: 4, 4: 8, 5: 16, 6: 32, 7: 64, 8: 128, 95: 4294967296, 96: 8589934592 };
 const NODE_PERCENT = { x: 30, y: 30 };
@@ -103,11 +103,11 @@ function fixture(flightMasterYards = 3): QuestieSnapshot {
     },
     objects: { 600: { name: "Crate", spawns: { 40: [[50, 50], [50.2, 50.2]] } } },
     items: {
-      500: { name: "Ragged Pelt", npcDrops: [200], objectDrops: [] },
-      501: { name: "Wolf Fang", npcDrops: [200], objectDrops: [] },
-      502: { name: "Crate Goods", npcDrops: [], objectDrops: [600] },
-      503: { name: "Mixed Pelt", npcDrops: [106, 200], objectDrops: [] },
-      504: { name: "Odd Trinket", npcDrops: [200], objectDrops: [] },
+      500: { name: "Ragged Pelt", class: 12, npcDrops: [200], objectDrops: [] },
+      501: { name: "Wolf Fang", class: 12, npcDrops: [200], objectDrops: [] },
+      502: { name: "Crate Goods", class: 12, npcDrops: [], objectDrops: [600] },
+      503: { name: "Mixed Pelt", class: 12, npcDrops: [106, 200], objectDrops: [] },
+      504: { name: "Odd Trinket", class: 12, npcDrops: [200], objectDrops: [] },
     },
     dropRates: { 500: { 200: 0 }, 501: { 200: 35 }, 503: { 106: 50, 200: 20 } },
     areaIdToUiMapId: { 1: 1426, 12: 1429, 40: 1436, 141: 1438, 209: 310, 16593: 2521 },
@@ -117,7 +117,7 @@ function fixture(flightMasterYards = 3): QuestieSnapshot {
       3277: { name: "Warsong Gulch", altAreaIds: [], parentZone: 40, entrances: [{ areaId: 40, x: 62, y: 62 }] },
       5000: { name: "Nowhere Keep", altAreaIds: [], parentZone: 40, entrances: [{ areaId: 40, x: 63, y: 63 }] },
     },
-    npcFlagValues: { innkeeper: 128, flightMaster: 8 },
+    npcFlagValues: { innkeeper: 128, flightMaster: 8, auctioneer: 4096 },
     raceMaskById: RACES,
   });
 }
@@ -180,6 +180,21 @@ describe("buildWorld", () => {
     expect(w.excluded.get("class")).toBe(1);
     expect(w.quests.has(7)).toBe(false);
     expect(w.excluded.get("wrongFaction")).toBe(1);
+  });
+
+  it("excludes quests that no start can reach, on foot or by any transport", () => {
+    const elwynn = (dx: number, dy: number) => zonePercentToWorld(ELWYNN, NODE_PERCENT.x + dx, NODE_PERCENT.y + dy);
+    const westfall = (dx: number, dy: number) => zonePercentToWorld(WESTFALL, 50 + dx, 50 + dy);
+    const walkPlaces = [elwynn(0, 0), elwynn(1, 0), elwynn(0, 1), westfall(0, 0), westfall(1, 0), westfall(0, 1)];
+    const walks = [0, 1, 50, 50, 0, 2, 50, 50, 1, 2, 50, 50, 3, 4, 50, 50, 3, 5, 50, 50, 4, 5, 50, 50];
+    const islands = buildWorld(fixture(), zones(), "A", { ...taxi(), walkPlaces, walks }, INSTANCES, COUNTS);
+    expect(islands.quests.has(1)).toBe(true);
+    expect(islands.quests.has(9)).toBe(false);
+    expect(islands.quests.has(23)).toBe(false);
+    expect(islands.quests.has(5)).toBe(false);
+    expect(islands.dungeons.map((d) => d.areaId)).not.toContain(209);
+    expect(islands.excluded.get("unreachable")).toBeGreaterThanOrEqual(3);
+    expect(w.excluded.get("unreachable")).toBeUndefined();
   });
 
   it("marks dungeon quests, return visits and access chains", () => {

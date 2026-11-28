@@ -10,6 +10,7 @@ import { ATTUNE, QUESTIE_DB, WAGO_DB2 } from "../route-builder/sources";
 import { parseAttune, readAttuneFiles, readAttuneToc, readAttuneVersion, type AttuneNotes } from "./attune";
 import { crossCheck, type CrossCheckReport, type StepRef } from "./crosscheck";
 import type { AccessData, AccessEntry } from "./types";
+import { keepUnlocks } from "./unlocks";
 
 const OUTPUT_FILE = join("addon", "src", "data", "generated", "access.ts");
 const REPORT_FILE = join("data", "access", "report.md");
@@ -41,7 +42,7 @@ function bullets(items: string[], empty = "None."): string[] {
   return items.length === 0 ? [empty, ""] : [...items.map((item) => `- ${item}`), ""];
 }
 
-function renderReport(data: AccessData, report: CrossCheckReport, notes: AttuneNotes, s: QuestieSnapshot): string {
+function renderReport(data: AccessData, report: CrossCheckReport, notes: AttuneNotes, s: QuestieSnapshot, openDungeons: AccessEntry[]): string {
   const entryName = new Map(data.entries.map((e) => [e.id, `${e.id} ${e.name.enUS} (${e.faction})`]));
   const name = (id: string): string => entryName.get(id) ?? id;
   const quest = (id: number): string => {
@@ -123,6 +124,11 @@ function renderReport(data: AccessData, report: CrossCheckReport, notes: AttuneN
     "QuestieDB `specialFlags` bit 1 (repeatable).",
     "",
     ...bullets(report.skippedFlaggedQuests.map((q) => `${q.areaId} ${s.dungeons[q.areaId].name}: quest ${quest(q.quest)} (${q.flag})`)),
+    "## Open dungeons not listed",
+    "",
+    "Attune's Dungeons group only lists the quests of dungeons that need no unlock; Upper Blackrock Spire moves to the keys (Seal of Ascension).",
+    "",
+    ...bullets(openDungeons.map((e) => `${e.id} ${e.name.enUS} (${e.faction})`)),
     "## Addon access chains",
     "",
     ...bullets(report.chains.map((c) => (c.mergedInto.length > 0 ? `${c.id}: found in Attune ${c.mergedInto.map(name).join(", ")}` : `${c.id}: absent from Attune, kept`))),
@@ -167,13 +173,15 @@ async function main(): Promise<void> {
   }
   const snapshot = await cachedSnapshot();
   const attune = await parseAttune(readAttuneFiles(ATTUNE.path), snapshot.raceMaskById);
-  const { entries, report } = crossCheck({ entries: attune.entries, snapshot, instanceTypes: loadInstanceTypes(), chains: ACCESS_CHAINS, denylist: DENYLIST });
+  const checked = crossCheck({ entries: attune.entries, snapshot, instanceTypes: loadInstanceTypes(), chains: ACCESS_CHAINS, denylist: DENYLIST });
+  const { entries, dropped } = keepUnlocks(checked.entries);
+  const report = checked.report;
   const data: AccessData = {
     source: { name: "Attune", version, questieDb: QUESTIE_DB.tag, verifiedOn: ATTUNE.verifiedOn, expiresOn: ATTUNE.expiresOn },
     entries,
   };
   write(OUTPUT_FILE, renderAccess(data, readFileSync(TYPES_FILE, "utf8")));
-  write(REPORT_FILE, renderReport(data, report, attune.notes, snapshot));
+  write(REPORT_FILE, renderReport(data, report, attune.notes, snapshot, dropped));
 }
 
 main().catch((error: unknown) => {

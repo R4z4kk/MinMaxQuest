@@ -13,8 +13,13 @@ export type L10nKey =
   | "targetAccept"
   | "targetObjective"
   | "targetTurnin"
+  | "obtainBuy"
+  | "obtainCraft"
+  | "obtainFish"
+  | "skillsUnknown"
   | "goFlightMaster"
   | "goBoat"
+  | "takePortal"
   | "noTarget"
   | "skipConfirm"
   | "lostXp"
@@ -83,6 +88,7 @@ export type L10nKey =
   | "bannerBuild"
   | "bannerExpired"
   | "featureDisabled"
+  | "spfRefused"
   | "repositoryReadFailed"
   | "repositoryLastError"
   | "questInfo"
@@ -103,6 +109,7 @@ export type L10nKey =
   | "routeDungeon"
   | "routeStepsRemoved"
   | "routeStepUnplaced"
+  | "noAuctioneer"
   | "routeChainUnplaceable"
   | "routeReturnUnreadable"
   | "routeChainUnknown"
@@ -138,8 +145,13 @@ const EN: Record<L10nKey, string> = {
   targetAccept: "pick up",
   targetObjective: "objective",
   targetTurnin: "turn in",
+  obtainBuy: "Buy {item} ×{n} at the Auction House",
+  obtainCraft: "Craft {item} ×{n}",
+  obtainFish: "Fish {item} ×{n}",
+  skillsUnknown: "professions cannot be read on this client: profession items keep their usual sources",
   goFlightMaster: "Go to the flight master",
   goBoat: "Take the boat",
+  takePortal: "Take the portal",
   noTarget: "no target",
   skipConfirm: "{quest}: {n} follow-up quest(s) would be lost ({xp}): type /mmq skip confirm",
   lostXp: "about {xp} XP",
@@ -208,6 +220,7 @@ const EN: Record<L10nKey, string> = {
   bannerBuild: "Data built for build {build}",
   bannerExpired: "Expired data: {names}",
   featureDisabled: "{feature} disabled: {error}",
+  spfRefused: "Shortest Path Forever refused the trip: {reason}",
   repositoryReadFailed: "QuestieDB read failed ({method}): {error}",
   repositoryLastError: "last QuestieDB error: {error}",
   questInfo: "[{id}] {name} level {level}, {n} objective(s)",
@@ -228,6 +241,7 @@ const EN: Record<L10nKey, string> = {
   routeDungeon: "Run the dungeon",
   routeStepsRemoved: "{n} route step(s) removed: not doable by this character",
   routeStepUnplaced: "route step {n} has no usable position, skipped",
+  noAuctioneer: "no reachable auction house to buy {item}, back to the quest objective",
   routeChainUnplaceable: "{name}: {n} quest(s) could not be placed in the route",
   routeReturnUnreadable: "Dungeon return #{id} could not be read and is left out of the route",
   routeChainUnknown: "tracked chain {id} is unknown",
@@ -264,8 +278,13 @@ const FR: Record<L10nKey, string> = {
   targetAccept: "prendre",
   targetObjective: "objectif",
   targetTurnin: "rendre",
+  obtainBuy: "Achète {item} ×{n} à l'hôtel des ventes",
+  obtainCraft: "Fabrique {item} ×{n}",
+  obtainFish: "Pêche {item} ×{n}",
+  skillsUnknown: "métiers illisibles sur ce client : les objets de métier gardent leurs sources habituelles",
   goFlightMaster: "Aller au maître de vol",
   goBoat: "Prendre le bateau",
+  takePortal: "Prends le portail",
   noTarget: "aucune cible",
   skipConfirm: "{quest} : {n} quête(s) de suite seraient perdues ({xp}) : tapez /mmq skip confirm",
   lostXp: "environ {xp} XP",
@@ -334,6 +353,7 @@ const FR: Record<L10nKey, string> = {
   bannerBuild: "Données générées pour le build {build}",
   bannerExpired: "Données expirées : {names}",
   featureDisabled: "{feature} désactivé : {error}",
+  spfRefused: "Shortest Path Forever a refusé le trajet : {reason}",
   repositoryReadFailed: "lecture QuestieDB échouée ({method}) : {error}",
   repositoryLastError: "dernière erreur QuestieDB : {error}",
   questInfo: "[{id}] {name} niveau {level}, {n} objectif(s)",
@@ -354,6 +374,7 @@ const FR: Record<L10nKey, string> = {
   routeDungeon: "Fais le donjon",
   routeStepsRemoved: "{n} étape(s) de route retirée(s) : impossibles pour ce personnage",
   routeStepUnplaced: "étape de route {n} sans position utilisable, sautée",
+  noAuctioneer: "aucun hôtel des ventes accessible pour acheter {item}, retour à l'objectif de la quête",
   routeChainUnplaceable: "{name} : {n} quête(s) impossibles à placer dans la route",
   routeReturnUnreadable: "Le retour en donjon #{id} est illisible et reste hors de la route",
   routeChainUnknown: "chaîne suivie {id} inconnue",

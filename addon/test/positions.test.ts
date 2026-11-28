@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { WorldPos } from "../src/core/geometry";
 import type { AreaPoint, QuestInfo, QuestRepository } from "../src/data/questRepository";
-import { createPositions, isFriendlyTo } from "../src/game/positions";
+import { createPlaceFor, createPositions, isFriendlyTo } from "../src/game/positions";
 
 function quest(over: Partial<QuestInfo>): QuestInfo {
   return {
@@ -34,6 +34,7 @@ function repo(calls: { items: number }): QuestRepository {
     npcFriendlyTo: (id) => FRIENDLY[id] ?? null,
     npcName: () => null,
     objectName: () => null,
+    itemName: () => null,
     lastError: () => null,
   };
 }
@@ -108,5 +109,23 @@ describe("isFriendlyTo", () => {
   it("counts nil, both sides and the own side as friendly", () => {
     const reads: ("A" | "H" | "AH" | null)[] = [null, "AH", "A", "H"];
     expect(reads.map((read) => isFriendlyTo(read, "A"))).toEqual([true, true, true, false]);
+  });
+});
+
+describe("createPlaceFor", () => {
+  // Same finisher in three cities, as the Alliance Brigadier General of the battleground quests.
+  const SPAWNS: AreaPoint[] = [{ areaId: 1, x: 10, y: 0 }, { areaId: 1, x: 500, y: 0 }, { areaId: 1, x: 900, y: 0 }];
+  const placeRepo: QuestRepository = { ...repo({ items: 0 }), npcSpawns: () => SPAWNS, uiMapIdForArea: () => 7 };
+  const toWorld = (_m: number, x: number, y: number): WorldPos => ({ continent: 0, x, y });
+  const q = quest({ finisherNpcs: [15351] });
+
+  it("turns in at the spawn nearest to the player, not the first one listed", () => {
+    const place = createPlaceFor(placeRepo, () => "A", () => ({ continent: 0, x: 880, y: 0 }), toWorld);
+    expect(place(q, "turnin", null)).toEqual({ uiMapId: 7, x: 900, y: 0 });
+  });
+
+  it("keeps the first spawn when the player position is unknown", () => {
+    const place = createPlaceFor(placeRepo, () => "A", () => null, toWorld);
+    expect(place(q, "turnin", null)).toEqual({ uiMapId: 7, x: 10, y: 0 });
   });
 });

@@ -1,4 +1,5 @@
 import { ACCESS } from "../data/generated/access";
+import { PROFESSIONS } from "../data/generated/professions";
 import { TRAVEL } from "../data/generated/travel";
 
 export interface DatedValue {
@@ -29,10 +30,14 @@ export const CONSTANTS = {
     "RXP direct flight times vs Forever TaxiPathNode lengths, research_notes/Optimisation des routes de leveling/missing_data_sources.md",
   ),
   detourFactor: dated(1.25, "Questwarden docs/ROUTE_OPTIMIZATION.md (unvalidated)"),
+  landmarkDetourFactor: dated(2, "75th percentile of baked / straight yards over 100-2500 yd pairs of Shortest Path Forever Walks.lua (commit 3f7008e), measured 2026-11-28"),
   hearthCooldownSec: dated(3600, `wago.tools SpellCooldowns ${SPELL_BUILD} spell 8690`),
   hearthCastSec: dated(10, `wago.tools SpellCastTimes ${SPELL_BUILD}`),
   hearthPenaltySec: dated(300, "MinMaxQuest design choice: keep the Hearthstone for real zone changes (loading screen, 60 min cooldown)"),
+  portalSec: dated(5, "MinMaxQuest design choice: a teleporter is near-instant (short loading)"),
   completionHearthPenaltySec: dated(900, "MinMaxQuest design choice: Completion finishes nearby quests, the Hearthstone only for a 15 min gain"),
+  spfMoveYards: dated(30, "MinMaxQuest design choice: ask Shortest Path Forever again once the player moved 30 yd"),
+  spfOffMeshYards: dated(100, "MinMaxQuest design choice: a target Shortest Path Forever cannot reach within 100 yd is off its walk mesh, keep walking"),
 };
 
 export const XP_PER_LEVEL = {
@@ -53,5 +58,5 @@ export function expiredRecords(records: Record<string, Expirable>, today: string
 }
 
 export function expiredConstants(today: string): string[] {
-  return expiredRecords({ ...CONSTANTS, XP_PER_LEVEL, TRAVEL: TRAVEL.source, ACCESS: ACCESS.source }, today);
+  return expiredRecords({ ...CONSTANTS, XP_PER_LEVEL, TRAVEL: TRAVEL.source, ACCESS: ACCESS.source, PROFESSIONS: PROFESSIONS.source }, today);
 }

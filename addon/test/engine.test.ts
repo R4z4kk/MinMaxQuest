@@ -322,6 +322,13 @@ describe("arrowTarget", () => {
     expect(engine.arrowTarget()).toEqual({ pos: at(600), label: "Take the boat" });
   });
 
+  it("points at the portal when the route starts with one", () => {
+    const { engine, world } = setup([target(1)], [quest(1)]);
+    world.hop = { kind: "portal", pos: at(700), taxiNodeId: null };
+    engine.refreshTargets(true);
+    expect(engine.arrowTarget()).toEqual({ pos: at(700), label: "Take the portal" });
+  });
+
   it("asks to use the hearthstone when the route starts with it", () => {
     const { engine, world } = setup([target(1)], [quest(1)]);
     world.hop = { kind: "hearth", pos: at(0), taxiNodeId: null };
@@ -440,5 +447,26 @@ describe("route source", () => {
   it("tells two route steps apart", () => {
     expect(sameKey(step(4, "a"), step(5, "a"))).toBe(false);
     expect(sameKey(step(4, "a"), step(4, "a"))).toBe(true);
+  });
+});
+
+describe("positionless targets", () => {
+  it("are listed but the arrow moves on to the next target when not pinned", () => {
+    const craft = target(1, { kind: "objective", objectiveIndex: 1, pos: null, seconds: Infinity, obtain: { how: "craft", item: "Gromsblood", count: 4 } });
+    const { engine } = setup([target(2), craft], [quest(1), quest(2)]);
+    engine.refreshTargets(true);
+    expect(engine.targets()).toHaveLength(2);
+    expect(engine.current()?.questId).toBe(2);
+    expect(engine.arrowTarget()?.pos).toEqual(at(20));
+  });
+
+  it("stay current when pinned: the arrow shows their label without a direction", () => {
+    const craft = target(1, { kind: "objective", objectiveIndex: 1, pos: null, seconds: Infinity, obtain: { how: "craft", item: "Gromsblood", count: 4 } });
+    const { engine } = setup([target(2), craft], [quest(1), quest(2)]);
+    engine.pin(1);
+    expect(engine.current()?.questId).toBe(1);
+    expect(engine.arrowTarget()).toEqual({ pos: null, label: "Q1 · Craft Gromsblood ×4" });
+    engine.pin(null);
+    expect(engine.current()?.questId).toBe(2);
   });
 });

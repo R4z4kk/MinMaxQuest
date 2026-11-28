@@ -27,6 +27,28 @@ LibStub = function(name, silent)
   return baseStub(name, silent)
 end
 
+hooks = {}
+hooksecurefunc = function(owner, name, fn) if type(owner) == "table" then hooks[name] = fn end end
+function childTexts(parent)
+  local out = {}
+  for _, r in ipairs(layout) do
+    if r.parent == parent and r.name == "font" and r.shown and r.text ~= "" then out[#out + 1] = r.text end
+  end
+  return table.concat(out, ",")
+end
+function countShown(kind, parent)
+  local n = 0
+  for _, r in ipairs(layout) do
+    if r.name == kind and r.shown and (parent == nil or r.parent == parent) then n = n + 1 end
+  end
+  return n
+end
+function countPlaying()
+  local n = 0
+  for _, r in ipairs(layout) do if r.name == "animgroup" and r.playing then n = n + 1 end end
+  return n
+end
+
 UISpecialFrames = {}
 Enum = { UIMapType = { Continent = 2 } }
 GetBuildInfo = function() return "1.60.1", "71139", "Nov 1 2026", 16001 end
@@ -78,6 +100,7 @@ it("reuses the pin frames, re-places them on change and skips unchanged refreshe
   const s = await pins();
   try {
     await s.run("log = {}");
+    const before = await s.run("return created");
     await s.refresh();
     expect(await s.list("log")).toEqual([]);
     await s.refresh("player = { 1090, 2090 }");
@@ -88,8 +111,7 @@ it("reuses the pin frames, re-places them on change and skips unchanged refreshe
       "world|3|0|2020|1010|3",
     ]);
     expect(await s.run("return idCount")).toBe(3);
-    const creations = (await s.calls()).filter((c) => c.endsWith("|SetSize|12|12"));
-    expect(creations).toHaveLength(3);
+    expect(await s.run("return created")).toBe(before);
   } finally {
     s.close();
   }
@@ -321,6 +343,155 @@ it("removes the pins and the waypoint with the eye button and restores them when
     ]);
     expect((await s.list("way")).pop()).toBe("track|true");
     expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("numbers the current pin 1 and the next 2, with a ! badge on quests to pick up", async () => {
+  const s = await pins();
+  try {
+    expect(await s.run(`return childTexts("MinMaxQuestPin1")`)).toBe("1,!");
+    expect(await s.run(`return childTexts("MinMaxQuestPin2")`)).toBe("2,!");
+    expect(await s.run(`return childTexts("MinMaxQuestMinimapPin1")`)).toBe("1,!");
+  } finally {
+    s.close();
+  }
+});
+
+it("shows a ? badge for a turn-in and no badge for an objective", async () => {
+  const s = await pins(`${OBJECTIVE_QUEST}
+    quests[100].finishedBy = { { 500 } }
+    logQuests = { 100, 101 }
+    objectives[100] = { { finished = true } }
+  `);
+  try {
+    await s.cmd("pin 100");
+    await s.printed();
+    expect(await s.run(`return childTexts("MinMaxQuestPin1")`)).toBe("1,?");
+    await s.cmd("pin 101");
+    await s.printed();
+    expect(await s.run(`return childTexts("MinMaxQuestPin1")`)).toBe("1");
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("pulses the halo of the current pin only and stops it when hidden", async () => {
+  const s = await pins();
+  try {
+    expect(await s.run(`local n = 0 for _, r in ipairs(layout) do if r.name == "animgroup" then n = n + 1 end end return n`)).toBe(2);
+    expect(await s.run("return countPlaying()")).toBe(2);
+    await s.cmd("");
+    await s.run(`scripts["MinMaxQuestEye.OnClick"](nil, "LeftButton")`);
+    expect(await s.run("return countPlaying()")).toBe(0);
+  } finally {
+    s.close();
+  }
+});
+
+const FARM_QUEST = `
+quests[101].objectives = { { { 600, "Wolf", 1 } } }
+spawns[600] = { [12] = { { 10, 10 }, { 14, 10 }, { 12, 14 }, { 12, 11 } } }
+logQuests = { 101 }
+objectives[101] = { { finished = false, numFulfilled = 2, numRequired = 5 } }
+LibQuestieDB.Npc.Get = function(id, field)
+  if field == "spawns" then return spawns[id] end
+  if field == "name" and id == 600 then return "Wolf" end
+end
+local pinStub = LibStub
+hbdCore = {
+  GetZoneCoordinatesFromWorldInstance = function(self, x, y, instance, zone, allowOutOfBounds)
+    needNumber("GetZoneCoordinatesFromWorldInstance", zone)
+    if zone ~= 1429 then return nil, nil end
+    return (x - 2000) / 100, (y - 1000) / 100
+  end,
+}
+LibStub = function(name, silent)
+  if name == "HereBeDragons-2.0" then
+    local base = pinStub(name, silent)
+    base.GetZoneCoordinatesFromWorldInstance = hbdCore.GetZoneCoordinatesFromWorldInstance
+    return base
+  end
+  return pinStub(name, silent)
+end
+`;
+
+it("draws a dashed farm area with a glow per spawn and a Name x/y label for an objective with 3+ spawns", async () => {
+  const s = await pins(FARM_QUEST);
+  try {
+    await s.cmd("pin 101");
+    await s.printed();
+    expect(await s.run(`return countShown("line", "MinMaxQuestFarmArea")`)).toBeGreaterThan(8);
+    expect(await s.run(`return countShown("texture", "MinMaxQuestFarmArea")`)).toBe(4);
+    expect(await s.run(`return childTexts("MinMaxQuestFarmArea")`)).toBe("Wolf 2/5");
+    const dots = (await s.list("log")).filter((l) => l.startsWith("mini|") && l.endsWith("|false"));
+    expect(dots).toHaveLength(4);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("draws no farm area for an objective with fewer than 3 spawns", async () => {
+  const s = await pins(`${FARM_QUEST}
+    spawns[600] = { [12] = { { 10, 10 }, { 14, 10 } } }
+  `);
+  try {
+    await s.cmd("pin 101");
+    await s.printed();
+    expect(await s.run(`return countShown("line", "MinMaxQuestFarmArea")`)).toBe(0);
+    expect(await s.run(`return countShown("texture", "MinMaxQuestFarmArea")`)).toBe(0);
+    expect(await s.run(`return childTexts("MinMaxQuestFarmArea")`)).toBe("");
+    expect((await s.list("log")).filter((l) => l.endsWith("|false"))).toEqual([]);
+  } finally {
+    s.close();
+  }
+});
+
+it("redraws the farm area when the shown map changes, without creating anything", async () => {
+  const s = await pins(FARM_QUEST);
+  try {
+    await s.cmd("pin 101");
+    await s.printed();
+    const before = await s.run("return created");
+    await s.run("worldMapId = 1; hooks.OnMapChanged(WorldMapFrame)");
+    expect(await s.run(`return countShown("line", "MinMaxQuestFarmArea")`)).toBe(0);
+    expect(await s.run(`return childTexts("MinMaxQuestFarmArea")`)).toBe("");
+    await s.run(`worldMapId = 1429; scripts["WorldMapFrame.OnShow"](WorldMapFrame)`);
+    expect(await s.run(`return countShown("line", "MinMaxQuestFarmArea")`)).toBeGreaterThan(8);
+    await s.refresh();
+    expect(await s.run("return created")).toBe(before);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
+it("hides the farm area and its minimap glows with the eye button", async () => {
+  const s = await pins(FARM_QUEST);
+  try {
+    await s.cmd("pin 101");
+    await s.printed();
+    await s.cmd("");
+    await s.run("log = {}");
+    await s.run(`scripts["MinMaxQuestEye.OnClick"](nil, "LeftButton")`);
+    expect(await s.run(`return countShown("line", "MinMaxQuestFarmArea")`)).toBe(0);
+    expect(await s.run(`return countShown("texture", "MinMaxQuestFarmArea")`)).toBe(0);
+    expect(await s.run(`return childTexts("MinMaxQuestFarmArea")`)).toBe("");
+    expect((await s.list("log")).filter((l) => l.startsWith("unmini|"))).toHaveLength(5);
+  } finally {
+    s.close();
+  }
+});
+
+it("draws the badge text above the badge texture", async () => {
+  const s = await pins();
+  try {
+    const calls = await s.calls();
+    expect(calls).toContain("texture|SetDrawLayer|OVERLAY|0");
+    expect(calls).toContain("font|SetDrawLayer|OVERLAY|7");
   } finally {
     s.close();
   }
