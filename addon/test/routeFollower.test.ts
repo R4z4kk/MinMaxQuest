@@ -16,7 +16,7 @@ const TRUNK = [grind(10, 10), grind(11, 20), grind(12, 30), grind(13, 40)];
 const quest: QuestInfo = {
   id: 900, name: "Back to the dungeon", level: 12, requiredLevel: 11, requiredMaxLevel: null, races: 0, classes: 0,
   preGroup: [], preSingle: [], exclusiveTo: [], nextInChain: null, children: [],
-  starterNpcs: [], starterObjects: [], finisherNpcs: [], finisherObjects: [],
+  starterNpcs: [], starterObjects: [], starterItems: [], finisherNpcs: [], finisherObjects: [],
   objectives: [{ kind: "npc", id: 5, required: 1, index: 1 }], baseXp: null, hasUnsupportedRequirement: false, repeatable: false, seasonal: false, clothDonation: false, isElite: false, zoneAreaId: null,
 };
 

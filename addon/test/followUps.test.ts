@@ -19,7 +19,7 @@ function quest(id: number, over: Partial<QuestInfo> = {}): QuestInfo {
     nextInChain: null,
     children: [],
     starterNpcs: [],
-    starterObjects: [],
+    starterObjects: [], starterItems: [],
     finisherNpcs: [],
     finisherObjects: [],
     objectives: [],

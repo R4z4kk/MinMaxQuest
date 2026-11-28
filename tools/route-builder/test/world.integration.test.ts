@@ -28,7 +28,7 @@ describe("world from the real QuestieDB snapshot", () => {
       const instanceTypes = loadInstanceTypes();
       const givers: Record<number, number | null> = {};
       for (const faction of ["A", "H"] as const) {
-        const w = buildWorld(s, zones, faction, TRAVEL, instanceTypes, counts);
+        const w = buildWorld(s, zones, faction, TRAVEL, instanceTypes, counts, loot);
         console.log(
           faction,
           `candidates ${w.quests.size}`,

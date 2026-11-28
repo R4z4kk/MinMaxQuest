@@ -17,7 +17,7 @@ function quest(sourceItemId: number | null, requiredSourceItems: number[]): Ques
     nextInChain: null,
     children: [],
     starterNpcs: [],
-    starterObjects: [],
+    starterObjects: [], starterItems: [],
     finisherNpcs: [],
     finisherObjects: [],
     objectives: [],

@@ -29,6 +29,8 @@ export interface QuestInfo {
   children: number[];
   starterNpcs: number[];
   starterObjects: number[];
+  // Items whose use starts the quest (looted or found).
+  starterItems: number[];
   finisherNpcs: number[];
   finisherObjects: number[];
   objectives: QuestObjectiveRef[];
@@ -276,6 +278,7 @@ function buildRepository(lib: LibQuestieDBApi): QuestRepository {
       children: numList(field(id, "childQuests")),
       starterNpcs: numList(slot(startedBy, 0)),
       starterObjects: numList(slot(startedBy, 1)),
+      starterItems: numList(slot(startedBy, 2)),
       finisherNpcs: numList(slot(finishedBy, 0)),
       finisherObjects: numList(slot(finishedBy, 1)),
       objectives: objectives.refs,

@@ -85,7 +85,7 @@ async function main(): Promise<void> {
   const benchmark: BenchRow[] = [];
   for (const faction of args.factions) {
     const factionStarted = Date.now();
-    const world = buildWorld(snapshot, zones, faction, TRAVEL, instanceTypes, counts);
+    const world = buildWorld(snapshot, zones, faction, TRAVEL, instanceTypes, counts, loot);
     console.log(`[${faction}] world: ${world.quests.size} candidates, offset ${world.conversionOffsetYards.toFixed(2)} yd, unlearnable taxi nodes [${world.unlearnableTaxiNodes.join(",")}]`);
     try {
       all.push(buildFaction(world, { beamWidth: DEFAULT_BEAM_WIDTH, branching: DEFAULT_BRANCHING, variants: args.variants }));

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { TravelData } from "../../../addon/src/data/generated/travel";
 import type { QuestieSnapshot } from "../ingest/snapshot";
-import type { CmangosCounts } from "../ingest/cmangos";
+import type { CmangosCounts, CmangosLoot } from "../ingest/cmangos";
 import { parseInstanceTypes } from "../ingest/instances";
 import { zonePercentToWorld } from "../ingest/zones";
 import { buildWorld } from "../model/world";
@@ -45,6 +45,8 @@ const COUNTS = fakeCounts([
   [9, "item", 502, 3],
   [21, "npcOrObject", 203, 5],
 ]);
+
+const NO_LOOT: CmangosLoot = { dropRate: () => null };
 
 function quest(name: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
   return {
@@ -127,7 +129,7 @@ function taxi(): TravelData {
 }
 
 describe("buildWorld", () => {
-  const w = buildWorld(fixture(), zones(), "A", taxi(), INSTANCES, COUNTS);
+  const w = buildWorld(fixture(), zones(), "A", taxi(), INSTANCES, COUNTS, NO_LOOT);
 
   it("turns a kill objective into one kill task on the biggest cluster", () => {
     const q = w.quests.get(1)!;
@@ -187,7 +189,7 @@ describe("buildWorld", () => {
     const westfall = (dx: number, dy: number) => zonePercentToWorld(WESTFALL, 50 + dx, 50 + dy);
     const walkPlaces = [elwynn(0, 0), elwynn(1, 0), elwynn(0, 1), westfall(0, 0), westfall(1, 0), westfall(0, 1)];
     const walks = [0, 1, 50, 50, 0, 2, 50, 50, 1, 2, 50, 50, 3, 4, 50, 50, 3, 5, 50, 50, 4, 5, 50, 50];
-    const islands = buildWorld(fixture(), zones(), "A", { ...taxi(), walkPlaces, walks }, INSTANCES, COUNTS);
+    const islands = buildWorld(fixture(), zones(), "A", { ...taxi(), walkPlaces, walks }, INSTANCES, COUNTS, NO_LOOT);
     expect(islands.quests.has(1)).toBe(true);
     expect(islands.quests.has(9)).toBe(false);
     expect(islands.quests.has(23)).toBe(false);
@@ -221,10 +223,10 @@ describe("buildWorld", () => {
 
   it("throws for an unresolved instance that holds a candidate quest", () => {
     const s = fixture();
-    expect(() => buildWorld(s, zones(), "A", taxi(), INSTANCES, COUNTS)).not.toThrow();
+    expect(() => buildWorld(s, zones(), "A", taxi(), INSTANCES, COUNTS, NO_LOOT)).not.toThrow();
     s.quests[12] = quest("Into Nowhere", { zoneOrSort: 5000 });
     s.questXp[12] = [5, 100];
-    expect(() => buildWorld(s, zones(), "A", taxi(), INSTANCES, COUNTS)).toThrow("world: dungeon 5000 (Nowhere Keep) has no instance type");
+    expect(() => buildWorld(s, zones(), "A", taxi(), INSTANCES, COUNTS, NO_LOOT)).toThrow("world: dungeon 5000 (Nowhere Keep) has no instance type");
   });
 
   it("places sentinel in-dungeon starters at the entrance and marks the quest as a dungeon quest", () => {
@@ -243,7 +245,7 @@ describe("buildWorld", () => {
   it("refuses a start area that has no zone map", () => {
     const rects = zones();
     rects.delete(2521);
-    expect(() => buildWorld(fixture(), rects, "A", taxi(), INSTANCES, COUNTS)).toThrow("world: start zone zephras-isle (area 16593) has no zone map");
+    expect(() => buildWorld(fixture(), rects, "A", taxi(), INSTANCES, COUNTS, NO_LOOT)).toThrow("world: start zone zephras-isle (area 16593) has no zone map");
   });
 
   it("finds inns, taxi zones, the capital node and the start zones", () => {
@@ -264,7 +266,7 @@ describe("buildWorld", () => {
   });
 
   it("fails the conversion check when flight masters sit far from their nodes", () => {
-    expect(() => buildWorld(fixture(100), zones(), "A", taxi(), INSTANCES, COUNTS)).toThrow(
+    expect(() => buildWorld(fixture(100), zones(), "A", taxi(), INSTANCES, COUNTS, NO_LOOT)).toThrow(
       "world: zone conversion check failed, median offset 100.0 yd",
     );
   });
@@ -278,7 +280,7 @@ describe("buildWorld", () => {
         { id: 9, name: "Far", pos: at(150), faction: "A" },
       ],
     });
-    const far = buildWorld(fixture(), zones(), "A", nodes, INSTANCES, COUNTS);
+    const far = buildWorld(fixture(), zones(), "A", nodes, INSTANCES, COUNTS, NO_LOOT);
     expect([...far.taxiPlaces.keys()]).toEqual([2, 3]);
     expect([...far.taxiZone.keys()]).toEqual([2, 3]);
     expect(far.unlearnableTaxiNodes).toEqual([9]);
@@ -288,6 +290,75 @@ describe("buildWorld", () => {
   it("refuses a faction without any flight master", () => {
     const s = fixture();
     delete s.npcs[300];
-    expect(() => buildWorld(s, zones(), "A", taxi(), INSTANCES, COUNTS)).toThrow(/no flight master/);
+    expect(() => buildWorld(s, zones(), "A", taxi(), INSTANCES, COUNTS, NO_LOOT)).toThrow(/no flight master/);
+  });
+});
+
+describe("buildWorld with item-started quests", () => {
+  const base = fixture();
+  const s = snapshot({
+    ...base,
+    quests: {
+      ...base.quests,
+      30: quest("Nibbled Book", { requiredLevel: 0, questLevel: 2, startedBy: [[], [], [700]] }),
+      31: quest("Rated twice", { startedBy: [null, null, [701]] }),
+      32: quest("Unknown rate", { startedBy: [[], [], [702]] }),
+      33: quest("Bottle", { startedBy: [[], [], [703]] }),
+      34: quest("Deep drop", { startedBy: [[], [], [704]] }),
+      35: quest("Elite drop", { startedBy: [[], [], [705]] }),
+      36: quest("No starter", { startedBy: [[], [], []] }),
+    },
+    questXp: { ...base.questXp, 30: [5, 100], 31: [5, 100], 32: [5, 100], 33: [5, 100], 34: [5, 100], 35: [5, 100], 36: [5, 100] },
+    npcs: { ...base.npcs, 120: npc({ 12: [[70, 70]] }, { name: "Old Grizzled", rank: 1, minLevel: 9, maxLevel: 9, npcFlags: 0 }) },
+    items: {
+      ...base.items,
+      700: { name: "Nibbled Book", class: 12, npcDrops: [200], objectDrops: [] },
+      701: { name: "Rated Note", class: 12, npcDrops: [201], objectDrops: [] },
+      702: { name: "Odd Letter", class: 12, npcDrops: [201], objectDrops: [] },
+      703: { name: "Bottle Note", class: 12, npcDrops: [], objectDrops: [600] },
+      704: { name: "Deep Note", class: 12, npcDrops: [106], objectDrops: [] },
+      705: { name: "Grizzled Paw", class: 12, npcDrops: [120], objectDrops: [] },
+    },
+    dropRates: { ...base.dropRates, 701: { 201: 50 } },
+  });
+  const rates = new Map([["700:200", 0.04], ["701:201", 0.1], ["705:120", 1]]);
+  const loot: CmangosLoot = { dropRate: (itemId, npcId) => rates.get(`${itemId}:${npcId}`) ?? null };
+  const w = buildWorld(s, zones(), "A", taxi(), INSTANCES, COUNTS, loot);
+
+  it("accepts at the dropping mob with the cmangos rate", () => {
+    const q = w.quests.get(30)!;
+    expect(q.starter).toMatchObject({ kind: "collect", count: 1, dropChance: 0.04, assumedDropChance: false });
+    expect(q.accept).toBe(q.starter!.cluster.center);
+    expect(q.accept.npcId).toBe(200);
+  });
+
+  it("prefers the QuestieDB rate over cmangos", () => {
+    expect(w.quests.get(31)!.starter).toMatchObject({ dropChance: 0.5 });
+  });
+
+  it("assumes the scenario rate when no source knows it", () => {
+    expect(w.quests.get(32)!.starter).toMatchObject({ kind: "collect", assumedDropChance: true });
+  });
+
+  it("uses an object that holds the starter", () => {
+    expect(w.quests.get(33)!.starter).toMatchObject({ kind: "use", count: 1 });
+    expect(w.quests.get(33)!.accept.objectId).toBe(600);
+  });
+
+  it("excludes starters only found inside instances and quests without any starter", () => {
+    expect(w.quests.has(34)).toBe(false);
+    expect(w.quests.has(36)).toBe(false);
+    expect(w.excluded.get("noPosition")).toBe(2);
+    expect(w.excluded.get("noStarter")).toBe(1);
+  });
+
+  it("marks the quest elite when the dropping mob is", () => {
+    expect(w.quests.get(35)!.info.isElite).toBe(true);
+    expect(w.quests.get(30)!.info.isElite).toBe(false);
+  });
+
+  it("keeps NPC-started quests without a starter task and never starts a zone on a looted item", () => {
+    expect(w.quests.get(1)!.starter).toBeNull();
+    expect(w.startZones.find((z) => z.key === "elwynn-forest")!.start).toBe(w.quests.get(1)!.accept);
   });
 });

@@ -14,7 +14,7 @@ import { isFriendlyTo } from "../../../addon/src/game/positions";
 import { buildGraph, solveFrom, travelTime, type TravelContext } from "../../../addon/src/travel/graph";
 import { isAvailable, maskAllows } from "../../../addon/src/quests/availability";
 import { CLUSTER_RADIUS_YARDS, clusterSpawns, killLoop } from "../../../addon/src/targets/spawns";
-import type { CmangosCounts } from "../ingest/cmangos";
+import type { CmangosCounts, CmangosLoot } from "../ingest/cmangos";
 import { textCount } from "../ingest/counts";
 import { INSTANCE_PARTY, INSTANCE_PVP, INSTANCE_RAID } from "../ingest/instances";
 import { dropRate, hasFlag, npcInfo, snapshotLib, type QuestieSnapshot } from "../ingest/snapshot";
@@ -40,6 +40,8 @@ export interface RouteQuest {
   accept: Place;
   turnin: Place;
   tasks: Task[];
+  // Loot step for a quest started by an item: accept is its cluster center.
+  starter: Task | null;
   dungeonAreaId: number | null;
   accessChain: boolean;
   returnVisit: boolean;
@@ -148,6 +150,7 @@ export function buildWorld(
   travel: TravelData,
   instanceTypes: Map<number, number>,
   counts: CmangosCounts,
+  loot: CmangosLoot,
 ): World {
   const result = createQuestRepository(snapshotLib(s));
   if (!result.ok) throw new Error(`world: ${result.message}`);
@@ -344,12 +347,17 @@ export function buildWorld(
       if (places.length === 0) exclude("noPosition");
       return { ...base, kind: "use", count, cluster: clusterOf(places), mobLevel: 0, elite: false };
     }
-    const sources = repo.itemSources(o.id);
+    return itemTask(o.id, count, base, (itemId, npcId) => dropRate(s, itemId, npcId));
+  };
+
+  type RateOf = (itemId: number, npcId: number) => number | null;
+  const itemTask = (itemId: number, count: number, base: Pick<Task, "objectiveIndex" | "dropChance" | "assumedDropChance">, rateOf: RateOf): Task => {
+    const sources = repo.itemSources(itemId);
     const spawned = sources.npcs.filter((id) => npcPlaces(id).length > 0);
     let bestNpc: number | null = null;
     let bestRate = 0;
     for (const id of spawned) {
-      const rate = dropRate(s, o.id, id) ?? 0;
+      const rate = rateOf(itemId, id) ?? 0;
       if (rate > bestRate) {
         bestNpc = id;
         bestRate = rate;
@@ -365,7 +373,7 @@ export function buildWorld(
     // Unknown rate (absent from the drop tables): the most spawned source, at the scenario's assumed chance.
     let assumedNpc: number | null = null;
     for (const id of spawned) {
-      if (dropRate(s, o.id, id) != null) continue;
+      if (rateOf(itemId, id) != null) continue;
       if (assumedNpc == null || npcPlaces(id).length > npcPlaces(assumedNpc).length) assumedNpc = id;
     }
     if (assumedNpc != null) {
@@ -376,6 +384,21 @@ export function buildWorld(
     return exclude(spawned.length > 0 ? "noDropRate" : "noPosition");
   };
 
+  // QuestieDB rate first, cmangos loot second: QuestieDB's drop tables hardly know starter items.
+  const starterRate: RateOf = (itemId, npcId) => dropRate(s, itemId, npcId) ?? loot.dropRate(itemId, npcId);
+  const starterTask = (items: number[]): Task => {
+    let last: Excluded | null = null;
+    for (const itemId of items) {
+      try {
+        return itemTask(itemId, 1, { objectiveIndex: 0, dropChance: 1, assumedDropChance: false }, starterRate);
+      } catch (error) {
+        if (!(error instanceof Excluded)) throw error;
+        last = error;
+      }
+    }
+    throw last ?? new Excluded("noStarter");
+  };
+
   const routeQuest = (q: QuestInfo): RouteQuest => {
     if (q.classes !== 0) exclude("class");
     if (!maskAllows(q.races, raceMask)) exclude("wrongFaction");
@@ -383,25 +406,28 @@ export function buildWorld(
     if (q.hasUnsupportedRequirement) exclude("unsupportedRequirement");
     if (q.repeatable) exclude("repeatable");
     if (q.seasonal) exclude("seasonal");
-    if (q.starterNpcs.length + q.starterObjects.length === 0) exclude("noStarter");
+    const byItem = q.starterNpcs.length + q.starterObjects.length === 0;
+    if (byItem && q.starterItems.length === 0) exclude("noStarter");
     if (q.finisherNpcs.length + q.finisherObjects.length === 0) exclude("noFinisher");
     const starters = entities(q.starterNpcs.filter(isFriendly), q.starterObjects);
     const finishers = entities(q.finisherNpcs.filter(isFriendly), q.finisherObjects);
-    if (starters.length === 0 || finishers.length === 0) exclude("wrongFaction");
+    if ((!byItem && starters.length === 0) || finishers.length === 0) exclude("wrongFaction");
     const instance = dungeonOf(q, starters, finishers);
     const instanceType = instance == null ? null : (instanceTypes.get(instance) ?? null);
     if (instanceType === INSTANCE_RAID || instanceType === INSTANCE_PVP) exclude("raidOrBattleground");
     // Non-instance entries of QuestieDB's dungeon list (Deeprun Tram, PvP barracks) are ordinary quest areas.
     const dungeonAreaId = instanceType == null || instanceType === INSTANCE_PARTY ? instance : null;
-    const accept = placeOf(starters) ?? exclude("noPosition");
     const turnin = placeOf(finishers) ?? exclude("noPosition");
+    const starter = byItem ? starterTask(q.starterItems) : null;
+    const accept = starter?.cluster.center ?? placeOf(starters) ?? exclude("noPosition");
     if (dungeonAreaId != null && entranceOf(dungeonAreaId) == null) exclude("noPosition");
     // A dungeon quest's objectives are done by the dungeon step.
     const tasks = dungeonAreaId != null ? [] : q.objectives.map((o) => taskOf(q.id, o));
     if (instance != null && instanceType == null) {
       throw new Error(`world: dungeon ${instance} (${s.dungeons[instance].name}) has no instance type`);
     }
-    return { id: q.id, info: q, accept, turnin, tasks, dungeonAreaId, accessChain: false, returnVisit: false };
+    const info = starter?.elite === true ? { ...q, isElite: true } : q;
+    return { id: q.id, info, accept, turnin, tasks, starter, dungeonAreaId, accessChain: false, returnVisit: false };
   };
 
   const quests = new Map<number, RouteQuest>();
@@ -483,7 +509,7 @@ export function buildWorld(
     const player = { level: 1, raceMask: zoneMask, classMask: 0, completed: new Set<number>(), inLog: new Set<number>() };
     let best: RouteQuest | null = null;
     for (const q of quests.values()) {
-      if (q.accept.uiMapId !== uiMapId || !isAvailable(q.info, player)) continue;
+      if (q.starter != null || q.accept.uiMapId !== uiMapId || !isAvailable(q.info, player)) continue;
       if (best == null || q.info.requiredLevel < best.info.requiredLevel) best = q;
     }
     if (best == null) throw new Error(`world: start zone ${area.key} (area ${area.areaId}) has no level-1 quest`);
