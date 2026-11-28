@@ -77,8 +77,12 @@ export interface Engine {
   profile(): RefreshProfile;
 }
 
+const OBTAIN_LABEL: Record<"buy" | "craft" | "fish", L10nKey> = { buy: "obtainBuy", craft: "obtainCraft", fish: "obtainFish" };
+
 export function targetAction(target: Target): string {
   if (target.kind === "route") return target.route?.label ?? "";
+  const obtain = target.obtain;
+  if (obtain != null) return t(OBTAIN_LABEL[obtain.how]).replace("{item}", obtain.item).replace("{n}", String(obtain.count));
   if (target.kind === "accept") return t("targetAccept");
   if (target.kind === "turnin") return t("targetTurnin");
   return `${t("targetObjective")} ${target.objectiveIndex ?? ""}`;
@@ -137,10 +141,12 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
   let loopKey = "";
   const listeners: Listener[] = [];
 
+  // Targets without a position (craft, fish) stay listed; the arrow goes to the next one.
   const pick = (): Target | null => {
     const pinned = db.pinnedQuestId;
-    if (pinned != null) for (const target of pinPool ?? list) if (target.questId === pinned) return target;
-    return list.length > 0 ? list[0] : null;
+    if (pinned != null) for (const target of pinPool ?? list) if (target.questId === pinned && target.pos != null) return target;
+    for (const target of list) if (target.pos != null) return target;
+    return null;
   };
 
   const showArrow = (pos: WorldPos, text: string): void => {
@@ -159,10 +165,17 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
       return;
     }
     label = describeTarget(target, targetQuest(target, (id) => deps.getQuest(id)));
+    const at = target.pos;
+    if (at == null) {
+      loop = null;
+      loopKey = "";
+      arrow = null;
+      return;
+    }
     if (target.cluster == null) {
       loop = null;
       loopKey = "";
-      showArrow(target.pos, label);
+      showArrow(at, label);
       return;
     }
     const center = target.cluster.center;
@@ -175,12 +188,12 @@ export function createEngine(deps: EngineDeps, db: CharDb): Engine {
     const key = `${target.questId}:${target.objectiveIndex}:${center.continent}:${target.cluster.points.length}:${sumX}:${sumY}`;
     if (loop == null || key !== loopKey) {
       loopKey = key;
-      loop = killLoop(target.cluster, pos ?? target.pos);
+      loop = killLoop(target.cluster, pos ?? at);
       loopIndex = 0;
     } else if (pos != null) {
       loopIndex = nextLoopIndex(loop, loopIndex, pos, LOOP_ADVANCE_YARDS);
     }
-    showArrow(loop.length > 0 ? loop[loopIndex] : target.pos, label);
+    showArrow(loop.length > 0 ? loop[loopIndex] : at, label);
   };
 
   const advanceLoop = (pos: WorldPos | null): void => {

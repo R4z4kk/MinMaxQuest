@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+import { PROFESSIONS } from "../src/data/generated/professions";
 import { loggedIn, QUEST_MODE, session } from "./helpers/fakeGame";
 
 it("lists targets after login and points the arrow at the nearest", async () => {
@@ -305,6 +306,37 @@ it("applies a variant change made in combat once combat ends", async () => {
     await s.event(`"PLAYER_REGEN_ENABLED"`);
     await s.tick();
     expect(await variant()).toMatch(/^e1d0x0:elwynn-forest:1@/);
+  } finally {
+    s.close();
+  }
+});
+
+// Design 2026-11-28-professions: The Love Potion without Herbalism buys its Gromsblood; with it, picks the herb.
+const LOVE_POTION = `
+quests[4201] = { name = "The Love Potion", questLevel = 10, requiredLevel = 1, zoneOrSort = 12, startedBy = { { 500 } }, finishedBy = { { 500 } }, objectives = { nil, nil, { { 8846, nil, 4 } } } }
+LibQuestieDB.Quest.GetAllIds = function() return { 100, 101, 102, 4201 } end
+items[8846] = { name = "Gromsblood", npcDrops = { 12258 }, objectDrops = { 142145 } }
+spawns[12258] = { [12] = { { 50, 50 } } }
+objectSpawns[142145] = { [12] = { { 30, 30 } } }
+spawns[${PROFESSIONS.auctioneers.find((a) => a.faction === "A")?.npcId}] = { [12] = { { 70, 70 } } }
+logQuests = { 4201 }
+objectives[4201] = { { finished = false, numFulfilled = 1, numRequired = 4 } }
+`;
+
+it("sends a player without Herbalism to the auction house for Gromsblood, and one with it to the herb", async () => {
+  const s = await loggedIn(LOVE_POTION);
+  try {
+    await s.cmd("pin 4201");
+    await s.cmd("targets");
+    expect(await s.printed()).toContain("[4201] The Love Potion · Buy Gromsblood ×3 at the Auction House");
+    expect(await s.calls()).toContain("font|SetText|99 m");
+    await s.clearCalls();
+    await s.run(`knownSpells[${PROFESSIONS.skillSpells.herbalism[0]}] = true`);
+    await s.event(`"SKILL_LINES_CHANGED"`);
+    await s.tick();
+    await s.cmd("targets");
+    expect(await s.printed()).toContain("[4201] The Love Potion · objective 1");
+    expect(await s.calls()).toContain("font|SetText|42 m");
   } finally {
     s.close();
   }

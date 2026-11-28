@@ -13,6 +13,7 @@
     "gen:travel": "tsx tools/gen-travel/main.ts",
     "gen:routes": "tsx tools/route-builder/main.ts",
     "gen:access": "tsx tools/access-import/main.ts",
+    "gen:professions": "tsx tools/gen-professions/main.ts",
     "typecheck:tools": "tsc -p tools/route-builder/tsconfig.json",
     "fetch:questie": "tsx tools/route-builder/ingest/fetchQuestie.ts"
   },

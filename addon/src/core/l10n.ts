@@ -13,6 +13,10 @@ export type L10nKey =
   | "targetAccept"
   | "targetObjective"
   | "targetTurnin"
+  | "obtainBuy"
+  | "obtainCraft"
+  | "obtainFish"
+  | "skillsUnknown"
   | "goFlightMaster"
   | "goBoat"
   | "takePortal"
@@ -139,6 +143,10 @@ const EN: Record<L10nKey, string> = {
   targetAccept: "pick up",
   targetObjective: "objective",
   targetTurnin: "turn in",
+  obtainBuy: "Buy {item} ×{n} at the Auction House",
+  obtainCraft: "Craft {item} ×{n}",
+  obtainFish: "Fish {item} ×{n}",
+  skillsUnknown: "professions cannot be read on this client: profession items keep their usual sources",
   goFlightMaster: "Go to the flight master",
   goBoat: "Take the boat",
   takePortal: "Take the portal",
@@ -266,6 +274,10 @@ const FR: Record<L10nKey, string> = {
   targetAccept: "prendre",
   targetObjective: "objectif",
   targetTurnin: "rendre",
+  obtainBuy: "Achète {item} ×{n} à l'hôtel des ventes",
+  obtainCraft: "Fabrique {item} ×{n}",
+  obtainFish: "Pêche {item} ×{n}",
+  skillsUnknown: "métiers illisibles sur ce client : les objets de métier gardent leurs sources habituelles",
   goFlightMaster: "Aller au maître de vol",
   goBoat: "Prendre le bateau",
   takePortal: "Prends le portail",

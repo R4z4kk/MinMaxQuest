@@ -13,9 +13,10 @@ export interface ChainBlockResult {
 }
 
 export type PlaceKind = "accept" | "objective" | "turnin";
+// "anywhere": an objective done without going anywhere (craft, fish), so it gets no step.
 export type PlaceFor = (
   q: QuestInfo, kind: PlaceKind, objectiveIndex: number | null,
-) => { uiMapId: number; x: number; y: number } | null;
+) => { uiMapId: number; x: number; y: number } | "anywhere" | null;
 
 type ToWorld = (uiMapId: number, x: number, y: number) => WorldPos | null;
 
@@ -23,6 +24,7 @@ function questSteps(q: QuestInfo, place: PlaceFor): EmittedStep[] | null {
   const steps: EmittedStep[] = [];
   const add = (type: "accept" | "complete" | "turnin", kind: PlaceKind, index: number | null): boolean => {
     const p = place(q, kind, index);
+    if (p === "anywhere") return kind === "objective";
     if (p == null) return false;
     const step: EmittedStep = {
       type, uiMapId: p.uiMapId, x: p.x, y: p.y, questId: q.id,

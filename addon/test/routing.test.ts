@@ -31,6 +31,7 @@ const repo: QuestRepository = {
   npcFriendlyTo: () => null,
   npcName: () => null,
   objectName: () => null,
+  itemName: () => null,
   lastError: () => null,
 };
 

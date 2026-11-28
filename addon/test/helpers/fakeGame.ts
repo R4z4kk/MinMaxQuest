@@ -92,6 +92,9 @@ C_Item = {
 }
 -- Earned reputation by faction id; unknown factions return nothing.
 reps = {}
+-- Known spell ids, for IsPlayerSpell (profession rank spells).
+knownSpells = {}
+IsPlayerSpell = function(id) needNumber("IsPlayerSpell", id) return knownSpells[id] == true end
 C_Reputation = { GetFactionDataByID = function(id) needNumber("GetFactionDataByID", id) if reps[id] then return { name = "F" .. id, currentStanding = reps[id] } end end }
 GetFactionInfoByID = function() end
 player = { 1000, 2000 }
@@ -142,6 +145,8 @@ quests = {
   [102] = { name = "Later", questLevel = 11, requiredLevel = 11, zoneOrSort = 12, startedBy = { { 501 } } },
 }
 spawns = { [500] = { [12] = { { 10, 20 } } }, [501] = { [12] = { { 90, 90 } } } }
+objectSpawns = {}
+items = {}
 zonePrivate = {
   areaIdToUiMapId = "return { [12] = 1429, [14] = 1 }",
   areaIdToUiMapIdOverride = "return { [0] = 0, [14] = 1411 }",
@@ -154,8 +159,8 @@ LibQuestieDB = {
     Get = function(id, field) return quests[id] and quests[id][field] end,
   },
   Npc = { Get = function(id, field) if field == "spawns" then return spawns[id] end end },
-  Object = { Get = function() end },
-  Item = { Get = function() end },
+  Object = { Get = function(id, field) if field == "spawns" then return objectSpawns[id] end end },
+  Item = { Get = function(id, field) return items[id] and items[id][field] end },
   ObjectiveFirst = { killCreditObjectiveFirst = {}, objectObjectiveFirst = {}, itemObjectiveFirst = {}, eventObjectiveFirst = {}, spellObjectiveFirst = {} },
   Support = {
     Get = function(name)

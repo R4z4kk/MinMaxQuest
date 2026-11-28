@@ -103,11 +103,11 @@ function fixture(flightMasterYards = 3): QuestieSnapshot {
     },
     objects: { 600: { name: "Crate", spawns: { 40: [[50, 50], [50.2, 50.2]] } } },
     items: {
-      500: { name: "Ragged Pelt", npcDrops: [200], objectDrops: [] },
-      501: { name: "Wolf Fang", npcDrops: [200], objectDrops: [] },
-      502: { name: "Crate Goods", npcDrops: [], objectDrops: [600] },
-      503: { name: "Mixed Pelt", npcDrops: [106, 200], objectDrops: [] },
-      504: { name: "Odd Trinket", npcDrops: [200], objectDrops: [] },
+      500: { name: "Ragged Pelt", class: 12, npcDrops: [200], objectDrops: [] },
+      501: { name: "Wolf Fang", class: 12, npcDrops: [200], objectDrops: [] },
+      502: { name: "Crate Goods", class: 12, npcDrops: [], objectDrops: [600] },
+      503: { name: "Mixed Pelt", class: 12, npcDrops: [106, 200], objectDrops: [] },
+      504: { name: "Odd Trinket", class: 12, npcDrops: [200], objectDrops: [] },
     },
     dropRates: { 500: { 200: 0 }, 501: { 200: 35 }, 503: { 106: 50, 200: 20 } },
     areaIdToUiMapId: { 1: 1426, 12: 1429, 40: 1436, 141: 1438, 209: 310, 16593: 2521 },
@@ -117,7 +117,7 @@ function fixture(flightMasterYards = 3): QuestieSnapshot {
       3277: { name: "Warsong Gulch", altAreaIds: [], parentZone: 40, entrances: [{ areaId: 40, x: 62, y: 62 }] },
       5000: { name: "Nowhere Keep", altAreaIds: [], parentZone: 40, entrances: [{ areaId: 40, x: 63, y: 63 }] },
     },
-    npcFlagValues: { innkeeper: 128, flightMaster: 8 },
+    npcFlagValues: { innkeeper: 128, flightMaster: 8, auctioneer: 4096 },
     raceMaskById: RACES,
   });
 }

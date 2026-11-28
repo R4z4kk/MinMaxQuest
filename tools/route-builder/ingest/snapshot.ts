@@ -6,13 +6,13 @@ export interface QuestieSnapshot {
   quests: Record<number, Record<string, unknown>>;
   npcs: Record<number, { name: string | null; spawns: unknown; rank: number | null; friendlyToFaction: string | null; minLevel: number | null; maxLevel: number | null; npcFlags: number | null }>;
   objects: Record<number, { name: string | null; spawns: unknown }>;
-  items: Record<number, { name: string | null; npcDrops: number[]; objectDrops: number[] }>;
+  items: Record<number, { name: string | null; class: number | null; npcDrops: number[]; objectDrops: number[] }>;
   questXp: Record<number, [number, number]>;
   areaIdToUiMapId: Record<number, number>;
   objectiveFirst: Record<string, Record<number, boolean>>;
   dropRates: Record<number, Record<number, number>>;
   dungeons: Record<number, { name: string; altAreaIds: number[]; parentZone: number; entrances: { areaId: number; x: number; y: number }[] }>;
-  npcFlagValues: { innkeeper: number; flightMaster: number };
+  npcFlagValues: { innkeeper: number; flightMaster: number; auctioneer: number };
   raceMaskById: Record<number, number>;
 }
 

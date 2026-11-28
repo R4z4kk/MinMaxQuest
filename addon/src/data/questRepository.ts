@@ -72,6 +72,7 @@ export interface QuestRepository {
   npcFriendlyTo(npcId: number): "A" | "H" | "AH" | null;
   npcName(npcId: number): string | null;
   objectName(objectId: number): string | null;
+  itemName(itemId: number): string | null;
   lastError(): string | null;
 }
 
@@ -219,6 +220,7 @@ function buildRepository(lib: LibQuestieDBApi): QuestRepository {
   // "" marks a name already read as missing.
   const npcNames: Record<number, string> = {};
   const objectNames: Record<number, string> = {};
+  const itemNames: Record<number, string> = {};
   const cachedName = (method: string, cache: Record<number, string>, id: number, read: () => unknown): string | null => {
     let name = cache[id];
     if (name == null) {
@@ -324,6 +326,7 @@ function buildRepository(lib: LibQuestieDBApi): QuestRepository {
       }),
     npcName: (npcId) => cachedName("npcName", npcNames, npcId, () => lib.Npc.Get(npcId, "name")),
     objectName: (objectId) => cachedName("objectName", objectNames, objectId, () => lib.Object.Get(objectId, "name")),
+    itemName: (itemId) => cachedName("itemName", itemNames, itemId, () => lib.Item.Get(itemId, "name")),
     lastError: () => firstError,
   };
 }

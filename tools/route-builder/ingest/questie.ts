@@ -215,6 +215,7 @@ for _, id in ipairs(itemIds) do
     addAll(objectSet, objectDrops)
     str(tostring(id)) put(":{")
     field("name") value(db.Item.Get(id, "name"), "item " .. id .. " name") put(",")
+    field("class") value(db.Item.Get(id, "class"), "item " .. id .. " class") put(",")
     field("npcDrops") ids(npcDrops, "item " .. id .. " npcDrops") put(",")
     field("objectDrops") ids(objectDrops, "item " .. id .. " objectDrops") put("}")
   end
@@ -224,10 +225,12 @@ put("},")
 local npcFlags = db.Enum.npcFlags
 local INNKEEPER = assert(npcFlags and npcFlags.INNKEEPER, "Enum.npcFlags.INNKEEPER is missing")
 local FLIGHT_MASTER = assert(npcFlags and npcFlags.FLIGHT_MASTER, "Enum.npcFlags.FLIGHT_MASTER is missing")
+-- AUCTIONEER = 4096 in QuestieDB v1.1.6 src/corrections/enum/expansions.lua (Forever npcFlags).
+local AUCTIONEER = assert(npcFlags and npcFlags.AUCTIONEER, "Enum.npcFlags.AUCTIONEER is missing")
 for _, id in ipairs(db.Npc.GetAllIds()) do
   local flags = math.tointeger(db.Npc.Get(id, "npcFlags") or 0)
   if flags == nil then error("npc " .. id .. " npcFlags: not an integer", 0) end
-  if flags & (INNKEEPER | FLIGHT_MASTER) ~= 0 then npcSet[id] = true end
+  if flags & (INNKEEPER | FLIGHT_MASTER | AUCTIONEER) ~= 0 then npcSet[id] = true end
 end
 
 field("npcs") put("{")
@@ -346,7 +349,7 @@ field("dungeons") map(assert(zoneDb.private.dungeons, "ZoneDB.private.dungeons i
   put("]}")
 end) put(",")
 
-field("npcFlagValues") put("{") field("innkeeper") num(INNKEEPER, "INNKEEPER") put(",") field("flightMaster") num(FLIGHT_MASTER, "FLIGHT_MASTER") put("},")
+field("npcFlagValues") put("{") field("innkeeper") num(INNKEEPER, "INNKEEPER") put(",") field("flightMaster") num(FLIGHT_MASTER, "FLIGHT_MASTER") put(",") field("auctioneer") num(AUCTIONEER, "AUCTIONEER") put("},")
 field("raceMaskById") map(assert(db.Enum.raceMaskById, "Enum.raceMaskById is missing"), "raceMaskById", value)
 put("}")
 return table.concat(buf)
@@ -455,6 +458,7 @@ export function validateSnapshot(raw: unknown, label: string): QuestieSnapshot {
       const row = record(entry, label, `item ${id}`);
       return {
         name: nullableString(row.name, label, `item ${id} name`),
+        class: nullableNumber(row.class, label, `item ${id} class`),
         npcDrops: numberList(row.npcDrops, label, `item ${id} npcDrops`),
         objectDrops: numberList(row.objectDrops, label, `item ${id} objectDrops`),
       };
@@ -497,6 +501,7 @@ export function validateSnapshot(raw: unknown, label: string): QuestieSnapshot {
     npcFlagValues: {
       innkeeper: finite(flags.innkeeper, label, "npcFlagValues.innkeeper"),
       flightMaster: finite(flags.flightMaster, label, "npcFlagValues.flightMaster"),
+      auctioneer: finite(flags.auctioneer, label, "npcFlagValues.auctioneer"),
     },
     raceMaskById: idEntries(root.raceMaskById, label, "raceMaskById", (entry, id) => finite(entry, label, `raceMaskById ${id}`)),
   };
@@ -543,6 +548,8 @@ function staleField(raw: unknown): string | null {
     isRecord(table) && Object.values(table).some((row) => isRecord(row) && !(field in row));
   for (const field of ["objectivesText", "sourceItemId", "requiredSourceItems", "specialFlags"]) if (missing(raw.quests, field)) return `quests[].${field}`;
   for (const table of ["npcs", "objects", "items"]) if (missing(raw[table], "name")) return `${table}[].name`;
+  if (missing(raw.items, "class")) return "items[].class";
+  if (isRecord(raw.npcFlagValues) && !("auctioneer" in raw.npcFlagValues)) return "npcFlagValues.auctioneer";
   return null;
 }
 

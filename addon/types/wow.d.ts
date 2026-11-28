@@ -30,6 +30,8 @@ declare function GetMaxPlayerLevel(): number;
 declare function CreateVector2D(x: number, y: number): WowVector2D;
 declare const GetQuestGreenRange: ((this: void) => number) | null;
 declare const GetQuestsCompleted: ((this: void) => Record<number, boolean>) | null;
+declare const IsPlayerSpell: ((this: void, spellId: number) => boolean | null) | null;
+declare const IsSpellKnown: ((this: void, spellId: number) => boolean | null) | null;
 
 type WowItemCooldown = (this: void, itemId: number) => LuaMultiReturn<[number, number, number | boolean]>;
 declare const GetItemCooldown: WowItemCooldown | null;

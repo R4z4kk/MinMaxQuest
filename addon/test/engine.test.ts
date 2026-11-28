@@ -449,3 +449,17 @@ describe("route source", () => {
     expect(sameKey(step(4, "a"), step(4, "a"))).toBe(true);
   });
 });
+
+describe("positionless targets", () => {
+  it("are listed but the arrow moves on to the next target, pinned or not", () => {
+    const craft = target(1, { kind: "objective", objectiveIndex: 1, pos: null, seconds: 0, obtain: { how: "craft", item: "Gromsblood", count: 4 } });
+    const { engine, db } = setup([craft, target(2)], [quest(1), quest(2)]);
+    engine.refreshTargets(true);
+    expect(engine.targets()).toHaveLength(2);
+    expect(engine.current()?.questId).toBe(2);
+    expect(engine.arrowTarget()?.pos).toEqual(at(20));
+    db.pinnedQuestId = 1;
+    engine.pin(1);
+    expect(engine.current()?.questId).toBe(2);
+  });
+});

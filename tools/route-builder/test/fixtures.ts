@@ -17,7 +17,7 @@ export function snapshot(overrides: Partial<QuestieSnapshot> = {}): QuestieSnaps
     objectiveFirst: {},
     dropRates: {},
     dungeons: {},
-    npcFlagValues: { innkeeper: 0, flightMaster: 0 },
+    npcFlagValues: { innkeeper: 0, flightMaster: 0, auctioneer: 0 },
     raceMaskById: {},
     ...overrides,
   };

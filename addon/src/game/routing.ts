@@ -19,6 +19,7 @@ import {
   type TravelPlan,
 } from "../travel/graph";
 import type { PlayerSnapshot } from "./engine";
+import type { PlanFor } from "./professions";
 
 export interface NearbyScope {
   maps(): Set<number>;
@@ -53,6 +54,7 @@ export function createRouting(
   positionsFor: CompletionInput["positionsFor"],
   data: TravelData = TRAVEL,
   nearby: NearbyScope | null = null,
+  planFor: PlanFor | null = null,
 ): Routing {
   let quests: QuestInfo[] | null = null;
   let graph: TravelGraph | null = null;
@@ -125,6 +127,7 @@ export function createRouting(
             return uiMapId == null || nearby == null ? uiMapId : nearby.zoneOf(uiMapId);
           },
           penaltyOf: (p) => hearthPenaltyOf(current.plan, current.graph, p, current.ctx),
+          ...(planFor != null ? { planFor } : {}),
         },
         {
           mode, zoneAreaId, showTrivial, showElite, minLevelGap: db.minLevelGap, pinnedQuestId: db.pinnedQuestId, maxLevel: snap.maxLevel,
@@ -133,11 +136,11 @@ export function createRouting(
       );
     },
     firstHop(target) {
-      if (solved == null) return null;
+      if (solved == null || target.pos == null) return null;
       return firstHop(solved.plan, solved.graph, target.pos, solved.ctx);
     },
     taxiLeg(target) {
-      return taxiLegTo(target.pos);
+      return target.pos == null ? null : taxiLegTo(target.pos);
     },
     taxiLegTo: (pos) => taxiLegTo(pos),
   };

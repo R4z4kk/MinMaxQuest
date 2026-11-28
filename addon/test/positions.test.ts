@@ -34,6 +34,7 @@ function repo(calls: { items: number }): QuestRepository {
     npcFriendlyTo: (id) => FRIENDLY[id] ?? null,
     npcName: () => null,
     objectName: () => null,
+    itemName: () => null,
     lastError: () => null,
   };
 }

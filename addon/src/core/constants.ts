@@ -1,4 +1,5 @@
 import { ACCESS } from "../data/generated/access";
+import { PROFESSIONS } from "../data/generated/professions";
 import { TRAVEL } from "../data/generated/travel";
 
 export interface DatedValue {
@@ -55,5 +56,5 @@ export function expiredRecords(records: Record<string, Expirable>, today: string
 }
 
 export function expiredConstants(today: string): string[] {
-  return expiredRecords({ ...CONSTANTS, XP_PER_LEVEL, TRAVEL: TRAVEL.source, ACCESS: ACCESS.source }, today);
+  return expiredRecords({ ...CONSTANTS, XP_PER_LEVEL, TRAVEL: TRAVEL.source, ACCESS: ACCESS.source, PROFESSIONS: PROFESSIONS.source }, today);
 }

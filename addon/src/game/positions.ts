@@ -1,7 +1,9 @@
 import { distance, type WorldPos } from "../core/geometry";
+import { PROFESSIONS, type ProfessionData } from "../data/generated/professions";
 import type { AreaPoint, QuestRepository } from "../data/questRepository";
 import type { PlaceFor } from "../route/insert";
 import type { CompletionInput } from "../targets/completion";
+import type { PlanFor } from "./professions";
 
 export type AreaToWorld = (point: AreaPoint) => WorldPos | null;
 
@@ -30,6 +32,12 @@ export function isFriendlyTo(read: "A" | "H" | "AH" | null, side: "A" | "H"): bo
 const FRIENDLY = "friendly";
 const HOSTILE = "hostile";
 
+function friendlyAuctioneers(auctioneers: ProfessionData["auctioneers"], side: "A" | "H" | null): number[] {
+  const out: number[] = [];
+  for (const a of auctioneers) if (side == null || isFriendlyTo(a.faction, side)) out.push(a.npcId);
+  return out;
+}
+
 // Spawn of the quest's starter, objective source or finisher for route insertion: the one nearest to the
 // player (a battleground quest's finisher stands in every capital), else the first convertible one.
 export function createPlaceFor(
@@ -37,6 +45,8 @@ export function createPlaceFor(
   faction: () => "A" | "H" | null,
   near: () => WorldPos | null,
   toWorld: (uiMapId: number, x: number, y: number) => WorldPos | null = uiMapToWorld,
+  planFor: PlanFor | null = null,
+  auctioneers: ProfessionData["auctioneers"] = PROFESSIONS.auctioneers,
 ): PlaceFor {
   const first = (points: AreaPoint[]): { uiMapId: number; x: number; y: number } | null => {
     const from = near();
@@ -76,8 +86,16 @@ export function createPlaceFor(
     if (objective.kind === "npc") return from([objective.id], [], false);
     if (objective.kind === "object") return from([], [objective.id], false);
     if (objective.kind !== "item") return null;
-    const sources = repo.itemSources(objective.id);
-    return from(sources.npcs, sources.objects, false);
+    const plan = planFor?.(q, objective.index) ?? null;
+    if (plan == null) {
+      const sources = repo.itemSources(objective.id);
+      return from(sources.npcs, sources.objects, false);
+    }
+    if (plan.how === "gather") return from(plan.npcs, plan.objects, false);
+    if (plan.how !== "buy") return "anywhere";
+    const points: AreaPoint[] = [];
+    for (const id of friendlyAuctioneers(auctioneers, faction())) for (const point of repo.npcSpawns(id)) points.push(point);
+    return first(points);
   };
 }
 
@@ -85,6 +103,8 @@ export function createPositions(
   repo: QuestRepository,
   toWorld: AreaToWorld,
   faction: () => "A" | "H" | null,
+  planFor: PlanFor | null = null,
+  auctioneers: ProfessionData["auctioneers"] = PROFESSIONS.auctioneers,
 ): CompletionInput["positionsFor"] {
   const friendly: Record<number, string> = {};
   const npcPoints: Record<number, WorldPos[]> = {};
@@ -137,6 +157,11 @@ export function createPositions(
     if (objective.kind === "npc") return collect([objective.id], []);
     if (objective.kind === "object") return collect([], [objective.id]);
     if (objective.kind !== "item") return [];
+    const plan = planFor?.(q, objective.index) ?? null;
+    if (plan != null) {
+      if (plan.how === "gather") return collect(plan.npcs, plan.objects);
+      return plan.how === "buy" ? collect(friendlyAuctioneers(auctioneers, faction()), []) : [];
+    }
     let sources = itemSources[objective.id];
     if (sources == null) {
       sources = repo.itemSources(objective.id);

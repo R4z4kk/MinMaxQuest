@@ -6,9 +6,10 @@ import type { CharDb } from "../core/storage";
 import type { QuestInfo } from "../data/questRepository";
 import { questLabel, type PlayerSnapshot } from "../game/engine";
 import { isFriendlyTo } from "../game/positions";
+import type { ObtainPlan, PlanFor } from "../game/professions";
 import { isAvailable } from "../quests/availability";
-import type { CompletionInput, Target, TargetKind } from "../targets/completion";
-import { objectiveClusters, nearestCluster, type SpawnCluster } from "../targets/spawns";
+import { clusterKey, targetObtain, type CompletionInput, type Target, type TargetKind } from "../targets/completion";
+import { objectiveClusters, nearestCluster, pickCluster, type SpawnCluster } from "../targets/spawns";
 import type { TaxiLeg } from "../travel/graph";
 import { follow, type FollowView } from "./follow";
 import type { EmittedStep, StepType } from "./format";
@@ -29,6 +30,8 @@ export interface FollowerDeps {
   timeTo(snap: PlayerSnapshot): ((p: WorldPos) => number) | null;
   inCombat(): boolean;
   taxiNodes: { id: number; name: string; pos: WorldPos; faction: "A" | "H" | "AH" }[];
+  // Profession items are retargeted in game: the routes are built without the player's skills.
+  planFor?: PlanFor;
 }
 
 export interface RouteView extends FollowView {
@@ -263,34 +266,44 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
 
   const clusterCache = new Map<string, SpawnCluster[]>();
 
-  const objectiveCluster = (s: EmittedStep, quest: QuestInfo | null, pos: WorldPos): SpawnCluster | null => {
-    if (quest == null || s.objectiveIndex == null) return null;
-    const key = `${quest.id}:${s.objectiveIndex}`;
+  const clustersOf = (quest: QuestInfo, objectiveIndex: number, plan: ObtainPlan | null): SpawnCluster[] => {
+    const key = clusterKey(quest.id, objectiveIndex, plan);
     let clusters = clusterCache.get(key);
     if (clusters == null) {
-      clusters = objectiveClusters(deps.positionsFor(quest, "objective", s.objectiveIndex));
+      clusters = objectiveClusters(deps.positionsFor(quest, "objective", objectiveIndex));
       clusterCache.set(key, clusters);
     }
-    return nearestCluster(clusters, pos);
+    return clusters;
   };
 
-  const toTarget = (i: number, timeTo: (p: WorldPos) => number): Target | null => {
+  const toTarget = (i: number, timeTo: (p: WorldPos) => number, snap: PlayerSnapshot): Target | null => {
     const s = steps[i];
-    const pos = deps.toWorld(s.uiMapId, s.x, s.y);
-    if (pos == null) {
+    const stepPos = deps.toWorld(s.uiMapId, s.x, s.y);
+    if (stepPos == null) {
       reportOnce("routeStepPlace", t("routeStepUnplaced").replace("{n}", String(i + 1)));
       return null;
     }
     const kind = QUEST_KIND[s.type] ?? "route";
     const questId = kind === "route" ? null : (s.questId ?? null);
     const quest = questId == null ? null : deps.quest(questId);
-    const seconds = timeTo(pos);
-    return {
+    const index = kind === "objective" ? (s.objectiveIndex ?? null) : null;
+    const plan = quest == null || index == null ? null : (deps.planFor?.(quest, index) ?? null);
+    const objective = plan == null ? null : (quest?.objectives.find((o) => o.index === index) ?? null);
+    const obtain = targetObtain(plan, objective?.kind === "item" ? objective.required : 1, questId == null || index == null ? null : (snap.log.get(questId)?.counts?.[index - 1] ?? null));
+    let pos: WorldPos | null = stepPos;
+    let cluster: SpawnCluster | null = null;
+    if (quest != null && index != null) {
+      const clusters = clustersOf(quest, index, plan);
+      cluster = plan == null ? nearestCluster(clusters, stepPos) : pickCluster(clusters, timeTo);
+      if (plan != null) pos = cluster?.center ?? (obtain != null && obtain.how !== "buy" ? null : stepPos);
+    }
+    const seconds = pos == null ? 0 : timeTo(pos);
+    const target: Target = {
       questId,
       kind,
-      objectiveIndex: kind === "objective" ? (s.objectiveIndex ?? null) : null,
+      objectiveIndex: index,
       pos,
-      cluster: kind === "objective" ? objectiveCluster(s, quest, pos) : null,
+      cluster,
       otherSpots: 0,
       seconds: Number.isNaN(seconds) ? Infinity : seconds,
       penaltySec: 0,
@@ -300,6 +313,8 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
       zoneAreaId: quest?.zoneAreaId ?? null,
       route: { index: i, type: s.type, label: kind === "route" ? stepText(s) : "" },
     };
+    if (obtain != null) target.obtain = obtain;
+    return target;
   };
 
   const targets = (snap: PlayerSnapshot): Target[] | null => {
@@ -348,7 +363,7 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
     const out: Target[] = [];
     const add = (i: number | null): void => {
       if (i == null) return;
-      const target = toTarget(i, timeTo);
+      const target = toTarget(i, timeTo, snap);
       if (target != null) out.push(target);
     };
     add(view.target);
@@ -422,7 +437,7 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
       const side = deps.faction();
       for (const node of deps.taxiNodes) {
         if (side != null && !isFriendlyTo(node.faction, side)) continue;
-        const d = distance(node.pos, target.pos);
+        const d = target.pos == null ? Infinity : distance(node.pos, target.pos);
         if (d < best) {
           best = d;
           from = node.id;

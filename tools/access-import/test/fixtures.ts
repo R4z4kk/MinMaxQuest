@@ -79,7 +79,7 @@ export function snapshotFixture(): QuestieSnapshot {
     },
     npcs: {},
     objects: {},
-    items: { 14544: { name: "Lieutenant's Insignia", npcDrops: [], objectDrops: [] } },
+    items: { 14544: { name: "Lieutenant's Insignia", class: 12, npcDrops: [], objectDrops: [] } },
     questXp: {},
     areaIdToUiMapId: {},
     objectiveFirst: {},
@@ -90,7 +90,7 @@ export function snapshotFixture(): QuestieSnapshot {
       206: { name: "Utgarde Keep", altAreaIds: [], parentZone: 495, entrances: [] },
       2717: { name: "Molten Core", altAreaIds: [], parentZone: 46, entrances: [] },
     },
-    npcFlagValues: { innkeeper: 65536, flightMaster: 8192 },
+    npcFlagValues: { innkeeper: 65536, flightMaster: 8192, auctioneer: 4096 },
     raceMaskById: RACE_MASKS,
   };
 }

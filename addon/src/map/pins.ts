@@ -157,7 +157,7 @@ function createWaypoint(): { sync(on: boolean, target: Target | null): void } {
 
   return {
     sync(on, target) {
-      if (!on || target == null) clear();
+      if (!on || target == null || target.pos == null) clear();
       else apply(target.pos);
     },
   };
@@ -169,19 +169,21 @@ export function installMapPins(deps: MapPinsDeps): MapPins {
   const slots = [createSlot(1, true), createSlot(2, false)];
   const waypoint = createWaypoint();
 
-  const place = (slot: Slot, target: Target | null): void => {
+  const place = (slot: Slot, shown: Target | null): void => {
+    const target = shown?.pos == null ? null : shown;
+    const pos = target?.pos ?? null;
     slot.state.target = target;
     slot.state.label = target == null ? "" : deps.label(target);
-    const key = target == null ? null : `${target.pos.continent}:${target.pos.x}:${target.pos.y}`;
+    const key = pos == null ? null : `${pos.continent}:${pos.x}:${pos.y}`;
     if (key === slot.key) return;
     slot.key = key;
-    if (target == null) {
+    if (pos == null) {
       lib.RemoveWorldMapIcon(REF, slot.world);
       if (slot.minimap != null) lib.RemoveMinimapIcon(REF, slot.minimap);
       return;
     }
     // HBD world coordinates are (west, north): the reverse of WorldPos (north, west).
-    const { continent, x, y } = target.pos;
+    const { continent, x, y } = pos;
     lib.AddWorldMapIconWorld(REF, slot.world, continent, y, x, SHOW_WORLD);
     if (slot.minimap != null) lib.AddMinimapIconWorld(REF, slot.minimap, continent, y, x, true);
   };

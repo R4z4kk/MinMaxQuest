@@ -82,6 +82,9 @@ Prérequis : `npm test` (construit `build/MinMaxQuest.lua`), puis lancer WoW For
 - [ ] Les onglets Complétion et Quête basculent la flèche entre les deux modes.
 - [ ] `/mmq debug prof` en mode Quête sur un vrai personnage : noter les durées de recalcul (coût du suivi de route non mesuré en jeu).
 
+## Métiers
+- [ ] « Le philtre d'amour » (4201) sans Herboristerie : l'objectif Gromsang affiche « Achète Gromsang ×N à l'hôtel des ventes » et la flèche vise le commissaire-priseur le plus proche, pas Gangrebois ; avec Herboristerie (apprise sans /reload), elle vise les Gromsang.
+
 ## Données et performance
 - [ ] `/mmq debug build 1` → bandeau « Données générées pour le build … » (n'empêche rien).
 - [ ] `/mmq debug prof` : durée du dernier recalcul (viser < 10 ms) et du premier au login (signaler si > 50 ms).

@@ -347,3 +347,17 @@ it("lists the quest id of each next step, 0 for a step without quest", () => {
   f.targets(snapshot(11));
   expect(f.view()?.nextQuestIds).toEqual([0, 900]);
 });
+
+it("retargets a profession item objective in game: the auction house to buy, no position to craft", () => {
+  install({ segmentEndLevel: 10 }, [{ ...grind(10, 10, "complete"), questId: 900, objectiveIndex: 1 }, grind(11, 20)]);
+  const snap = snapshot(10);
+  snap.log.set(900, { complete: false, objectivesDone: new Set(), counts: [{ have: 1, need: 4 }] });
+  snap.state.inLog.add(900);
+  const plan = (how: "buy" | "craft") => ({ how, itemId: 8846, item: "Gromsblood", npcs: [], objects: [], key: `${how}:` });
+  const auction = { continent: 0, x: 3000, y: 0 };
+  const positionsFor = (_q: QuestInfo, _k: string, _i: number | null) => [auction];
+  const buy = follower(loadCharDb(null), { on: false }, { planFor: () => plan("buy"), positionsFor }).targets(snap)?.[0];
+  expect(buy).toMatchObject({ kind: "objective", pos: auction, obtain: { how: "buy", item: "Gromsblood", count: 3 } });
+  const craft = follower(loadCharDb(null), { on: false }, { planFor: () => plan("craft"), positionsFor: () => [] }).targets(snap)?.[0];
+  expect(craft).toMatchObject({ kind: "objective", pos: null, cluster: null, seconds: 0, obtain: { how: "craft", count: 3 } });
+});
