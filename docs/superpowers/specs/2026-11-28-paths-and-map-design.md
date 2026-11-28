@@ -47,6 +47,10 @@ La règle de l'utilisateur est la suivante : prendre le vol si (marche jusqu'au 
   - un halo doux sur chaque point d'apparition ;
   - une étiquette « Nom x/y ».
   - Sur la carte du monde : des lignes (`CreateLine`) et des textures posées sur le canevas de la carte. Sur la minicarte : des halos doux aux points d'apparition. **[choix Claude :** le contour n'est tracé que sur la carte du monde. **]**
+- **Type de quête sur l'épingle (utilisateur) :**
+  - un « ! » or pour une quête à prendre ;
+  - un « ? » or pour une quête à rendre, comme les icônes de quête du jeu.
+  - Le « ! » ou le « ? » est un petit badge en haut à droite de l'épingle numérotée. Le numéro d'ordre reste. **[choix Claude]**
 - Les épingles et la zone suivent l'épinglage et le point de passage actuels, comme aujourd'hui.
 
 ## 3. Hors de ce lot
