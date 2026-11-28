@@ -6,7 +6,7 @@ import { reportOnce } from "../core/report";
 import type { CharDb } from "../core/storage";
 import type { QuestInfo } from "../data/questRepository";
 import { describeTarget, questLabel, type PlayerSnapshot } from "../game/engine";
-import { isFriendlyTo } from "../game/positions";
+import { isFriendlyTo, type StarterLoot } from "../game/positions";
 import { travelSpeed } from "../game/routing";
 import type { ObtainPlan, PlanFor } from "../game/professions";
 import { isAvailable } from "../quests/availability";
@@ -34,6 +34,7 @@ export interface FollowerDeps {
   taxiNodes: { id: number; name: string; pos: WorldPos; faction: "A" | "H" | "AH" }[];
   // Profession items are retargeted in game: the routes are built without the player's skills.
   planFor?: PlanFor;
+  starterLoot?: StarterLoot;
 }
 
 export interface RouteView extends FollowView {
@@ -298,6 +299,12 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
         cluster = null;
       } else if (plan != null) pos = cluster?.center ?? (obtain != null ? null : stepPos);
     }
+    const loot = kind === "accept" && quest != null ? (deps.starterLoot?.(quest, s.npcId ?? null) ?? null) : null;
+    if (quest != null && loot != null) {
+      const clusters = nearbyClusters(clusterCache, `${quest.id}:starter`, snap.pos, () => loot.points);
+      cluster = nearestCluster(clusters, stepPos);
+      pos = cluster?.center ?? stepPos;
+    }
     const seconds = pos == null ? 0 : timeTo(pos);
     const target: Target = {
       questId,
@@ -315,6 +322,7 @@ export function createRouteFollower(deps: FollowerDeps): RouteFollower {
       route: { index: i, type: s.type, label: kind === "route" ? stepText(s) : "" },
     };
     if (obtain != null) target.obtain = obtain;
+    if (loot != null) target.loot = loot.item;
     return target;
   };
 

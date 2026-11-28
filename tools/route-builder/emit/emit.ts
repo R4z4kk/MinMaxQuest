@@ -54,9 +54,9 @@ function emittedStep(step: RouteStep, world: World, after: SimState | null, outc
       const unlocks = followUps(quest.id, (id) => world.quests.get(id)?.info ?? null).map((q) => q.id);
       if (unlocks.length > 0) out.unlocks = unlocks;
     }
-    if (step.type === "complete") {
+    if (step.type === "complete" || (step.type === "accept" && quest.starter != null)) {
       // Loop points in another uiMap than the step's cannot be drawn on its map and are dropped.
-      const task = quest.tasks.find((t) => t.objectiveIndex === step.objectiveIndex);
+      const task = step.type === "accept" ? quest.starter : quest.tasks.find((t) => t.objectiveIndex === step.objectiveIndex);
       const loop = (task?.cluster.loop ?? []).filter((p) => p.uiMapId === step.place.uiMapId);
       if (loop.length > 0) out.loop = loop.map((p): [number, number] => [p.x, p.y]);
     }

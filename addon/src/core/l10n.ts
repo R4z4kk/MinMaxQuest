@@ -11,6 +11,7 @@ export type L10nKey =
   | "hideAll"
   | "help"
   | "targetAccept"
+  | "targetLootStarter"
   | "targetObjective"
   | "targetTurnin"
   | "obtainBuy"
@@ -143,6 +144,7 @@ const EN: Record<L10nKey, string> = {
   hideAll: "Hide MinMaxQuest (/mmq to show)",
   help: "commands: /mmq (show/hide all) | help | q <id> | chain <questId> | targets | skip [confirm] | pin <id> | unpin | skipped | unskip <id>|all | arrow move|lock|test | debug build <n> | debug prof",
   targetAccept: "pick up",
+  targetLootStarter: "loot {item} to start it",
   targetObjective: "objective",
   targetTurnin: "turn in",
   obtainBuy: "Buy {item} ×{n} at the Auction House",
@@ -276,6 +278,7 @@ const FR: Record<L10nKey, string> = {
   hideAll: "Masquer MinMaxQuest (/mmq pour réafficher)",
   help: "commandes : /mmq (afficher/masquer tout) | help | q <id> | chain <questId> | targets | skip [confirm] | pin <id> | unpin | skipped | unskip <id>|all | arrow move|lock|test | debug build <n> | debug prof",
   targetAccept: "prendre",
+  targetLootStarter: "ramasser {item} pour la lancer",
   targetObjective: "objectif",
   targetTurnin: "rendre",
   obtainBuy: "Achète {item} ×{n} à l'hôtel des ventes",

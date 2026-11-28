@@ -34,6 +34,8 @@ export interface SimState {
   knownTaxi: Set<number>;
   hearth: { pos: WorldPos | null; readyAt: number };
   skipped: Set<number>;
+  // Kills per npc id: a starter drop may already have come from them.
+  kills: Map<number, number>;
 }
 export interface StepOutcome { seconds: number; xp: number; violation: string | null }
 export interface SimResult { state: SimState; outcomes: StepOutcome[]; violations: string[] }
@@ -68,6 +70,7 @@ export function initialState(start: Place, level: number, knownTaxi: number[], h
     knownTaxi: new Set(knownTaxi),
     hearth: { pos: hearthPos, readyAt: 0 },
     skipped: new Set(),
+    kills: new Map(),
   };
 }
 
@@ -80,6 +83,7 @@ export function cloneState(s: SimState): SimState {
     knownTaxi: new Set(s.knownTaxi),
     hearth: { ...s.hearth },
     skipped: new Set(s.skipped),
+    kills: new Map(s.kills),
   };
 }
 
@@ -153,14 +157,17 @@ export function loopSpacing(loop: Place[]): number {
   return yards / (loop.length - 1);
 }
 
-export function doTask(s: SimState, task: Task, scenario: Scenario): number {
+// credit: kills already made on the task's mob, deducted from the kills still needed.
+export function doTask(s: SimState, task: Task, scenario: Scenario, credit = 0): number {
   const spacing = loopSpacing(task.cluster.loop);
   if (task.kind === "use") {
     for (let i = 0; i < task.count; i++) s.seconds += BUILDER.objectUseSec.value + walkSeconds(spacing, s.level);
     return 0;
   }
   const chance = task.assumedDropChance ? scenario.questDropChance.value : task.dropChance;
-  const kills = task.kind === "kill" ? task.count : killsForItems(task.count, chance, COLLECT_QUANTILE);
+  const kills = Math.max(0, (task.kind === "kill" ? task.count : killsForItems(task.count, chance, COLLECT_QUANTILE)) - credit);
+  const npcId = task.cluster.center.npcId;
+  if (npcId != null) s.kills.set(npcId, (s.kills.get(npcId) ?? 0) + kills);
   const perKill = scenario.killSec.value * (task.elite ? scenario.eliteFactor.value : 1) + BUILDER.lootSec.value;
   let xp = 0;
   for (let i = 0; i < kills; i++) {
@@ -168,6 +175,11 @@ export function doTask(s: SimState, task: Task, scenario: Scenario): number {
     xp += gainXp(s, mobXp(s.level, task.mobLevel, task.elite));
   }
   return xp;
+}
+
+export function starterCredit(s: SimState, starter: Task): number {
+  const npcId = starter.cluster.center.npcId;
+  return starter.kind === "use" || npcId == null ? 0 : (s.kills.get(npcId) ?? 0);
 }
 
 export function grindSecondsPerKill(s: SimState, spacingYards: number, scenario: Scenario): number {
@@ -234,7 +246,8 @@ function questStep(s: SimState, step: RouteStep, world: World, scenario: Scenari
     xp = doTask(s, task, scenario);
     s.done.add(objectiveKey(id, task.objectiveIndex));
   } else if (step.type === "accept") {
-    s.seconds += BUILDER.npcInteractSec.value;
+    if (q.starter == null) s.seconds += BUILDER.npcInteractSec.value;
+    else xp = doTask(s, q.starter, scenario, starterCredit(s, q.starter));
     s.inLog.add(id);
   } else {
     if (q.info.baseXp == null) throw new Error(`quest ${id} has no baseXp`);

@@ -265,3 +265,30 @@ describe("buildRoute", () => {
     );
   });
 });
+
+describe("buildRoute with item-started quests", () => {
+  const mob = (x: number, y: number) => ({ ...place(x, y, 1), npcId: 77 });
+  const lootTask = (chance: number, loop: ReturnType<typeof mob>[]): Task => ({
+    kind: "collect", objectiveIndex: 0, count: 1, cluster: { center: loop[0], loop }, mobLevel: 1, elite: false, dropChance: chance, assumedDropChance: false,
+  });
+
+  it("loots a starter after the kills that share its mob", () => {
+    const hunt: Task = { ...kill(mob(0, 30)), objectiveIndex: 1, count: 10 };
+    const hunter = quest(900, place(0, 0, 1), { baseXp: 400 }, [hunt]);
+    const starter = lootTask(0.5, [mob(0, 30)]);
+    const looted: RouteQuest = { ...quest(901, starter.cluster.center, { baseXp: 400 }), starter };
+    const route = build(request(worldOf([hunter, looted]), start(), 3));
+    const at = (type: string, id: number) => route.steps.findIndex((s) => s.type === type && s.questId === id);
+    expect(at("accept", 901)).toBeGreaterThan(at("complete", 900));
+    expect(route.end.completed.has(901)).toBe(true);
+  });
+
+  it("leaves a rare starter drop whose farming loses to grinding", () => {
+    const starter = lootTask(0.01, [mob(0, 30), mob(400, 30)]);
+    const rare: RouteQuest = { ...quest(902, starter.cluster.center, { baseXp: 800 }), starter };
+    const plain: RouteQuest = { ...rare, id: 903, info: { ...rare.info, id: 903 }, starter: null };
+    const grindSpot = quest(904, place(0, 60, 1), { requiredLevel: 60 }, [kill(place(0, 60, 1))]);
+    expect(accepted(build(request(worldOf([plain, grindSpot]), start(), 3)), [903])).toEqual([903]);
+    expect(accepted(build(request(worldOf([rare, grindSpot]), start(), 3)), [902])).toEqual([]);
+  });
+});

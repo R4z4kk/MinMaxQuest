@@ -4,7 +4,7 @@ import { TRAVEL } from "../../addon/src/data/generated/travel";
 import { benchmarkRxp, type BenchRow } from "./bench/rxp";
 import { emitFaction, emitReport, type EmitMeta } from "./emit/emit";
 import { outputDir } from "./emit/outputDir";
-import { loadPinnedCmangosCounts } from "./ingest/cmangos";
+import { loadPinnedCmangos } from "./ingest/cmangos";
 import { fetchQuestie } from "./ingest/fetchQuestie";
 import { loadInstanceTypes } from "./ingest/instances";
 import { cachedSnapshot } from "./ingest/questie";
@@ -78,14 +78,14 @@ async function main(): Promise<void> {
   const snapshot = await cachedSnapshot();
   const zones = await loadZones();
   const instanceTypes = loadInstanceTypes();
-  const counts = loadPinnedCmangosCounts();
+  const { counts, loot } = loadPinnedCmangos();
 
   const worlds: World[] = [];
   const all: FactionRoutes[] = [];
   const benchmark: BenchRow[] = [];
   for (const faction of args.factions) {
     const factionStarted = Date.now();
-    const world = buildWorld(snapshot, zones, faction, TRAVEL, instanceTypes, counts);
+    const world = buildWorld(snapshot, zones, faction, TRAVEL, instanceTypes, counts, loot);
     console.log(`[${faction}] world: ${world.quests.size} candidates, offset ${world.conversionOffsetYards.toFixed(2)} yd, unlearnable taxi nodes [${world.unlearnableTaxiNodes.join(",")}]`);
     try {
       all.push(buildFaction(world, { beamWidth: DEFAULT_BEAM_WIDTH, branching: DEFAULT_BRANCHING, variants: args.variants }));

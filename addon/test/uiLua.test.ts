@@ -590,7 +590,7 @@ it("shows the followed route in the Quest tab", async () => {
     expect(texts).toContain("Next");
     expect(texts).toContain("Wolves Across the Border · pick up");
     expect(texts.filter((line) => line.includes(" · pick up") || line.includes("Fly to") || line.includes("flight")).length).toBeGreaterThan(1);
-    expect(footerOf(texts)).toMatch(/^Lvl 1 · step 1\/\d+ · (~\d+ h|~\d+ min|<1 min) left$/);
+    expect(footerOf(texts)).toMatch(/^Lvl 1 · step 1\/[\d,]+ · (~\d+ h|~\d+ min|<1 min) left$/);
     expect(texts).not.toContain("Routes not installed - use Completion meanwhile");
   } finally {
     s.close();
@@ -621,7 +621,7 @@ it("stores a toggled return dungeon and changes the route length", async () => {
   const s = await routeTab();
   try {
     expect(await s.texts()).toContain("Gnomeregan");
-    const total = async () => Number(footerOf(await s.texts()).match(/step \d+\/(\d+)/)?.[1]);
+    const total = async () => Number(footerOf(await s.texts()).match(/step [\d,]+\/([\d,]+)/)?.[1].replace(/,/g, ""));
     const before = await total();
     await s.click("MinMaxQuestDungeon721");
     expect(await s.run("return MinMaxQuestCharDB.dungeonReturns[1]")).toBe(721);

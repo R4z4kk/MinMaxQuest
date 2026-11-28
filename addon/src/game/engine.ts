@@ -83,6 +83,7 @@ export function targetAction(target: Target): string {
   if (target.kind === "route") return target.route?.label ?? "";
   const obtain = target.obtain;
   if (obtain != null) return t(OBTAIN_LABEL[obtain.how]).replace("{item}", obtain.item).replace("{n}", String(obtain.count));
+  if (target.loot != null) return t("targetLootStarter").replace("{item}", target.loot);
   if (target.kind === "accept") return t("targetAccept");
   if (target.kind === "turnin") return t("targetTurnin");
   return `${t("targetObjective")} ${target.objectiveIndex ?? ""}`;

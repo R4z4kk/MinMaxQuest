@@ -19,6 +19,7 @@ import {
   posLabel,
   QUEST_LOG_SIZE,
   questView,
+  starterCredit,
   travelView,
   type RouteStep,
   type SimOptions,
@@ -274,20 +275,34 @@ function worthIt(c: Context, s: SimState, q: RouteQuest, from: TravelView, rate:
   let xp = questXp(q.info.baseXp, q.info.level, s.level, MAX_LEVEL);
   let seconds = 0;
   let detour = Math.max(away(q.accept.pos), away(q.turnin.pos));
-  for (const t of q.tasks) {
-    const probe: SimState = { ...s };
-    xp += doTask(probe, t, c.req.scenario);
+  const tasks = q.starter == null ? q.tasks : [q.starter, ...q.tasks];
+  for (const t of tasks) {
+    const probe: SimState = { ...s, kills: new Map(s.kills) };
+    xp += doTask(probe, t, c.req.scenario, t === q.starter ? starterCredit(s, t) : 0);
     seconds += probe.seconds - s.seconds;
     detour = Math.max(detour, away(t.cluster.center.pos));
   }
   return xp >= rate * (seconds + 2 * detour);
 }
 
+// A starter dropped by mobs that a quest in the log still has to kill is looted after those kills.
+function waitsForKills(c: Context, s: SimState, q: RouteQuest): boolean {
+  const npcId = q.starter?.cluster.center.npcId ?? null;
+  if (npcId == null) return false;
+  for (const id of s.inLog) {
+    const logged = c.req.world.quests.get(id);
+    if (logged?.tasks.some((t) => t.cluster.center.npcId === npcId && !s.done.has(objectiveKey(id, t.objectiveIndex)))) return true;
+  }
+  return false;
+}
+
 function acceptQuests(c: Context, d: Draft, b: Block, filtered: boolean): void {
   const from = filtered ? travelView(d.state, c.req.world, c.travel, b.centroid) : null;
   while (d.state.inLog.size < QUEST_LOG_SIZE) {
     const rate = from == null ? 0 : grindEstimate(c, d.state);
-    const open = b.quests.filter((q) => acceptable(c, d.state, q) && (from == null || worthIt(c, d.state, q, from, rate)));
+    const open = b.quests.filter(
+      (q) => acceptable(c, d.state, q) && !waitsForKills(c, d.state, q) && (from == null || worthIt(c, d.state, q, from, rate)),
+    );
     const q = nearest(c, d.state, open, (x) => x.accept.pos);
     if (q == null) return;
     emit(c, d, { type: "accept", place: q.accept, questId: q.id });

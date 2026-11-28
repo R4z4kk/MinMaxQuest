@@ -7,7 +7,7 @@ import { BUILDER, COLLECT_QUANTILE, SCENARIOS } from "../model/constants";
 import { killsForItems } from "../model/drops";
 import { mobXp } from "../model/mobXp";
 import type { Place, RouteQuest, Task } from "../model/world";
-import { doTask, grindSecondsPerKill, initialState, simulate, type RouteStep, type SimOptions, type SimState } from "../sim/simulate";
+import { cloneState, doTask, grindSecondsPerKill, initialState, simulate, type RouteStep, type SimOptions, type SimState } from "../sim/simulate";
 import { info, place, quest, travel, world } from "./fixtures";
 
 const scenario = SCENARIOS[1];
@@ -278,5 +278,42 @@ describe("simulate", () => {
     simulate([accept(q)], s, worldOf([q]), scenario, STRICT, data);
     expect(s.seconds).toBe(0);
     expect(s.inLog.size).toBe(0);
+  });
+});
+
+describe("simulate item-started quests", () => {
+  const MOB = 77;
+  const mob = (x: number): Place => ({ ...place(x, 100), npcId: MOB });
+  const loop = [mob(100), mob(120)];
+  const lootTask: Task = { kind: "collect", objectiveIndex: 0, count: 1, cluster: { center: loop[0], loop }, mobLevel: 3, elite: false, dropChance: 0.5, assumedDropChance: false };
+  const looted: RouteQuest = { ...quest(20, loop[0], { level: 3 }), starter: lootTask };
+  const kills = killsForItems(1, 0.5, COLLECT_QUANTILE);
+  const perKill = scenario.killSec.value + BUILDER.lootSec.value;
+
+  it("farms the starter drop on accept, without an NPC talk", () => {
+    const result = simulate([accept(looted)], start(), worldOf([looted]), scenario, STRICT, data);
+    expect(result.violations).toEqual([]);
+    expect(result.state.inLog.has(20)).toBe(true);
+    expect(result.state.kills.get(MOB)).toBe(kills);
+    expect(result.outcomes[0].seconds).toBeCloseTo(walk(place(0), loop[0]) + kills * perKill + spacingWalk(loop, kills), 9);
+    expect(result.outcomes[0].xp).toBe(kills * mobXp(1, 3, false));
+  });
+
+  it("credits kills already made on the same mob", () => {
+    const hunt: Task = { ...lootTask, kind: "kill", objectiveIndex: 1, count: kills, dropChance: 1 };
+    const hunter = quest(21, loop[0], { level: 3 }, [hunt]);
+    const steps: RouteStep[] = [accept(hunter), { type: "complete", place: loop[0], questId: 21, objectiveIndex: 1 }, accept(looted)];
+    const result = simulate(steps, start(), worldOf([hunter, looted]), scenario, STRICT, data);
+    expect(result.violations).toEqual([]);
+    expect(result.outcomes[2]).toMatchObject({ seconds: 0, xp: 0 });
+    expect(result.state.inLog.has(20)).toBe(true);
+  });
+
+  it("copies the kill counts when cloning a state", () => {
+    const s = start();
+    doTask(s, lootTask, scenario);
+    const copy = cloneState(s);
+    copy.kills.set(MOB, 0);
+    expect(s.kills.get(MOB)).toBe(kills);
   });
 });

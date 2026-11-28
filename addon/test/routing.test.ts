@@ -13,7 +13,7 @@ function quest(id: number, over: Partial<QuestInfo> = {}): QuestInfo {
   return {
     id, name: `Q${id}`, level: 10, requiredLevel: 1, requiredMaxLevel: null, races: 0, classes: 0,
     preGroup: [], preSingle: [], exclusiveTo: [], nextInChain: null, children: [],
-    starterNpcs: [], starterObjects: [], finisherNpcs: [], finisherObjects: [],
+    starterNpcs: [], starterObjects: [], starterItems: [], finisherNpcs: [], finisherObjects: [],
     objectives: [], baseXp: 0, hasUnsupportedRequirement: false, repeatable: false, seasonal: false, clothDonation: false, isElite: false, zoneAreaId: null,
     ...over,
   };

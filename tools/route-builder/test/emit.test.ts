@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { decodeSteps } from "../../../addon/src/route/format";
 import { emitFaction, emitReport, luaLongString } from "../emit/emit";
 import { allVariants, variantKey, type Evaluated, type FactionRoutes } from "../opt/variants";
+import type { RouteQuest, Task, World } from "../model/world";
 import type { RouteStep } from "../sim/simulate";
 import { kill, place, quest, travel, worldOf } from "./fixtures";
 
@@ -153,5 +154,25 @@ describe("emitReport", () => {
     expect(report).toContain("| class | 2 |");
     expect(report).toMatch(/median offset 3\.46 yards/i);
     expect(report).toContain("Unlearnable taxi nodes (no flight master within 100 yards): 7, 9.");
+  });
+});
+
+describe("emitFaction with an item-started quest", () => {
+  const mob = (x: number, y: number) => ({ ...withXy(x, y, 2), npcId: 55 });
+  const loop = [mob(40, 30), mob(50, 31), mob(60, 32)];
+  const starter: Task = { kind: "collect", objectiveIndex: 0, count: 1, cluster: { center: loop[0], loop }, mobLevel: 10, elite: false, dropChance: 1, assumedDropChance: false };
+  const looted: RouteQuest = { ...quest(120, loop[0], { baseXp: 900, level: 10, requiredLevel: 10 }), starter };
+  const lootWorld: World = { ...w, quests: new Map([...w.quests, [120, looted]]) };
+  const lootRoutes: FactionRoutes = { ...routes, trunk: Object.fromEntries(keys.map((k, i) => [k, evaluated([accept(looted), turnin(looted)], 7200 + i)])) };
+
+  it("emits the dropping mob and the starter loop on the accept step", async () => {
+    const g = await evalLua(emitFaction(lootRoutes, lootWorld, meta, data));
+    try {
+      const steps = decodeSteps((await g.run("MinMaxQuestRoutes.Alliance.trunk.e0d0x0")) as string);
+      expect(steps[0]).toMatchObject({ type: "accept", questId: 120, npcId: 55, loop: [[4, 30], [5, 31], [6, 32]] });
+      expect(steps[0].estXpGain).toBeGreaterThan(0);
+    } finally {
+      g.close();
+    }
   });
 });

@@ -14,7 +14,7 @@ function quest(over: Partial<QuestInfo> = {}): QuestInfo {
   return {
     id: 4201, name: "The Love Potion", level: 58, requiredLevel: 50, requiredMaxLevel: null, races: 0, classes: 0,
     preGroup: [], preSingle: [], exclusiveTo: [], nextInChain: null, children: [],
-    starterNpcs: [1], starterObjects: [], finisherNpcs: [1], finisherObjects: [],
+    starterNpcs: [1], starterObjects: [], starterItems: [], finisherNpcs: [1], finisherObjects: [],
     objectives: [
       { kind: "item", id: 8846, required: 4, index: 1 },
       { kind: "npc", id: 5, required: 1, index: 2 },

@@ -98,7 +98,7 @@ describe("createQuestRepository", () => {
     const q = result.repo.get(33);
     expect(q).toMatchObject({
       id: 33, name: "Wolves", level: 5, requiredLevel: 3, preSingle: [1], starterNpcs: [100],
-      starterObjects: [], finisherNpcs: [101], nextInChain: 34, zoneAreaId: 12, baseXp: 450,
+      starterObjects: [], starterItems: [], finisherNpcs: [101], nextInChain: 34, zoneAreaId: 12, baseXp: 450,
       isElite: true, hasUnsupportedRequirement: false, repeatable: false, seasonal: false, clothDonation: false,
     });
     expect(q?.objectives).toEqual([
@@ -122,6 +122,18 @@ describe("createQuestRepository", () => {
     expect(result.repo.get(1)).toMatchObject({ sourceItemId: 900, requiredSourceItems: [901, 902] });
     expect(result.repo.get(2)).toMatchObject({ sourceItemId: null, requiredSourceItems: [] });
     expect(result.repo.get(3)?.sourceItemId).toBeNull();
+  });
+
+  it("reads the items that start a quest", () => {
+    const result = createQuestRepository(
+      fakeLib({
+        1: { name: "A", questLevel: 1, startedBy: [[1], null, [700, 701]] },
+        2: { name: "B", questLevel: 1, startedBy: [[1]] },
+      }),
+    );
+    if (!result.ok) throw new Error(result.message);
+    expect(result.repo.get(1)?.starterItems).toEqual([700, 701]);
+    expect(result.repo.get(2)?.starterItems).toEqual([]);
   });
 
   it("flags unsupported requirements", () => {

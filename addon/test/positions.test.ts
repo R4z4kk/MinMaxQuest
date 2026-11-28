@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { WorldPos } from "../src/core/geometry";
 import type { AreaPoint, QuestInfo, QuestRepository } from "../src/data/questRepository";
-import { createPlaceFor, createPositions, isFriendlyTo } from "../src/game/positions";
+import { createPlaceFor, createPositions, createStarterLoot, isFriendlyTo } from "../src/game/positions";
 
 function quest(over: Partial<QuestInfo>): QuestInfo {
   return {
     id: 1, name: "Q", level: 10, requiredLevel: 1, requiredMaxLevel: null, races: 0, classes: 0,
     preGroup: [], preSingle: [], exclusiveTo: [], nextInChain: null, children: [],
-    starterNpcs: [], starterObjects: [], finisherNpcs: [], finisherObjects: [],
+    starterNpcs: [], starterObjects: [], starterItems: [], finisherNpcs: [], finisherObjects: [],
     objectives: [], baseXp: 0, hasUnsupportedRequirement: false, repeatable: false, seasonal: false, clothDonation: false, isElite: false, zoneAreaId: null,
     ...over,
   };
@@ -127,5 +127,28 @@ describe("createPlaceFor", () => {
   it("keeps the first spawn when the player position is unknown", () => {
     const place = createPlaceFor(placeRepo, () => "A", () => null, toWorld);
     expect(place(q, "turnin", null)).toEqual({ uiMapId: 7, x: 10, y: 0 });
+  });
+});
+
+describe("createStarterLoot", () => {
+  const toWorld = (p: AreaPoint): WorldPos | null => (p.areaId === 99 ? null : { continent: 0, x: p.x, y: p.y });
+  const loot = createStarterLoot(repo({ items: 0 }), toWorld, (id) => (id === 7 ? "Book" : null));
+
+  it("points an item-started quest at the item's drop spawns", () => {
+    expect(loot(quest({ starterItems: [7] }), 11)).toEqual({
+      item: "Book",
+      points: [{ continent: 0, x: 30, y: 40 }, { continent: 0, x: 50, y: 60 }],
+    });
+  });
+
+  it("prefers the item the step's mob drops and names an unknown item by id", () => {
+    expect(loot(quest({ starterItems: [8, 7] }), 11)?.item).toBe("Book");
+    expect(loot(quest({ starterItems: [8] }), null)).toEqual({ item: "#8", points: [] });
+  });
+
+  it("leaves quests with a starter NPC or object alone", () => {
+    expect(loot(quest({ starterNpcs: [10], starterItems: [7] }), 11)).toBeNull();
+    expect(loot(quest({ starterObjects: [50], starterItems: [7] }), 11)).toBeNull();
+    expect(loot(quest({}), 11)).toBeNull();
   });
 });

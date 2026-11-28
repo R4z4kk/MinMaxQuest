@@ -184,6 +184,47 @@ export function parseCmangosCounts(sql: string, file: string): CmangosCounts {
   return { get: (questId, kind, id) => counts.get(key(questId, kind, id)) ?? null };
 }
 
+export interface CmangosLoot {
+  // Fraction in 0..1, null when the creature's loot table has no such item.
+  dropRate(itemId: number, npcId: number): number | null;
+}
+
+// cmangos loot rules: a negative chance is a quest-only drop of the same chance; within a group (groupid > 0),
+// entries with chance 0 share what the explicit chances leave; mincountOrRef < 0 points to a reference table.
+export function parseCmangosLoot(sql: string, file: string): CmangosLoot {
+  const lootIds = new Map<number, number>();
+  for (const row of parseSqlTable(sql, file, "creature_template", ["Entry", "LootId"])) lootIds.set(row.int("Entry"), row.int("LootId"));
+  type Entry = { item: number; chance: number; group: number };
+  const entries = new Map<number, Entry[]>();
+  for (const row of parseSqlTable(sql, file, "creature_loot_template", ["entry", "item", "ChanceOrQuestChance", "groupid", "mincountOrRef"])) {
+    if (row.int("mincountOrRef") < 0) continue;
+    const chance = row.value("ChanceOrQuestChance");
+    if (typeof chance !== "number" || !Number.isFinite(chance)) throw new Error(`${row.where}: creature_loot_template ChanceOrQuestChance is not a number`);
+    const loot = row.int("entry");
+    const list = entries.get(loot) ?? [];
+    list.push({ item: row.int("item"), chance: Math.abs(chance), group: row.int("groupid") });
+    entries.set(loot, list);
+  }
+  const PERCENT = 100;
+  const rateIn = (list: Entry[], itemId: number): number | null => {
+    const entry = list.find((e) => e.item === itemId);
+    if (entry == null) return null;
+    if (entry.chance > 0 || entry.group === 0) return entry.chance / PERCENT;
+    const group = list.filter((e) => e.group === entry.group);
+    const explicit = group.reduce((sum, e) => sum + e.chance, 0);
+    const shared = group.filter((e) => e.chance === 0).length;
+    return Math.max(0, PERCENT - explicit) / shared / PERCENT;
+  };
+  return {
+    dropRate: (itemId, npcId) => {
+      const loot = lootIds.get(npcId);
+      if (loot == null || loot === 0) return null;
+      const list = entries.get(loot);
+      return list == null ? null : rateIn(list, itemId);
+    },
+  };
+}
+
 export function readSqlFile(file: string): string {
   try {
     const raw = readFileSync(file);
@@ -218,6 +259,8 @@ export function fetchCmangos(): string {
   return path;
 }
 
-export function loadPinnedCmangosCounts(): CmangosCounts {
-  return loadCmangosCounts(fetchCmangos());
+export function loadPinnedCmangos(): { counts: CmangosCounts; loot: CmangosLoot } {
+  const file = fetchCmangos();
+  const sql = readSqlFile(file);
+  return { counts: parseCmangosCounts(sql, file), loot: parseCmangosLoot(sql, file) };
 }

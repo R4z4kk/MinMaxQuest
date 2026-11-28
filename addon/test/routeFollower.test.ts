@@ -16,7 +16,7 @@ const TRUNK = [grind(10, 10), grind(11, 20), grind(12, 30), grind(13, 40)];
 const quest: QuestInfo = {
   id: 900, name: "Back to the dungeon", level: 12, requiredLevel: 11, requiredMaxLevel: null, races: 0, classes: 0,
   preGroup: [], preSingle: [], exclusiveTo: [], nextInChain: null, children: [],
-  starterNpcs: [], starterObjects: [], finisherNpcs: [], finisherObjects: [],
+  starterNpcs: [], starterObjects: [], starterItems: [], finisherNpcs: [], finisherObjects: [],
   objectives: [{ kind: "npc", id: 5, required: 1, index: 1 }], baseXp: null, hasUnsupportedRequirement: false, repeatable: false, seasonal: false, clothDonation: false, isElite: false, zoneAreaId: null,
 };
 
@@ -408,4 +408,23 @@ describe("profession steps", () => {
     const f = follower(loadCharDb(null), { on: false }, { planFor: () => plan("buy"), positionsFor: () => [{ continent: 1, x: 3000, y: 0 }], timeTo: () => (p) => (p.continent === 1 ? Infinity : 1) });
     expect(f.targets(snap)?.[0]?.obtain).toBeUndefined();
   });
+});
+
+it("points a loot accept at the item's drop spawns and names the item", () => {
+  const book: QuestInfo = { ...quest, id: 902, name: "Nibbled", requiredLevel: 1, starterItems: [700] };
+  install({ segmentEndLevel: 10 }, [{ ...grind(11, 115, "accept"), questId: 902, npcId: 5 }, grind(12, 300)]);
+  const spawns: WorldPos[] = [{ continent: 0, x: 110, y: 0 }, { continent: 0, x: 120, y: 0 }, { continent: 0, x: 900, y: 0 }];
+  const f = follower(loadCharDb(null), { on: false }, {
+    quest: (id) => (id === 902 ? book : null),
+    starterLoot: (q, npcId) => (q.id === 902 && npcId === 5 ? { item: "Nibbled Book", points: spawns } : null),
+  });
+  const target = f.targets(snapshot(11))?.[0];
+  expect(target).toMatchObject({ kind: "accept", questId: 902, loot: "Nibbled Book", pos: { continent: 0, x: 115, y: 0 } });
+  expect(target?.cluster?.points).toEqual([spawns[0], spawns[1]]);
+  expect(f.view()?.currentText).toBe("Nibbled · loot Nibbled Book to start it");
+  const taken = snapshot(11);
+  taken.log.set(902, { complete: false, objectivesDone: new Set() });
+  taken.state.inLog.add(902);
+  f.targets(taken);
+  expect(f.view()?.current).toBe(1);
 });

@@ -85,6 +85,7 @@
 - **Click a Next row to focus its quest** (the arrow targets it, shown in gold); click it again, or the current step, to go back to the route.
 - **Footer:** your level, the step number out of the route total, and the estimated time left.
 - **Variants:** include elite quests, include dungeons, and a max quest level (only quests at least X levels below yours, off by default).
+- **Quests started by a looted item** (a book, a letter, a rare mob's trophy) are routed when worth it: the step reads "loot X to start it" and the arrow loops through the mobs or objects that drop it. Drop rates come from QuestieDB, else the cmangos loot tables (an assumed rate when unknown), and kills made on the same mobs for other quests count toward the drop, so the loot step comes after them. Drops that would take more than about 40 kills (below 4 %), and items dropped by rare mobs, are left out. The step is done once the quest is in your log.
 - **Done steps are skipped:** quests you already did or turned in never show up.
 - **Closer steps first:** when the current step is more than 2 minutes away and one of the next 15 steps is at least 1 minute closer, or when the current step can't be done yet (level too low, quest log full, quest objectives not done for a turn-in), the arrow points to that closer step. When the current step is near, a pick-up, objective or turn-in among the next 15 steps that is closer and on the way (at most 10 seconds out of the way) goes first, so a turn-in next to you or the mobs you stand among are not left for later. Kill and collect objectives count from their spawn nearest to you. The current step stays the same and the route picks up again once it is done.
 - **Off-route banner:** if your level is far from what the route expects, a banner says so and a **Re-sync** button puts you back on the right step.
@@ -172,7 +173,7 @@ MinMaxQuest is free software under the **GPL-3.0** license.
 - Travel graph, teleporters and precomputed walking distances from [Shortest Path Forever](https://github.com/cjber/shortest-path-forever) (GPL-3.0), including flight timings from InFlight (MIT) and road weights from Polestar by Fitz (used with permission); teleporter destinations from [cmangos classic-db](https://github.com/cmangos/classic-db) (GPL-3.0)
 - Optional trip estimate through the public API of [Shortest Path Forever](https://github.com/cjber/shortest-path-forever) when it is installed
 - [HereBeDragons](https://github.com/Nevcairiel/HereBeDragons) (BSD) for map pins
-- Quest data from [QuestieDB](https://github.com/Questie/QuestieDB)
+- Quest data from [QuestieDB](https://github.com/Questie/QuestieDB); route objective counts and starter item drop rates from [cmangos classic-db](https://github.com/cmangos/classic-db) (GPL-3.0)
 - Profession data (gathering nodes, skinning and fishing loot, crafts, cloth, auctioneers) built from QuestieDB, [cmangos classic-db](https://github.com/cmangos/classic-db) (GPL-3.0) and wago.tools DB2 tables (game data (c) Blizzard Entertainment)
 - Access entries imported from [Attune](https://warcraftratings.com) by CixiDelmont (version 16001-46). Attune declares no license; its data is reused with credit
 
