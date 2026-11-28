@@ -37,3 +37,21 @@ describe("compiled addon", () => {
     expect(over).toEqual([]);
   });
 });
+
+// TSTL calls an interface method as obj:name(...), passing obj first; a self-less function stored there
+// then gets obj as its first argument (0.2.0-beta.1: C_Item.GetItemCount received a table in game).
+describe("self arguments in the compiled addon", () => {
+  it("never stores a self-less function in a field that is called with ':'", () => {
+    const source = readFileSync("build/MinMaxQuest.lua", "utf8");
+    const selfless = new Set<string>();
+    const firstParam = (params: string) => params.split(",")[0].trim();
+    for (const m of source.matchAll(/local function (\w+)\(([^)]*)\)/g)) if (!["self", "____"].includes(firstParam(m[2]))) selfless.add(m[1]);
+    for (const m of source.matchAll(/function ____exports\.(\w+)\(([^)]*)\)/g)) if (!["self", "____"].includes(firstParam(m[2]))) selfless.add(m[1]);
+    for (const m of source.matchAll(/^local (\w+) = ____\w+\.(\w+)$/gm)) selfless.add(m[1]);
+    const colonCalled = new Set([...source.matchAll(/:(\w+)\(/g)].map((m) => m[1]));
+    const wrong = [...source.matchAll(/^\s+(\w+) = (\w+),?$/gm)]
+      .filter((m) => colonCalled.has(m[1]) && selfless.has(m[2]))
+      .map((m) => `${m[1]} = ${m[2]}`);
+    expect(wrong).toEqual([]);
+  });
+});
