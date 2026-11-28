@@ -9,7 +9,7 @@ it("bundle loads in a Lua VM with WoW stubs", async () => {
   try {
     await lua.doString(readFileSync(BUNDLE_PATH, "utf8"));
     const addon = lua.global.get("MinMaxQuest") as { version: string };
-    expect(addon.version).toBe("0.1.0");
+    expect(addon.version).toBe("0.2.0-beta.1");
   } finally {
     lua.global.close();
   }

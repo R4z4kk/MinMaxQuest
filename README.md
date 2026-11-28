@@ -2,17 +2,23 @@
 
 **One clean, fast quest guide for WoW: Forever.** An arrow that takes you exactly where you need to go, a to-do list sorted by real travel time, and dungeon / raid access tracking, in a single window.
 
-> **Alpha.** Precomputed level 1-60 routes, Completion and Access tabs all work today.
+> **Beta.** Precomputed level 1-60 routes, Completion and Access tabs all work today. Feedback from play is welcome.
 
 ## Latest update
 
-**0.1.0-alpha**: first public alpha.
-- Guide arrow.
-- Completion and Access tabs.
-- Quest log pin button.
-- Skip with a follow-up warning.
-- Auto-fly at flight masters.
-- Map pins.
+**0.2.0-beta.1**: first beta.
+- **Quest tab follows a full level 1-60 route.** Precomputed for each faction, with return trips for the dungeons you tick, and Re-sync when you leave it.
+- **New BetterBags-style window.** Sections with counts, a type icon on every row, and one fixed size for every tab.
+- **Access tab lists every unlockable.** Dungeons, raids, keys and more, built from Attune and QuestieDB, with step progress and "Track in route".
+- **Completion:**
+  - sub-tabs Proximity, Zone and Log;
+  - Proximity is limited to your zone and its neighbours;
+  - no repeatable or holiday quests.
+- **Arrow:**
+  - loops through every spawn point of a kill or collect objective;
+  - leads you to your corpse;
+  - drags freely and has no frame around it.
+- **More:** a quest item button, an eye button and `/mmq` to hide everything, English or French on demand, and the Hearthstone kept for real zone changes.
 
 ## Why MinMaxQuest
 
