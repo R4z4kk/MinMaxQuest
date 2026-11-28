@@ -121,6 +121,24 @@ it("opens the skip dialog for a quest with follow-ups and skips on confirm", asy
   }
 });
 
+it("paints the zone picker and skip dialog with the panel colors", async () => {
+  const s = await ui("quests[100].nextQuestInChain = 101");
+  try {
+    await s.cmd("");
+    await s.click("MinMaxQuestTabcompletion");
+    const before = (await s.calls()).length;
+    await s.click("MinMaxQuestCompletionSkip");
+    const opened = (await s.calls()).slice(before);
+    expect(opened).toContain("font|SetFont|Fonts\\FRIZQT__.TTF|13|");
+    expect(opened.some((c) => c.startsWith("font|SetTextColor|0.9450980"))).toBe(true);
+    expect(opened.some((c) => c.startsWith("font|SetTextColor|0.8666666"))).toBe(true);
+    expect(await s.run("return #MinMaxQuestCharDB.skippedQuests")).toBe(0);
+    expect(await s.printed()).toBe("");
+  } finally {
+    s.close();
+  }
+});
+
 it("shows the build banner after a build override", async () => {
   const s = await ui();
   try {

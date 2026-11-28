@@ -1,6 +1,6 @@
 import { t } from "../core/l10n";
 import type { QuestInfo } from "../data/questRepository";
-import { button, COLOR, hline, panel, PAD, SIZE, text, type Color } from "./theme";
+import { button, COLOR, FONT_TITLE, hline, panel, PAD, SIZE, text, type Color } from "./theme";
 import { lostText } from "./viewModel";
 
 const NAME = "MinMaxQuestSkipDialog";
@@ -35,7 +35,7 @@ function build(): Dialog {
   frame.SetPoint("CENTER", UIParent, "CENTER", 0, 0);
   frame.EnableMouse(true);
   panel(frame);
-  const title = text(frame, SIZE.small, COLOR.accent);
+  const title = text(frame, SIZE.section, COLOR.title, "LEFT", FONT_TITLE);
   title.SetPoint("TOPLEFT", frame, "TOPLEFT", PAD + 4, -8);
   title.SetText(t("skipTitle"));
   hline(frame, -HEADER_HEIGHT);

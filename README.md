@@ -24,10 +24,12 @@
 
 ### Window
 - A single window with three tabs: **Quest**, **Access** and **Completion**.
-- Each tab resizes the window to fit its content.
+- Fixed size: 320 × 480 on every tab.
 - The window and the last opened tab are remembered across sessions.
 - **Eye button** left of the gear: hides the window, the arrow, the quest item button and the map and minimap pins together, and pauses automatic flying. `/mmq` brings them back. The hidden state is saved per character.
-- Black background with a muted gold accent and simple fonts.
+- Dark violet panel with a muted gold accent. The title and section headers use the game's Friz Quadrata font; the rest uses a narrow font.
+- Sections have a header with a count and a thin line to the edge. Rows start with a small gold-bordered type icon: pick up (!), turn in (?), kill, collect, fly, hearthstone, done (check) or in progress (»).
+- The zone picker, the skip dialog and the build banner use the same palette.
 - Available in English and French. The **Language** row in the Quest tab Options (Auto, English, Français) is saved account-wide; Auto follows the game client. A **Reload** button appears when a change needs a UI reload. Quest, NPC and zone names always follow the game client language.
 
 ### Guide arrow
@@ -53,13 +55,14 @@
 - **Proximity** mode covers the current zone and neighbouring zones (same continent, within about 300 yards of it), sorted by real travel time. Quests without a known zone are left out; with no zone known for your position, the list stays empty.
 - **Zone** mode shows one zone, picked from a zone list (the picker only appears in this mode).
 - **Log** mode only targets quests already in your quest log: objectives and turn-ins, sorted by travel time. No new quests; the Grey and Elite filters and the zone are ignored.
-- Shows the nearest target, the next one, and the remaining quests with their estimated travel time.
+- Targets are grouped in sections: **To turn in**, **Objectives** and **To pick up** (empty sections are hidden; counts are totals), each sorted by estimated travel time.
+- The row the arrow points to is highlighted with » and always stays visible, even in a long list. **Skip** and the pinned quest sit in a strip under the header.
 - Progress counters for the zone and in total.
 - **Grey** and **Elite** filters. Quests you can't take yet are never shown.
 
 ### Access tab
-- Lists every unlockable for your faction (70 entries in total, 39 for each faction) in four collapsible groups (**Dungeons**, **Raids**, **Keys**, **Misc**), each header showing done / total.
-- Each entry shows its level range and progress. Click it to expand its steps: done steps are struck through and greyed, the current one is marked ».
+- Lists every unlockable for your faction (70 entries in total, 39 for each faction) in four collapsible sections (**Dungeons**, **Raids**, **Keys**, **Misc**), each header showing done / total.
+- Each entry has an icon (done, in progress, untouched) and shows its level range, or a small gold progress bar once started. Click it to expand its steps: done steps are struck through and greyed, the current one is marked ».
 - **Steps:** quests (names from the game client), items, "Reach level N", Kill / Talk to / Use with the NPC or object name, reputation and profession steps.
 - **Progress:** quests turned in or in your log, items in your bags with their count, level and reputation earned. A step that can't be checked counts as done once a later step is.
 - **Track in route:** tick it to insert the entry's quests into your route at the cheapest spot, without duplicates.
@@ -68,6 +71,7 @@
 
 ### Quest tab
 - Precomputed routes from level 1 to 60, by faction and starting zone. The arrow follows your current route step.
+- Sections: **Current step** and **Next** with step icons, then **Options** and **Dungeons** as collapsible sections (one open at a time).
 - **Current step:** what to do now, with the objective progress (for example 6/10) and a **Skip** button.
 - **Next:** the following step with its distance, plus the two steps after it.
 - **Footer:** your level, the step number out of the route total, and the estimated time left.
