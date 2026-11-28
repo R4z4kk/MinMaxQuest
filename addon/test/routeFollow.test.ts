@@ -35,8 +35,13 @@ function player(c: ProgressContext): PlayerQuestState {
   return { level: c.level, raceMask: 1, classMask: 1, completed: c.completed, inLog: new Set(c.log.keys()) };
 }
 
-// A step's x is its travel time in seconds.
-const timeTo = (p: WorldPos): number => p.x;
+// Positions are in seconds from the player at the origin.
+const timeTo = (p: WorldPos): number => Math.hypot(p.x, p.y);
+const between = (a: WorldPos, b: WorldPos): number => Math.hypot(a.x - b.x, a.y - b.y);
+// Quest 7 is ready to turn in, quest 9 still has its objective to do.
+const inLog = () => new Map([[7, { complete: true, objectivesDone: new Set([1]) }], [9, { complete: false, objectivesDone: new Set<number>() }]]);
+const kill = (x: number, extra: Partial<EmittedStep> = {}): EmittedStep => step("complete", { x, questId: 9, objectiveIndex: 1, targetLevel: 5, ...extra });
+const quest7 = (type: StepType, x: number, extra: Partial<EmittedStep> = {}): EmittedStep => step(type, { x, questId: 7, objectiveIndex: 1, targetLevel: 5, ...extra });
 const at = (seconds: number, extra: Partial<EmittedStep> = {}): EmittedStep => step("fly", { x: seconds, taxiNodeId: 1, targetLevel: 5, ...extra });
 
 interface Options {
@@ -51,7 +56,7 @@ interface Options {
 function run(steps: EmittedStep[], opts: Options = {}) {
   const ctx = opts.ctx ?? context();
   const cursor: RouteCursor = { current: opts.current ?? 0, removed: new Set(opts.removed ?? []) };
-  return follow(steps, cursor, ctx, timeTo, opts.realizable ?? (() => true), opts.maxLevel ?? 60, quest, player(ctx), 0, new Set(opts.skipped ?? []));
+  return follow(steps, cursor, ctx, timeTo, between, opts.realizable ?? (() => true), opts.maxLevel ?? 60, quest, player(ctx), 0, new Set(opts.skipped ?? []));
 }
 
 describe("target", () => {
@@ -110,6 +115,36 @@ describe("target", () => {
 
   it("keeps a current step that cannot be done yet when nothing in the window can", () => {
     expect(run([at(30), at(50)], { realizable: () => false }).target).toBe(0);
+  });
+
+  it("goes to a nearer quest step on the way to a near current", () => {
+    const ctx = context({ log: inLog() });
+    expect(run([step("accept", { x: 50, questId: 8, targetLevel: 5 }), quest7("turnin", 30)], { ctx }).target).toBe(1);
+  });
+
+  it("picks the nearest of the quest steps on the way", () => {
+    const ctx = context({ log: inLog() });
+    expect(run([at(50), quest7("turnin", 30), kill(10)], { ctx }).target).toBe(2);
+  });
+
+  it("accepts a detour of up to 10 s for a quest step", () => {
+    const ctx = context({ log: inLog() });
+    expect(run([at(50), quest7("turnin", -5)], { ctx }).target).toBe(1);
+    expect(run([at(50), quest7("turnin", -6)], { ctx }).target).toBe(0);
+  });
+
+  it("stays on a near current when the nearer quest step is off the way", () => {
+    const ctx = context({ log: inLog() });
+    expect(run([at(50), quest7("turnin", 0, { y: 30 })], { ctx }).target).toBe(0);
+  });
+
+  it("never leaves a near current for a travel step on the way", () => {
+    expect(run([at(50), at(30)]).target).toBe(0);
+  });
+
+  it("measures an objective step to the spawn nearest the player", () => {
+    const ctx = context({ log: inLog(), pos: { continent: 0, x: 0, y: 0 } });
+    expect(run([at(50), kill(100, { loop: [[100, 0], [5, 0]] })], { ctx }).target).toBe(1);
   });
 });
 

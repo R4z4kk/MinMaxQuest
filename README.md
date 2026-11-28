@@ -86,7 +86,7 @@
 - **Footer:** your level, the step number out of the route total, and the estimated time left.
 - **Variants:** include elite quests, include dungeons, and a max quest level (only quests at least X levels below yours, off by default).
 - **Done steps are skipped:** quests you already did or turned in never show up.
-- **Closer steps first:** when the current step is more than 2 minutes away and one of the next 15 steps is at least 1 minute closer, or when the current step can't be done yet (level too low, quest log full), the arrow points to that closer step. The current step stays the same and the route picks up again once it is done.
+- **Closer steps first:** when the current step is more than 2 minutes away and one of the next 15 steps is at least 1 minute closer, or when the current step can't be done yet (level too low, quest log full, quest objectives not done for a turn-in), the arrow points to that closer step. When the current step is near, a pick-up, objective or turn-in among the next 15 steps that is closer and on the way (at most 10 seconds out of the way) goes first, so a turn-in next to you or the mobs you stand among are not left for later. Kill and collect objectives count from their spawn nearest to you. The current step stays the same and the route picks up again once it is done.
 - **Off-route banner:** if your level is far from what the route expects, a banner says so and a **Re-sync** button puts you back on the right step.
 - **Steps your character can't do** (wrong race or class, exclusive quest already taken, missing prerequisite) are removed, with a single chat line saying how many.
 - **Skipped travel and grind steps** stay skipped: `/mmq unskip` only brings back quests.
